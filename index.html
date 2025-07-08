@@ -1540,32 +1540,35 @@
 
             const slaRiskTickets = filteredData.filter(ticket => {
                 const slaStatus = ticket['SLA Status'];
-                const createDateStr = ticket['Create Date'];
-                const createTimeStr = ticket['Create Time'];
+                const createDate = ticket['Create Date']; // This is already a Date object
+                const createTime = ticket['Create Time']; // This is already a Date object
 
                 // Only consider tickets that are 'Within SLA'
                 if (slaStatus !== 'Within SLA') {
                     return false;
                 }
 
-                // Combine Create Date and Create Time to form a full Date object
-                let createDateTime;
-                try {
-                    // Assuming createDateStr is MM/DD/YYYY and createTimeStr is HH:MM AM/PM
-                    createDateTime = new Date(`${createDateStr} ${createTimeStr}`);
-                    if (isNaN(createDateTime.getTime())) {
-                        console.error('Invalid Create Date/Time for ticket:', ticket['Ticket ID'], createDateStr, createTimeStr);
-                        return false; // Skip if date/time is invalid
-                    }
-                } catch (e) {
-                    console.error('Error parsing Create Date/Time for ticket:', ticket['Ticket ID'], e);
-                    return false;
+                // Ensure createDate and createTime are valid Date objects
+                if (!(createDate instanceof Date) || isNaN(createDate.getTime()) ||
+                    !(createTime instanceof Date) || isNaN(createTime.getTime())) {
+                    console.error('Invalid Create Date or Create Time for ticket:', ticket['Ticket ID'], createDate, createTime);
+                    return false; // Skip if date/time is invalid
                 }
+
+                // Combine Create Date (year, month, day) and Create Time (hours, minutes, seconds)
+                const createDateTime = new Date(
+                    createDate.getFullYear(),
+                    createDate.getMonth(),
+                    createDate.getDate(),
+                    createTime.getHours(),
+                    createTime.getMinutes(),
+                    createTime.getSeconds()
+                );
 
                 const createHour = createDateTime.getHours(); // 0-23
 
-                let slaDueDate = new Date(createDateTime); // Start with create date
-                slaDueDate.setHours(0, 0, 0, 0); // Set to midnight of the create date
+                let slaDueDate = new Date(createDateTime); // Start with create date and time
+                slaDueDate.setHours(0, 0, 0, 0); // Set to midnight of the create date part
 
                 // Calculate SLA Due Date based on the rules
                 if (createHour < 16) { // Before 4 PM (16:00)
@@ -1573,6 +1576,10 @@
                 } else { // After or at 4 PM
                     slaDueDate.setDate(slaDueDate.getDate() + 2); // Next day + 1
                 }
+                
+                // Set the SLA due date to the end of the day for consistent comparison,
+                // or keep at midnight if 'today' is also midnight.
+                // Keeping it at midnight (00:00:00) for consistent comparison with 'today' which is also set to midnight.
 
                 // Check if the calculated SLA due date is the same as today
                 return slaDueDate.getTime() === today.getTime();
@@ -1595,9 +1602,8 @@
                     const metSlaCount = tickets.filter(t => t['SLA Status'] === 'Met SLA').length;
                     const slaRate = totalTickets > 0 ? ((metSlaCount / totalTickets) * 100).toFixed(1) + '%' : 'N/A';
 
-                    // For the clickable-count, ensure the filter reflects the actual calculation.
-                    // Since "SLA Due Date" is calculated, we can't directly filter by a static "Scheduled Date".
-                    // The simpler approach is to rely on the current filtered set.
+                    // For the clickable-count, the 'Scheduled Date' filter needs to be dynamic.
+                    // Instead of passing a specific date, we indicate that it's based on the calculated SLA due date for today.
                     tableData.push([
                         customer,
                         `<span class="clickable-count" onclick="showTicketDetails('SLA At Risk - ${customer}', '${customer}', 'SLA Status', 'Within SLA', 'Calculated SLADueToday', 'true')">${totalTickets}</span>`,
