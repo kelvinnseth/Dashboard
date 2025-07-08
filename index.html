@@ -1536,86 +1536,67 @@
         
         function updateSLARiskPivot() {
             const today = new Date();
-            const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-            
-            const atRiskTickets = filteredData.filter(ticket => {
-                const status = ticket.Status || ticket.Satus || '';
-                
-                if (status === 'Complete') return false;
-                
-                const sladue = calculateSLADueDate(ticket);
-                return sladue && sladue <= endOfToday;
-            });
-            
-            if (atRiskTickets.length === 0) {
-                document.getElementById('slaRiskPivot').innerHTML = 
-                    '<div class="no-data">No tickets currently at risk of failing SLA</div>';
-                return;
-            }
-            
-            const riskCategories = {
-                'Critical Risk': [],
-                'High Risk': [],
-                'Medium Risk': [],
-                'Low Risk': []
-            };
-            
-            atRiskTickets.forEach(ticket => {
-                const priority = ticket.Priority || '';
-                const sladue = calculateSLADueDate(ticket);
-                const status = ticket.Status || ticket.Satus || '';
-                
-                const hoursUntilDue = sladue ? (sladue - new Date()) / (1000 * 60 * 60) : 999;
-                
-                if ((hoursUntilDue <= 24 && (priority === 'P1' || priority === 'P2')) || hoursUntilDue <= 0) {
-                    riskCategories['Critical Risk'].push(ticket);
-                } else if (hoursUntilDue <= 24 && (priority === 'P3' || status === 'Action Required')) {
-                    riskCategories['High Risk'].push(ticket);
-                } else if (hoursUntilDue <= 48) {
-                    riskCategories['Medium Risk'].push(ticket);
-                } else {
-                    riskCategories['Low Risk'].push(ticket);
+            today.setHours(0, 0, 0, 0); // Set to start of today
+
+            const slaRiskTickets = filteredData.filter(ticket => {
+                const slaStatus = ticket['SLA Status'];
+                const scheduledDate = ticket['Scheduled Date'];
+
+                // Ensure SLA Status is 'Within SLA'
+                if (slaStatus !== 'Within SLA') {
+                    return false;
                 }
-            });
-            
-            const totalAtRisk = atRiskTickets.length;
-            
-            const tableData = [
-                ['Risk Level', 'Count', 'Percentage', 'Top Customer', 'Avg Hours Until Due']
-            ].concat(
-                Object.entries(riskCategories)
-                    .filter(([risk, tickets]) => tickets.length > 0)
-                    .map(([risk, tickets]) => {
-                        const topCustomer = getTopCustomer(tickets);
-                        const avgHours = getAverageHoursUntilDue(tickets);
-                        
-                        return [
-                            risk,
-                            tickets.length,
-                            ((tickets.length / totalAtRisk) * 100).toFixed(1) + '%',
-                            topCustomer,
-                            avgHours
-                        ];
-                    })
-            );
-            
-            window.slaRiskTickets = riskCategories;
-            
-            let html = createPivotTable(tableData);
-            
-            setTimeout(() => {
-                const countCells = document.querySelectorAll('#slaRiskPivot tbody tr td:nth-child(2)');
-                countCells.forEach((cell, index) => {
-                    const riskLevels = Object.keys(riskCategories).filter(key => riskCategories[key].length > 0);
-                    if (riskLevels[index]) {
-                        const riskLevel = riskLevels[index];
-                        const riskId = riskLevel.replace(/\s+/g, '').toLowerCase();
-                        cell.innerHTML = `<span class="clickable-count" onclick="showTicketDetails('${riskId}', '${riskLevel}')">${cell.textContent}</span>`;
+
+                // Ensure Scheduled Date is a valid Date object
+                if (!(scheduledDate instanceof Date)) {
+                    // Try to parse if it's a string, or skip if invalid
+                    try {
+                        const parsedDate = new Date(scheduledDate);
+                        if (isNaN(parsedDate.getTime())) {
+                            return false; // Invalid date
+                        }
+                        ticket['Scheduled Date'] = parsedDate; // Update the ticket object with parsed date
+                    } catch (e) {
+                        return false; // Unable to parse date
                     }
+                }
+
+                const ticketDueDate = new Date(ticket['Scheduled Date']);
+                ticketDueDate.setHours(0, 0, 0, 0); // Set to start of the ticket's due date
+
+                // Check if the SLA due date is the same as today
+                return ticketDueDate.getTime() === today.getTime();
+            });
+
+            // Rest of the updateSLARiskPivot function remains the same
+            // ... (The code for grouping, sorting, and rendering the pivot table)
+            const groupedTickets = groupBy(slaRiskTickets, ticket => ticket.Customer);
+
+            const tableData = [
+                ['Customer', 'Tickets At Risk', 'Average Priority', 'SLA Rate'] // Assuming these headers are desired for SLA At Risk
+            ];
+
+            Object.entries(groupedTickets)
+                .sort(([customerA], [customerB]) => customerA.localeCompare(customerB))
+                .forEach(([customer, tickets]) => {
+                    const totalTickets = tickets.length;
+                    const priorities = tickets.map(t => parseInt(t.Priority ? t.Priority.replace('P', '') : 'NaN')).filter(p => !isNaN(p));
+                    const avgPriority = priorities.length > 0 ? (priorities.reduce((sum, p) => sum + p, 0) / priorities.length).toFixed(1) : 'N/A';
+                    const metSlaCount = tickets.filter(t => t['SLA Status'] === 'Met SLA').length;
+                    const slaRate = totalTickets > 0 ? ((metSlaCount / totalTickets) * 100).toFixed(1) + '%' : 'N/A';
+                    
+                    tableData.push([
+                        customer,
+                        `<span class="clickable-count" onclick="showTicketDetails('SLA At Risk - ${customer}', '${customer}', 'SLA Status', 'Within SLA', 'Scheduled Date', '${today.toISOString().slice(0,10)}')">${totalTickets}</span>`,
+                        avgPriority !== 'N/A' ? 'P' + avgPriority : 'N/A',
+                        slaRate
+                    ]);
                 });
-            }, 100);
-            
-            document.getElementById('slaRiskPivot').innerHTML = html;
+
+            document.getElementById('slaRiskPivot').innerHTML = createPivotTable(tableData);
+
+            // Update chart if necessary
+            updateChart('slaRisk', groupedTickets, 'SLA Status'); // Pass the actual grouping key
         }
         
         function calculateSLADueDate(ticket) {
