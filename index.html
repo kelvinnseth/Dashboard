@@ -831,827 +831,718 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        let originalData = [];
-        let filteredData = [];
-        let activeFilters = {
-            customer: [],
-            status: [],
-            priority: [],
-            region: [],
-            scheduledBy: [],
-            primaryResource: []
-        };
-        let charts = {};
+    // Replace the existing script content with this
+<script>
+    let originalData = [];
+    let filteredData = [];
+    let activeFilters = {
+        customer: [],
+        status: [],
+        priority: [],
+        region: [],
+        scheduledBy: [],
+        primaryResource: []
+    };
+    let charts = {};
 
-        // Sample data for demo
-        window.loadSampleData = function() {
-            const sampleData = [
-                {
-                    'Ticket Number': 'TK001',
-                    'Ticket Title': 'Server Down - Production Environment',
-                    'Customer': 'Acme Corp',
-                    'Priority': 'P1',
-                    'Status': 'In Progress',
-                    'SLA Status': 'Still Within SLA',
-                    'Create Date': new Date('2024-01-15'),
-                    'Create Time': new Date('2024-01-15T09:30:00'),
-                    'Scheduled Date': new Date('2024-01-15'),
-                    'Scheduled time': new Date('2024-01-15T10:00:00'),
-                    'Scheduled By': 'John Smith',
-                    'Primary Resource': 'Mike Johnson',
-                    'City': 'London',
-                    'Region': 'UK',
-                    'Postcode': 'SW1A 1AA'
-                },
-                {
-                    'Ticket Number': 'TK002',
-                    'Ticket Title': 'Network Connectivity Issues',
-                    'Customer': 'TechCorp Ltd',
-                    'Priority': 'P2',
-                    'Status': 'Complete',
-                    'SLA Status': 'Completed Within SLA',
-                    'Create Date': new Date('2024-01-14'),
-                    'Create Time': new Date('2024-01-14T14:15:00'),
-                    'Scheduled Date': new Date('2024-01-14'),
-                    'Scheduled time': new Date('2024-01-14T15:00:00'),
-                    'Scheduled By': 'Sarah Wilson',
-                    'Primary Resource': 'David Brown',
-                    'City': 'Manchester',
-                    'Region': 'UK',
-                    'Postcode': 'M1 1AA'
-                },
-                {
-                    'Ticket Number': 'TK003',
-                    'Ticket Title': 'Database Performance Issues',
-                    'Customer': 'Global Systems',
-                    'Priority': 'P3',
-                    'Status': 'Action Required',
-                    'SLA Status': 'Failed SLA',
-                    'Create Date': new Date('2024-01-13'),
-                    'Create Time': new Date('2024-01-13T11:20:00'),
-                    'Scheduled Date': new Date('2024-01-16'),
-                    'Scheduled time': new Date('2024-01-16T09:00:00'),
-                    'Scheduled By': 'Tom Anderson',
-                    'Primary Resource': 'Lisa Davis',
-                    'City': 'Birmingham',
-                    'Region': 'UK',
-                    'Postcode': 'B1 1BB'
-                },
-                {
-                    'Ticket Number': 'TK004',
-                    'Ticket Title': 'Email Server Maintenance',
-                    'Customer': 'Enterprise Solutions',
-                    'Priority': 'P2',
-                    'Status': 'Scheduled',
-                    'SLA Status': 'Still Within SLA',
-                    'Create Date': new Date('2024-01-12'),
-                    'Create Time': new Date('2024-01-12T16:45:00'),
-                    'Scheduled Date': new Date('2024-01-17'),
-                    'Scheduled time': new Date('2024-01-17T18:00:00'),
-                    'Scheduled By': 'John Smith',
-                    'Primary Resource': 'Mike Johnson',
-                    'City': 'Leeds',
-                    'Region': 'UK',
-                    'Postcode': 'LS1 1UR'
-                },
-                {
-                    'Ticket Number': 'TK005',
-                    'Ticket Title': 'Firewall Configuration Update',
-                    'Customer': 'Acme Corp',
-                    'Priority': 'P4',
-                    'Status': 'Complete',
-                    'SLA Status': 'Completed Within SLA',
-                    'Create Date': new Date('2024-01-11'),
-                    'Create Time': new Date('2024-01-11T13:30:00'),
-                    'Scheduled Date': new Date('2024-01-12'),
-                    'Scheduled time': new Date('2024-01-12T14:00:00'),
-                    'Scheduled By': 'Sarah Wilson',
-                    'Primary Resource': 'David Brown',
-                    'City': 'Edinburgh',
-                    'Region': 'Scotland',
-                    'Postcode': 'EH1 1YZ'
-                },
-                {
-                    'Ticket Number': 'TK006',
-                    'Ticket Title': 'Application Deployment',
-                    'Customer': 'TechCorp Ltd',
-                    'Priority': 'P3',
-                    'Status': 'In Progress',
-                    'SLA Status': 'Still Within SLA',
-                    'Create Date': new Date('2024-01-10'),
-                    'Create Time': new Date('2024-01-10T10:15:00'),
-                    'Scheduled Date': new Date('2024-01-15'),
-                    'Scheduled time': new Date('2024-01-15T16:30:00'),
-                    'Scheduled By': 'Tom Anderson',
-                    'Primary Resource': 'Lisa Davis',
-                    'City': 'Glasgow',
-                    'Region': 'Scotland',
-                    'Postcode': 'G1 1XQ'
-                },
-                {
-                    'Ticket Number': 'TK007',
-                    'Ticket Title': 'Security Patch Installation',
-                    'Customer': 'Global Systems',
-                    'Priority': 'P1',
-                    'Status': 'Action Required',
-                    'SLA Status': 'Failed SLA',
-                    'Create Date': new Date('2024-01-09'),
-                    'Create Time': new Date('2024-01-09T08:00:00'),
-                    'Scheduled Date': new Date('2024-01-09'),
-                    'Scheduled time': new Date('2024-01-09T12:00:00'),
-                    'Scheduled By': 'John Smith',
-                    'Primary Resource': 'Mike Johnson',
-                    'City': 'Cardiff',
-                    'Region': 'Wales',
-                    'Postcode': 'CF10 1EP'
-                },
-                {
-                    'Ticket Number': 'TK008',
-                    'Ticket Title': 'Backup System Check',
-                    'Customer': 'Enterprise Solutions',
-                    'Priority': 'P3',
-                    'Status': 'Complete',
-                    'SLA Status': 'Completed Within SLA',
-                    'Create Date': new Date('2024-01-08'),
-                    'Create Time': new Date('2024-01-08T15:20:00'),
-                    'Scheduled Date': new Date('2024-01-09'),
-                    'Scheduled time': new Date('2024-01-09T09:00:00'),
-                    'Scheduled By': 'Sarah Wilson',
-                    'Primary Resource': 'David Brown',
-                    'City': 'Belfast',
-                    'Region': 'Northern Ireland',
-                    'Postcode': 'BT1 1ND'
-                },
-                {
-                    'Ticket Number': 'TK009',
-                    'Ticket Title': 'VPN Access Configuration',
-                    'Customer': 'International Corp',
-                    'Priority': 'P2',
-                    'Status': 'Scheduled',
-                    'SLA Status': 'Still Within SLA',
-                    'Create Date': new Date('2024-01-07'),
-                    'Create Time': new Date('2024-01-07T12:45:00'),
-                    'Scheduled Date': new Date('2024-01-18'),
-                    'Scheduled time': new Date('2024-01-18T11:00:00'),
-                    'Scheduled By': 'Tom Anderson',
-                    'Primary Resource': 'Lisa Davis',
-                    'City': 'Paris',
-                    'Region': 'International',
-                    'Postcode': '75001'
-                },
-                {
-                    'Ticket Number': 'TK010',
-                    'Ticket Title': 'Hardware Replacement',
-                    'Customer': 'Tech Innovations',
-                    'Priority': 'P2',
-                    'Status': 'In Progress',
-                    'SLA Status': 'Still Within SLA',
-                    'Create Date': new Date('2024-01-06'),
-                    'Create Time': new Date('2024-01-06T14:30:00'),
-                    'Scheduled Date': new Date('2024-01-16'),
-                    'Scheduled time': new Date('2024-01-16T13:00:00'),
-                    'Scheduled By': 'John Smith',
-                    'Primary Resource': 'Mike Johnson',
-                    'City': 'Dublin',
-                    'Region': 'International',
-                    'Postcode': 'D01 F5P2'
-                },
-                {
-                    'Ticket Number': 'TK011',
-                    'Ticket Title': 'Critical System Alert',
-                    'Customer': 'Urgent Corp',
-                    'Priority': 'P1',
-                    'Status': 'In Progress',
-                    'SLA Status': 'Still Within SLA',
-                    'Create Date': new Date(),
-                    'Create Time': new Date(),
-                    'Scheduled Date': new Date(),
-                    'Scheduled time': new Date(),
-                    'Scheduled By': 'Emergency Team',
-                    'Primary Resource': 'On-Call Engineer',
-                    'City': 'London',
-                    'Region': 'UK',
-                    'Postcode': 'EC1A 1BB'
+    // Sample data for demo (updated to include more SLA variations)
+    window.loadSampleData = function() {
+        const sampleData = [
+            {
+                'Ticket Number': 'TK001',
+                'Ticket Title': 'Server Down - Production Environment',
+                'Customer': 'Acme Corp',
+                'Priority': 'P1',
+                'Status': 'In Progress',
+                'SLA Status': 'Still Within SLA',
+                'Create Date': new Date('2025-07-01'),
+                'Create Time': new Date('2025-07-01T09:30:00'),
+                'Scheduled Date': new Date('2025-07-09'),
+                'Scheduled time': new Date('2025-07-09T10:00:00'),
+                'Scheduled By': 'John Smith',
+                'Primary Resource': 'Mike Johnson',
+                'City': 'London',
+                'Region': 'UK',
+                'Postcode': 'SW1A 1AA'
+            },
+            {
+                'Ticket Number': 'TK002',
+                'Ticket Title': 'Network Connectivity Issues',
+                'Customer': 'TechCorp Ltd',
+                'Priority': 'P2',
+                'Status': 'Complete',
+                'SLA Status': 'Completed Within SLA',
+                'Create Date': new Date('2025-07-02'),
+                'Create Time': new Date('2025-07-02T14:15:00'),
+                'Scheduled Date': new Date('2025-07-03'),
+                'Scheduled time': new Date('2025-07-03T15:00:00'),
+                'Scheduled By': 'Sarah Wilson',
+                'Primary Resource': 'David Brown',
+                'City': 'Manchester',
+                'Region': 'UK',
+                'Postcode': 'M1 1AA'
+            },
+            {
+                'Ticket Number': 'TK003',
+                'Ticket Title': 'Database Performance Issues',
+                'Customer': 'Global Systems',
+                'Priority': 'P3',
+                'Status': 'Action Required',
+                'SLA Status': 'Failed SLA',
+                'Create Date': new Date('2025-07-05'),
+                'Create Time': new Date('2025-07-05T11:20:00'),
+                'Scheduled Date': new Date('2025-07-06'),
+                'Scheduled time': new Date('2025-07-06T09:00:00'),
+                'Scheduled By': 'Tom Anderson',
+                'Primary Resource': 'Lisa Davis',
+                'City': 'Birmingham',
+                'Region': 'UK',
+                'Postcode': 'B1 1BB'
+            },
+            // Additional ticket with SLA breach for today
+            {
+                'Ticket Number': 'TK004',
+                'Ticket Title': 'Critical System Failure',
+                'Customer': 'Urgent Corp',
+                'Priority': 'P1',
+                'Status': 'In Progress',
+                'SLA Status': 'Failed SLA',
+                'Create Date': new Date('2025-07-08'),
+                'Create Time': new Date('2025-07-08T09:00:00'),
+                'Scheduled Date': new Date('2025-07-08'),
+                'Scheduled time': new Date('2025-07-08T11:00:00'),
+                'Scheduled By': 'John Smith',
+                'Primary Resource': 'Mike Johnson',
+                'City': 'London',
+                'Region': 'UK',
+                'Postcode': 'EC1A 1BB'
+            }
+        ];
+
+        originalData = sampleData;
+        filteredData = [...originalData];
+        console.log('Sample data loaded:', originalData); // Debug log
+        initializeDashboard();
+    };
+
+    // File upload handler
+    document.getElementById('fileInput').addEventListener('change', handleFileUpload, false);
+
+    function handleFileUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        progressBar.classList.remove('hidden');
+        progressFill.style.width = '10%';
+
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            try {
+                progressFill.style.width = '30%';
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                progressFill.style.width = '60%';
+
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                originalData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                if (originalData.length > 0) {
+                    const headers = originalData[0];
+                    const rows = originalData.slice(1);
+                    originalData = rows.map(row => {
+                        const obj = {};
+                        headers.forEach((header, index) => {
+                            if (['Create Date', 'Scheduled Date'].includes(header) && row[index]) {
+                                obj[header] = new Date(row[index]);
+                            } else if (['Create Time', 'Scheduled time'].includes(header) && row[index]) {
+                                const timeParts = typeof row[index] === 'string' ? row[index].match(/(\d+):(\d+)/) : null;
+                                if (timeParts) {
+                                    const date = new Date();
+                                    date.setHours(parseInt(timeParts[1]), parseInt(timeParts[2]), 0, 0);
+                                    obj[header] = date;
+                                } else {
+                                    obj[header] = row[index];
+                                }
+                            } else {
+                                obj[header] = row[index];
+                            }
+                        });
+                        return obj;
+                    });
+
+                    filteredData = [...originalData];
+                    console.log('Parsed data:', originalData); // Debug log
+                    progressFill.style.width = '100%';
+                    initializeDashboard();
+
+                    setTimeout(() => {
+                        progressBar.classList.add('hidden');
+                        progressFill.style.width = '0%';
+                    }, 500);
+                } else {
+                    alert('The uploaded file is empty.');
+                    progressBar.classList.add('hidden');
+                    progressFill.style.width = '0%';
                 }
-            ];
+            } catch (error) {
+                console.error('Error processing file:', error);
+                alert('Error processing the uploaded file. Please ensure it is a valid Excel or CSV file.');
+                progressBar.classList.add('hidden');
+                progressFill.style.width = '0%';
+            }
+        };
 
-            originalData = sampleData;
+        reader.onerror = function() {
+            alert('Error reading the file.');
+            progressBar.classList.add('hidden');
+            progressFill.style.width = '0%';
+        };
+
+        reader.readAsArrayBuffer(file);
+    }
+
+    // Initialize dashboard
+    function initializeDashboard() {
+        document.getElementById('dashboard').classList.remove('hidden');
+        updateSummaryStats();
+        updateFilterOptions();
+        updateSlaCustomerFilter();
+        updatePivotTables();
+        updateCharts();
+        setupFilterListeners();
+    }
+
+    // Update summary statistics
+    function updateSummaryStats() {
+        document.getElementById('totalTickets').textContent = filteredData.length;
+        document.getElementById('completedTickets').textContent = filteredData.filter(ticket => ticket.Status === 'Complete').length;
+        document.getElementById('slaBreaches').textContent = filteredData.filter(ticket => ticket['SLA Status'] === 'Failed SLA').length;
+        document.getElementById('activeTickets').textContent = filteredData.filter(ticket => ticket.Status !== 'Complete').length;
+        console.log('Summary Stats - SLA Breaches:', filteredData.filter(ticket => ticket['SLA Status'] === 'Failed SLA').length); // Debug log
+    }
+
+    // Update filter dropdown options
+    function updateFilterOptions() {
+        const filters = [
+            { id: 'customerOptions', field: 'Customer', filterKey: 'customer' },
+            { id: 'statusOptions', field: 'Status', filterKey: 'status' },
+            { id: 'priorityOptions', field: 'Priority', filterKey: 'priority' },
+            { id: 'regionOptions', field: 'Region', filterKey: 'region' },
+            { id: 'scheduledByOptions', field: 'Scheduled By', filterKey: 'scheduledBy' },
+            { id: 'primaryResourceOptions', field: 'Primary Resource', filterKey: 'primaryResource' }
+        ];
+
+        filters.forEach(filter => {
+            const uniqueValues = [...new Set(filteredData.map(item => item[filter.field]))].sort();
+            const container = document.getElementById(filter.id);
+            container.innerHTML = `
+                <div class="filter-option select-all" data-filter="${filter.filterKey}">
+                    <input type="checkbox" checked>
+                    Select All
+                </div>
+                ${uniqueValues.map(value => `
+                    <div class="filter-option" data-filter="${filter.filterKey}" data-value="${value}">
+                        <input type="checkbox" value="${value}" checked>
+                        ${value}
+                    </div>
+                `).join('')}
+            `;
+            updateFilterCount(filter.filterKey);
+        });
+    }
+
+    // Update SLA customer filter
+    function updateSlaCustomerFilter() {
+        const slaCustomerFilter = document.getElementById('slaCustomerFilter');
+        const uniqueCustomers = [...new Set(filteredData.map(item => item.Customer))].sort();
+        slaCustomerFilter.innerHTML = `<option value="">All Customers</option>${uniqueCustomers.map(customer => `<option value="${customer}">${customer}</option>`).join('')}`;
+        slaCustomerFilter.onchange = updateSlaPivot;
+        document.getElementById('resetSlaFilter').onclick = () => {
+            slaCustomerFilter.value = '';
+            updateSlaPivot();
+        };
+    }
+
+    // Update pivot tables
+    function updatePivotTables() {
+        updateStatusPivot();
+        updateSlaPivot();
+        updateSlaRiskPivot();
+        updateEngineersOnShift();
+        updatePriorityPivot();
+        updateRegionPivot();
+        updateCustomerPivot();
+        updateEngineerPivot();
+        updateSchedulerPivot();
+    }
+
+    // Status Pivot
+    function updateStatusPivot() {
+        const statusCounts = {};
+        filteredData.forEach(ticket => {
+            statusCounts[ticket.Status] = (statusCounts[ticket.Status] || 0) + 1;
+        });
+        const pivotHtml = `
+            <table class="pivot-table">
+                <tr><th>Status</th><th>Count</th></tr>
+                ${Object.entries(statusCounts).map(([status, count]) => `
+                    <tr>
+                        <td>${status}</td>
+                        <td><span class="clickable-count" onclick="showTicketDetails('Status', '${status}')">${count}</span></td>
+                    </tr>
+                `).join('')}
+            </table>
+        `;
+        document.getElementById('statusPivot').innerHTML = pivotHtml;
+    }
+
+    // SLA Performance Pivot
+    function updateSlaPivot() {
+        const selectedCustomer = document.getElementById('slaCustomerFilter').value;
+        const slaCounts = {};
+        filteredData.filter(ticket => !selectedCustomer || ticket.Customer === selectedCustomer).forEach(ticket => {
+            slaCounts[ticket['SLA Status']] = (slaCounts[ticket['SLA Status']] || 0) + 1;
+        });
+        const pivotHtml = `
+            <table class="pivot-table">
+                <tr><th>SLA Status</th><th>Count</th></tr>
+                ${Object.entries(slaCounts).map(([slaStatus, count]) => `
+                    <tr>
+                        <td>${slaStatus} <span class="sla-risk-indicator ${getSlaClass(slaStatus)}">${slaStatus}</span></td>
+                        <td><span class="clickable-count" onclick="showTicketDetails('SLA Status', '${slaStatus}')">${count}</span></td>
+                    </tr>
+                `).join('')}
+            </table>
+        `;
+        document.getElementById('slaPivot').innerHTML = pivotHtml || '<div class="no-data">No SLA data available</div>';
+        console.log('SLA Pivot Data:', slaCounts); // Debug log
+    }
+
+    // SLA Risk Pivot
+    function updateSlaRiskPivot() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Current date: 2025-07-08
+        const riskCounts = {};
+        filteredData.filter(ticket => {
+            const scheduledDate = new Date(ticket['Scheduled Date']);
+            scheduledDate.setHours(0, 0, 0, 0);
+            return scheduledDate.getTime() === today.getTime();
+        }).forEach(ticket => {
+            riskCounts[ticket.Priority] = (riskCounts[ticket.Priority] || 0) + 1;
+        });
+        const pivotHtml = `
+            <table class="pivot-table">
+                <tr><th>Priority</th><th>Count</th></tr>
+                ${Object.entries(riskCounts).map(([priority, count]) => `
+                    <tr>
+                        <td>${priority} <span class="sla-risk-indicator ${getRiskClass(priority)}">${priority}</span></td>
+                        <td><span class="clickable-count" onclick="showTicketDetails('Priority', '${priority}', true)">${count}</span></td>
+                    </tr>
+                `).join('')}
+            </table>
+        `;
+        document.getElementById('slaRiskPivot').innerHTML = pivotHtml || '<div class="no-data">No tickets at risk today</div>';
+    }
+
+    // Engineers On Shift Pivot
+    function updateEngineersOnShift() {
+        const startDate = document.getElementById('startDate').value ? new Date(document.getElementById('startDate').value) : null;
+        const endDate = document.getElementById('endDate').value ? new Date(document.getElementById('endDate').value) : null;
+        const engineerCounts = {};
+        filteredData.filter(ticket => {
+            const scheduledDate = new Date(ticket['Scheduled Date']);
+            if (startDate && endDate) {
+                return scheduledDate >= startDate && scheduledDate <= endDate;
+            }
+            return true;
+        }).forEach(ticket => {
+            engineerCounts[ticket['Primary Resource']] = (engineerCounts[ticket['Primary Resource']] || 0) + 1;
+        });
+        const pivotHtml = `
+            <table class="pivot-table">
+                <tr><th>Engineer</th><th>Tickets Assigned</th></tr>
+                ${Object.entries(engineerCounts).map(([engineer, count]) => `
+                    <tr>
+                        <td>${engineer}</td>
+                        <td><span class="clickable-count" onclick="showTicketDetails('Primary Resource', '${engineer}')">${count}</span></td>
+                    </tr>
+                `).join('')}
+            </table>
+        `;
+        document.getElementById('engineersOnShiftPivot').innerHTML = pivotHtml || '<div class="no-data">No engineers on shift</div>';
+    }
+
+    // Priority Pivot
+    function updatePriorityPivot() {
+        const priorityCounts = {};
+        filteredData.forEach(ticket => {
+            priorityCounts[ticket.Priority] = (priorityCounts[ticket.Priority] || 0) + 1;
+        });
+        const pivotHtml = `
+            <table class="pivot-table">
+                <tr><th>Priority</th><th>Count</th></tr>
+                ${Object.entries(priorityCounts).map(([priority, count]) => `
+                    <tr>
+                        <td>${priority} <span class="sla-risk-indicator ${getRiskClass(priority)}">${priority}</span></td>
+                        <td><span class="clickable-count" onclick="showTicketDetails('Priority', '${priority}')">${count}</span></td>
+                    </tr>
+                `).join('')}
+            </table>
+        `;
+        document.getElementById('priorityPivot').innerHTML = pivotHtml;
+    }
+
+    // Region Pivot
+    function updateRegionPivot() {
+        const regionCounts = {};
+        filteredData.forEach(ticket => {
+            regionCounts[ticket.Region] = (regionCounts[ticket.Region] || 0) + 1;
+        });
+        const pivotHtml = `
+            <table class="pivot-table">
+                <tr><th>Region</th><th>Count</th></tr>
+                ${Object.entries(regionCounts).map(([region, count]) => `
+                    <tr>
+                        <td>${region}</td>
+                        <td><span class="clickable-count" onclick="showTicketDetails('Region', '${region}')">${count}</span></td>
+                    </tr>
+                `).join('')}
+            </table>
+        `;
+        document.getElementById('regionPivot').innerHTML = pivotHtml;
+    }
+
+    // Customer Pivot
+    function updateCustomerPivot() {
+        const customerCounts = {};
+        filteredData.forEach(ticket => {
+            customerCounts[ticket.Customer] = (customerCounts[ticket.Customer] || 0) + 1;
+        });
+        const sortedCustomers = Object.entries(customerCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        const pivotHtml = `
+            <table class="pivot-table">
+                <tr><th>Customer</th><th>Count</th></tr>
+                ${sortedCustomers.map(([customer, count]) => `
+                    <tr>
+                        <td>${customer}</td>
+                        <td><span class="clickable-count" onclick="showTicketDetails('Customer', '${customer}')">${count}</span></td>
+                    </tr>
+                `).join('')}
+            </table>
+        `;
+        document.getElementById('customerPivot').innerHTML = pivotHtml;
+    }
+
+    // Engineer Performance Pivot
+    function updateEngineerPivot() {
+        const engineerStats = {};
+        filteredData.forEach(ticket => {
+            const engineer = ticket['Primary Resource'];
+            if (!engineerStats[engineer]) {
+                engineerStats[engineer] = { total: 0, completed: 0, slaBreaches: 0 };
+            }
+            engineerStats[engineer].total += 1;
+            if (ticket.Status === 'Complete') engineerStats[engineer].completed += 1;
+            if (ticket['SLA Status'] === 'Failed SLA') engineerStats[engineer].slaBreaches += 1;
+        });
+        const pivotHtml = `
+            <table class="pivot-table">
+                <tr><th>Engineer</th><th>Total Tickets</th><th>Completed</th><th>SLA Breaches</th></tr>
+                ${Object.entries(engineerStats).map(([engineer, stats]) => `
+                    <tr>
+                        <td>${engineer}</td>
+                        <td><span class="clickable-count" onclick="showTicketDetails('Primary Resource', '${engineer}')">${stats.total}</span></td>
+                        <td>${stats.completed}</td>
+                        <td>${stats.slaBreaches}</td>
+                    </tr>
+                `).join('')}
+            </table>
+        `;
+        document.getElementById('engineerPivot').innerHTML = pivotHtml;
+    }
+
+    // Scheduler Performance Pivot
+    function updateSchedulerPivot() {
+        const schedulerStats = {};
+        filteredData.forEach(ticket => {
+            const scheduler = ticket['Scheduled By'];
+            if (!schedulerStats[scheduler]) {
+                schedulerStats[scheduler] = { total: 0, completed: 0, slaBreaches: 0 };
+            }
+            schedulerStats[scheduler].total += 1;
+            if (ticket.Status === 'Complete') schedulerStats[scheduler].completed += 1;
+            if (ticket['SLA Status'] === 'Failed SLA') schedulerStats[scheduler].slaBreaches += 1;
+        });
+        const pivotHtml = `
+            <table class="pivot-table">
+                <tr><th>Scheduler</th><th>Total Tickets</th><th>Completed</th><th>SLA Breaches</th></tr>
+                ${Object.entries(schedulerStats).map(([scheduler, stats]) => `
+                    <tr>
+                        <td>${scheduler}</td>
+                        <td><span class="clickable-count" onclick="showTicketDetails('Scheduled By', '${scheduler}')">${stats.total}</span></td>
+                        <td>${stats.completed}</td>
+                        <td>${stats.slaBreaches}</td>
+                    </tr>
+                `).join('')}
+            </table>
+        `;
+        document.getElementById('schedulerPivot').innerHTML = pivotHtml;
+    }
+
+    // Update charts
+    function updateCharts() {
+        const chartConfigs = [
+            { id: 'statusChart', pivot: updateStatusPivot, field: 'Status', type: 'bar' },
+            { id: 'slaRiskChart', pivot: updateSlaRiskPivot, field: 'Priority', type: 'bar', filterToday: true },
+            { id: 'priorityChart', pivot: updatePriorityPivot, field: 'Priority', type: 'bar' },
+            { id: 'regionChart', pivot: updateRegionPivot, field: 'Region', type: 'bar' },
+            { id: 'customerChart', pivot: updateCustomerPivot, field: 'Customer', type: 'bar', limit: 5 },
+            { id: 'engineerChart', pivot: updateEngineerPivot, field: 'Primary Resource', type: 'bar', valueField: 'total' },
+            { id: 'schedulerChart', pivot: updateSchedulerPivot, field: 'Scheduled By', type: 'bar', valueField: 'total' }
+        ];
+
+        chartConfigs.forEach(config => {
+            const counts = {};
+            filteredData.filter(ticket => {
+                if (config.filterToday) {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const scheduledDate = new Date(ticket['Scheduled Date']);
+                    scheduledDate.setHours(0, 0, 0, 0);
+                    return scheduledDate.getTime() === today.getTime();
+                }
+                return true;
+            }).forEach(ticket => {
+                const key = ticket[config.field];
+                counts[key] = (counts[key] || 0) + 1;
+            });
+
+            let labels = Object.keys(counts);
+            let data = Object.values(counts);
+            if (config.limit) {
+                const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, config.limit);
+                labels = sorted.map(entry => entry[0]);
+                data = sorted.map(entry => entry[1]);
+            }
+
+            if (charts[config.id]) {
+                charts[config.id].destroy();
+            }
+
+            charts[config.id] = new Chart(document.getElementById(config.id), {
+                type: config.type,
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Count',
+                        data,
+                        backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        }
+                    }
+                }
+            });
+        });
+    }
+
+    // Get SLA class
+    function getSlaClass(slaStatus) {
+        switch (slaStatus) {
+            case 'Failed SLA': return 'risk-critical';
+            case 'Still Within SLA': return 'risk-low';
+            case 'Completed Within SLA': return 'risk-low';
+            default: return '';
+        }
+    }
+
+    // Get risk class
+    function getRiskClass(priority) {
+        switch (priority) {
+            case 'P1': return 'risk-critical';
+            case 'P2': return 'risk-high';
+            case 'P3': return 'risk-medium';
+            case 'P4': return 'risk-low';
+            default: return '';
+        }
+    }
+
+    // Show ticket details modal
+    window.showTicketDetails = function(field, value, filterToday = false) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tickets = filteredData.filter(ticket => {
+            const matchesField = ticket[field] === value;
+            if (filterToday) {
+                const scheduledDate = new Date(ticket['Scheduled Date']);
+                scheduledDate.setHours(0, 0, 0, 0);
+                return matchesField && scheduledDate.getTime() === today.getTime();
+            }
+            return matchesField;
+        });
+
+        const modalTitle = document.getElementById('modalTitle');
+        const ticketList = document.getElementById('ticketList');
+        modalTitle.textContent = `Tickets for ${field}: ${value}`;
+        ticketList.innerHTML = tickets.map(ticket => `
+            <div class="ticket-item">
+                <div class="ticket-number">${ticket['Ticket Number']}</div>
+                <div class="ticket-title">${ticket['Ticket Title']}</div>
+                <div class="ticket-meta">
+                    Customer: ${ticket.Customer}<br>
+                    Priority: ${ticket.Priority}<br>
+                    Status: ${ticket.Status}<br>
+                    SLA Status: ${ticket['SLA Status'] || 'N/A'}<br>
+                    Scheduled: ${ticket['Scheduled Date'].toLocaleDateString()} ${ticket['Scheduled time'].toLocaleTimeString()}
+                </div>
+            </div>
+        `).join('');
+
+        document.getElementById('ticketModal').style.display = 'flex';
+    };
+
+    // Close ticket modal
+    window.closeTicketModal = function() {
+        document.getElementById('ticketModal').style.display = 'none';
+    };
+
+    // Toggle table/chart view
+    window.toggleView = function(pivotId, view) {
+        const pivot = document.getElementById(`${pivotId}Pivot`);
+        const chart = document.getElementById(`${pivotId}Chart`);
+        const buttons = document.querySelectorAll(`#${pivotId}Pivot + canvas + .view-toggle button, #${pivotId}Pivot ~ .view-toggle button`);
+
+        pivot.style.display = view === 'table' ? 'block' : 'none';
+        chart.style.display = view === 'chart' ? 'block' : 'none';
+
+        buttons.forEach(button => {
+            button.classList.toggle('active', button.textContent.toLowerCase() === view);
+        });
+    };
+
+    // Setup filter listeners
+    function setupFilterListeners() {
+        document.querySelectorAll('.filter-button').forEach(button => {
+            button.onclick = () => {
+                const filterOptions = button.nextElementSibling;
+                const isOpen = filterOptions.classList.contains('show');
+                document.querySelectorAll('.filter-options').forEach(opt => opt.classList.remove('show'));
+                document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+                if (!isOpen) {
+                    filterOptions.classList.add('show');
+                    button.classList.add('active');
+                }
+            };
+        });
+
+        document.querySelectorAll('.filter-options').forEach(options => {
+            options.onclick = (e) => {
+                if (e.target.type === 'checkbox') {
+                    const filterKey = e.target.parentElement.dataset.filter;
+                    const value = e.target.value;
+                    const isSelectAll = e.target.parentElement.classList.contains('select-all');
+
+                    if (isSelectAll) {
+                        const checkboxes = options.querySelectorAll('input[type="checkbox"]:not(.select-all input)');
+                        checkboxes.forEach(checkbox => {
+                            checkbox.checked = e.target.checked;
+                            updateFilter(filterKey, checkbox.value, e.target.checked);
+                        });
+                    } else {
+                        updateFilter(filterKey, value, e.target.checked);
+                        const allChecked = Array.from(options.querySelectorAll('input[type="checkbox"]:not(.select-all input)')).every(cb => cb.checked);
+                        options.querySelector('.select-all input').checked = allChecked;
+                    }
+
+                    applyFilters();
+                    updateFilterCount(filterKey);
+                    options.classList.remove('show');
+                    options.previousElementSibling.classList.remove('active');
+                }
+            };
+        });
+
+        document.getElementById('clearAllFilters').onclick = () => {
+            Object.keys(activeFilters).forEach(key => {
+                activeFilters[key] = [];
+                const options = document.getElementById(`${key}Options`);
+                options.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+                updateFilterCount(key);
+            });
             filteredData = [...originalData];
             initializeDashboard();
         };
 
-        // File upload handler
-        document.getElementById('fileInput').addEventListener('change', handleFileUpload, false);
-
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const progressBar = document.getElementById('progressBar');
-            const progressFill = document.getElementById('progressFill');
-            progressBar.classList.remove('hidden');
-            progressFill.style.width = '10%';
-
-            const reader = new FileReader();
-
-            reader.onload = function(e) {
-                try {
-                    progressFill.style.width = '30%';
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                    progressFill.style.width = '60%';
-
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    originalData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-
-                    if (originalData.length > 0) {
-                        const headers = originalData[0];
-                        const rows = originalData.slice(1);
-                        originalData = rows.map(row => {
-                            const obj = {};
-                            headers.forEach((header, index) => {
-                                if (['Create Date', 'Scheduled Date'].includes(header) && row[index]) {
-                                    obj[header] = new Date(row[index]);
-                                } else if (['Create Time', 'Scheduled time'].includes(header) && row[index]) {
-                                    const timeParts = typeof row[index] === 'string' ? row[index].match(/(\d+):(\d+)/) : null;
-                                    if (timeParts) {
-                                        const date = new Date();
-                                        date.setHours(parseInt(timeParts[1]), parseInt(timeParts[2]), 0, 0);
-                                        obj[header] = date;
-                                    } else {
-                                        obj[header] = row[index];
-                                    }
-                                } else {
-                                    obj[header] = row[index];
-                                }
-                            });
-                            return obj;
-                        });
-
-                        filteredData = [...originalData];
-                        progressFill.style.width = '100%';
-                        initializeDashboard();
-
-                        setTimeout(() => {
-                            progressBar.classList.add('hidden');
-                            progressFill.style.width = '0%';
-                        }, 500);
-                    } else {
-                        alert('The uploaded file is empty.');
-                        progressBar.classList.add('hidden');
-                        progressFill.style.width = '0%';
-                    }
-                } catch (error) {
-                    console.error('Error processing file:', error);
-                    alert('Error processing the uploaded file. Please ensure it is a valid Excel or CSV file.');
-                    progressBar.classList.add('hidden');
-                    progressFill.style.width = '0%';
-                }
-            };
-
-            reader.onerror = function() {
-                alert('Error reading the file.');
-                progressBar.classList.add('hidden');
-                progressFill.style.width = '0%';
-            };
-
-            reader.readAsArrayBuffer(file);
-        }
-
-        // Initialize dashboard
-        function initializeDashboard() {
-            document.getElementById('dashboard').classList.remove('hidden');
-            updateSummaryStats();
-            updateFilterOptions();
-            updateSlaCustomerFilter();
-            updatePivotTables();
-            updateCharts();
-            setupFilterListeners();
-        }
-
-        // Update summary statistics
-        function updateSummaryStats() {
-            document.getElementById('totalTickets').textContent = filteredData.length;
-            document.getElementById('completedTickets').textContent = filteredData.filter(ticket => ticket.Status === 'Complete').length;
-            document.getElementById('slaBreaches').textContent = filteredData.filter(ticket => ticket['SLA Status'] === 'Failed SLA').length;
-            document.getElementById('activeTickets').textContent = filteredData.filter(ticket => ticket.Status !== 'Complete').length;
-        }
-
-        // Update filter dropdown options
-        function updateFilterOptions() {
-            const filters = [
-                { id: 'customerOptions', field: 'Customer', filterKey: 'customer' },
-                { id: 'statusOptions', field: 'Status', filterKey: 'status' },
-                { id: 'priorityOptions', field: 'Priority', filterKey: 'priority' },
-                { id: 'regionOptions', field: 'Region', filterKey: 'region' },
-                { id: 'scheduledByOptions', field: 'Scheduled By', filterKey: 'scheduledBy' },
-                { id: 'primaryResourceOptions', field: 'Primary Resource', filterKey: 'primaryResource' }
-            ];
-
-            filters.forEach(filter => {
-                const uniqueValues = [...new Set(filteredData.map(item => item[filter.field]))].sort();
-                const container = document.getElementById(filter.id);
-                container.innerHTML = `
-                    <div class="filter-option select-all" data-filter="${filter.filterKey}">
-                        <input type="checkbox" checked>
-                        Select All
-                    </div>
-                    ${uniqueValues.map(value => `
-                        <div class="filter-option" data-filter="${filter.filterKey}" data-value="${value}">
-                            <input type="checkbox" value="${value}" checked>
-                            ${value}
-                        </div>
-                    `).join('')}
-                `;
-                updateFilterCount(filter.filterKey);
-            });
-        }
-
-        // Update SLA customer filter
-        function updateSlaCustomerFilter() {
-            const slaCustomerFilter = document.getElementById('slaCustomerFilter');
-            const uniqueCustomers = [...new Set(filteredData.map(item => item.Customer))].sort();
-            slaCustomerFilter.innerHTML = `<option value="">All Customers</option>${uniqueCustomers.map(customer => `<option value="${customer}">${customer}</option>`).join('')}`;
-            slaCustomerFilter.onchange = updateSlaPivot;
-            document.getElementById('resetSlaFilter').onclick = () => {
-                slaCustomerFilter.value = '';
-                updateSlaPivot();
-            };
-        }
-
-        // Update pivot tables
-        function updatePivotTables() {
-            updateStatusPivot();
-            updateSlaPivot();
-            updateSlaRiskPivot();
-            updateEngineersOnShift();
-            updatePriorityPivot();
-            updateRegionPivot();
-            updateCustomerPivot();
-            updateEngineerPivot();
-            updateSchedulerPivot();
-        }
-
-        // Status Pivot
-        function updateStatusPivot() {
-            const statusCounts = {};
-            filteredData.forEach(ticket => {
-                statusCounts[ticket.Status] = (statusCounts[ticket.Status] || 0) + 1;
-            });
-            const pivotHtml = `
-                <table class="pivot-table">
-                    <tr><th>Status</th><th>Count</th></tr>
-                    ${Object.entries(statusCounts).map(([status, count]) => `
-                        <tr>
-                            <td>${status}</td>
-                            <td><span class="clickable-count" onclick="showTicketDetails('Status', '${status}')">${count}</span></td>
-                        </tr>
-                    `).join('')}
-                </table>
-            `;
-            document.getElementById('statusPivot').innerHTML = pivotHtml;
-        }
-
-        // SLA Performance Pivot
-        function updateSlaPivot() {
-            const selectedCustomer = document.getElementById('slaCustomerFilter').value;
-            const slaCounts = {};
-            filteredData.filter(ticket => !selectedCustomer || ticket.Customer === selectedCustomer).forEach(ticket => {
-                slaCounts[ticket['SLA Status']] = (slaCounts[ticket['SLA Status']] || 0) + 1;
-            });
-            const pivotHtml = `
-                <table class="pivot-table">
-                    <tr><th>SLA Status</th><th>Count</th></tr>
-                    ${Object.entries(slaCounts).map(([slaStatus, count]) => `
-                        <tr>
-                            <td>${slaStatus} <span class="sla-risk-indicator ${getSlaClass(slaStatus)}">${slaStatus}</span></td>
-                            <td><span class="clickable-count" onclick="showTicketDetails('SLA Status', '${slaStatus}')">${count}</span></td>
-                        </tr>
-                    `).join('')}
-                </table>
-            `;
-            document.getElementById('slaPivot').innerHTML = pivotHtml;
-        }
-
-        // SLA Risk Pivot
-        function updateSlaRiskPivot() {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const riskCounts = {};
-            filteredData.filter(ticket => {
-                const scheduledDate = new Date(ticket['Scheduled Date']);
-                scheduledDate.setHours(0, 0, 0, 0);
-                return scheduledDate.getTime() === today.getTime();
-            }).forEach(ticket => {
-                riskCounts[ticket.Priority] = (riskCounts[ticket.Priority] || 0) + 1;
-            });
-            const pivotHtml = `
-                <table class="pivot-table">
-                    <tr><th>Priority</th><th>Count</th></tr>
-                    ${Object.entries(riskCounts).map(([priority, count]) => `
-                        <tr>
-                            <td>${priority} <span class="sla-risk-indicator ${getRiskClass(priority)}">${priority}</span></td>
-                            <td><span class="clickable-count" onclick="showTicketDetails('Priority', '${priority}', true)">${count}</span></td>
-                        </tr>
-                    `).join('')}
-                </table>
-            `;
-            document.getElementById('slaRiskPivot').innerHTML = pivotHtml;
-        }
-
-        // Engineers On Shift Pivot
-        function updateEngineersOnShift() {
-            const startDate = document.getElementById('startDate').value ? new Date(document.getElementById('startDate').value) : null;
-            const endDate = document.getElementById('endDate').value ? new Date(document.getElementById('endDate').value) : null;
-            const engineerCounts = {};
-            filteredData.filter(ticket => {
-                const scheduledDate = new Date(ticket['Scheduled Date']);
-                if (startDate && endDate) {
-                    return scheduledDate >= startDate && scheduledDate <= endDate;
-                }
-                return true;
-            }).forEach(ticket => {
-                engineerCounts[ticket['Primary Resource']] = (engineerCounts[ticket['Primary Resource']] || 0) + 1;
-            });
-            const pivotHtml = `
-                <table class="pivot-table">
-                    <tr><th>Engineer</th><th>Tickets Assigned</th></tr>
-                    ${Object.entries(engineerCounts).map(([engineer, count]) => `
-                        <tr>
-                            <td>${engineer}</td>
-                            <td><span class="clickable-count" onclick="showTicketDetails('Primary Resource', '${engineer}')">${count}</span></td>
-                        </tr>
-                    `).join('')}
-                </table>
-            `;
-            document.getElementById('engineersOnShiftPivot').innerHTML = pivotHtml;
-        }
-
-        // Priority Pivot
-        function updatePriorityPivot() {
-            const priorityCounts = {};
-            filteredData.forEach(ticket => {
-                priorityCounts[ticket.Priority] = (priorityCounts[ticket.Priority] || 0) + 1;
-            });
-            const pivotHtml = `
-                <table class="pivot-table">
-                    <tr><th>Priority</th><th>Count</th></tr>
-                    ${Object.entries(priorityCounts).map(([priority, count]) => `
-                        <tr>
-                            <td>${priority} <span class="sla-risk-indicator ${getRiskClass(priority)}">${priority}</span></td>
-                            <td><span class="clickable-count" onclick="showTicketDetails('Priority', '${priority}')">${count}</span></td>
-                        </tr>
-                    `).join('')}
-                </table>
-            `;
-            document.getElementById('priorityPivot').innerHTML = pivotHtml;
-        }
-
-        // Region Pivot
-        function updateRegionPivot() {
-            const regionCounts = {};
-            filteredData.forEach(ticket => {
-                regionCounts[ticket.Region] = (regionCounts[ticket.Region] || 0) + 1;
-            });
-            const pivotHtml = `
-                <table class="pivot-table">
-                    <tr><th>Region</th><th>Count</th></tr>
-                    ${Object.entries(regionCounts).map(([region, count]) => `
-                        <tr>
-                            <td>${region}</td>
-                            <td><span class="clickable-count" onclick="showTicketDetails('Region', '${region}')">${count}</span></td>
-                        </tr>
-                    `).join('')}
-                </table>
-            `;
-            document.getElementById('regionPivot').innerHTML = pivotHtml;
-        }
-
-        // Customer Pivot
-        function updateCustomerPivot() {
-            const customerCounts = {};
-            filteredData.forEach(ticket => {
-                customerCounts[ticket.Customer] = (customerCounts[ticket.Customer] || 0) + 1;
-            });
-            const sortedCustomers = Object.entries(customerCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-            const pivotHtml = `
-                <table class="pivot-table">
-                    <tr><th>Customer</th><th>Count</th></tr>
-                    ${sortedCustomers.map(([customer, count]) => `
-                        <tr>
-                            <td>${customer}</td>
-                            <td><span class="clickable-count" onclick="showTicketDetails('Customer', '${customer}')">${count}</span></td>
-                        </tr>
-                    `).join('')}
-                </table>
-            `;
-            document.getElementById('customerPivot').innerHTML = pivotHtml;
-        }
-
-        // Engineer Performance Pivot
-        function updateEngineerPivot() {
-            const engineerStats = {};
-            filteredData.forEach(ticket => {
-                const engineer = ticket['Primary Resource'];
-                if (!engineerStats[engineer]) {
-                    engineerStats[engineer] = { total: 0, completed: 0, slaBreaches: 0 };
-                }
-                engineerStats[engineer].total += 1;
-                if (ticket.Status === 'Complete') engineerStats[engineer].completed += 1;
-                if (ticket['SLA Status'] === 'Failed SLA') engineerStats[engineer].slaBreaches += 1;
-            });
-            const pivotHtml = `
-                <table class="pivot-table">
-                    <tr><th>Engineer</th><th>Total Tickets</th><th>Completed</th><th>SLA Breaches</th></tr>
-                    ${Object.entries(engineerStats).map(([engineer, stats]) => `
-                        <tr>
-                            <td>${engineer}</td>
-                            <td><span class="clickable-count" onclick="showTicketDetails('Primary Resource', '${engineer}')">${stats.total}</span></td>
-                            <td>${stats.completed}</td>
-                            <td>${stats.slaBreaches}</td>
-                        </tr>
-                    `).join('')}
-                </table>
-            `;
-            document.getElementById('engineerPivot').innerHTML = pivotHtml;
-        }
-
-        // Scheduler Performance Pivot
-        function updateSchedulerPivot() {
-            const schedulerStats = {};
-            filteredData.forEach(ticket => {
-                const scheduler = ticket['Scheduled By'];
-                if (!schedulerStats[scheduler]) {
-                    schedulerStats[scheduler] = { total: 0, completed: 0, slaBreaches: 0 };
-                }
-                schedulerStats[scheduler].total += 1;
-                if (ticket.Status === 'Complete') schedulerStats[scheduler].completed += 1;
-                if (ticket['SLA Status'] === 'Failed SLA') schedulerStats[scheduler].slaBreaches += 1;
-            });
-            const pivotHtml = `
-                <table class="pivot-table">
-                    <tr><th>Scheduler</th><th>Total Tickets</th><th>Completed</th><th>SLA Breaches</th></tr>
-                    ${Object.entries(schedulerStats).map(([scheduler, stats]) => `
-                        <tr>
-                            <td>${scheduler}</td>
-                            <td><span class="clickable-count" onclick="showTicketDetails('Scheduled By', '${scheduler}')">${stats.total}</span></td>
-                            <td>${stats.completed}</td>
-                            <td>${stats.slaBreaches}</td>
-                        </tr>
-                    `).join('')}
-                </table>
-            `;
-            document.getElementById('schedulerPivot').innerHTML = pivotHtml;
-        }
-
-        // Update charts
-        function updateCharts() {
-            const chartConfigs = [
-                { id: 'statusChart', pivot: updateStatusPivot, field: 'Status', type: 'bar' },
-                { id: 'slaRiskChart', pivot: updateSlaRiskPivot, field: 'Priority', type: 'bar', filterToday: true },
-                { id: 'priorityChart', pivot: updatePriorityPivot, field: 'Priority', type: 'bar' },
-                { id: 'regionChart', pivot: updateRegionPivot, field: 'Region', type: 'bar' },
-                { id: 'customerChart', pivot: updateCustomerPivot, field: 'Customer', type: 'bar', limit: 5 },
-                { id: 'engineerChart', pivot: updateEngineerPivot, field: 'Primary Resource', type: 'bar', valueField: 'total' },
-                { id: 'schedulerChart', pivot: updateSchedulerPivot, field: 'Scheduled By', type: 'bar', valueField: 'total' }
-            ];
-
-            chartConfigs.forEach(config => {
-                const counts = {};
-                filteredData.filter(ticket => {
-                    if (config.filterToday) {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const scheduledDate = new Date(ticket['Scheduled Date']);
-                        scheduledDate.setHours(0, 0, 0, 0);
-                        return scheduledDate.getTime() === today.getTime();
-                    }
-                    return true;
-                }).forEach(ticket => {
-                    const key = ticket[config.field];
-                    counts[key] = (counts[key] || 0) + 1;
-                });
-
-                let labels = Object.keys(counts);
-                let data = Object.values(counts);
-                if (config.limit) {
-                    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, config.limit);
-                    labels = sorted.map(entry => entry[0]);
-                    data = sorted.map(entry => entry[1]);
-                }
-
-                if (charts[config.id]) {
-                    charts[config.id].destroy();
-                }
-
-                charts[config.id] = new Chart(document.getElementById(config.id), {
-                    type: config.type,
-                    data: {
-                        labels,
-                        datasets: [{
-                            label: 'Count',
-                            data,
-                            backgroundColor: 'rgba(102, 126, 234, 0.6)',
-                            borderColor: 'rgba(102, 126, 234, 1)',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: { stepSize: 1 }
-                            }
-                        }
-                    }
-                });
-            });
-        }
-
-        // Get SLA class
-        function getSlaClass(slaStatus) {
-            switch (slaStatus) {
-                case 'Failed SLA': return 'risk-critical';
-                case 'Still Within SLA': return 'risk-low';
-                case 'Completed Within SLA': return 'risk-low';
-                default: return '';
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.filter-dropdown')) {
+                document.querySelectorAll('.filter-options').forEach(opt => opt.classList.remove('show'));
+                document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
             }
-        }
+        });
+    }
 
-        // Get risk class
-        function getRiskClass(priority) {
-            switch (priority) {
-                case 'P1': return 'risk-critical';
-                case 'P2': return 'risk-high';
-                case 'P3': return 'risk-medium';
-                case 'P4': return 'risk-low';
-                default: return '';
+    // Update filter state
+    function updateFilter(filterKey, value, isChecked) {
+        if (isChecked) {
+            if (!activeFilters[filterKey].includes(value)) {
+                activeFilters[filterKey].push(value);
             }
+        } else {
+            activeFilters[filterKey] = activeFilters[filterKey].filter(v => v !== value);
         }
+    }
 
-        // Show ticket details modal
-        window.showTicketDetails = function(field, value, filterToday = false) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const tickets = filteredData.filter(ticket => {
-                const matchesField = ticket[field] === value;
-                if (filterToday) {
-                    const scheduledDate = new Date(ticket['Scheduled Date']);
-                    scheduledDate.setHours(0, 0, 0, 0);
-                    return matchesField && scheduledDate.getTime() === today.getTime();
-                }
-                return matchesField;
-            });
+    // Update filter count display
+    function updateFilterCount(filterKey) {
+        const button = document.querySelector(`.filter-button[data-filter="${filterKey}"]`);
+        const count = activeFilters[filterKey].length;
+        button.querySelector('.filter-text').textContent = count === 0 ? `All ${filterKey.charAt(0).toUpperCase() + filterKey.slice(1)}s` : `${count} Selected`;
+        button.querySelector('.filter-count').textContent = count > 0 ? `(${count})` : '';
+    }
 
-            const modalTitle = document.getElementById('modalTitle');
-            const ticketList = document.getElementById('ticketList');
-            modalTitle.textContent = `Tickets for ${field}: ${value}`;
-            ticketList.innerHTML = tickets.map(ticket => `
-                <div class="ticket-item">
-                    <div class="ticket-number">${ticket['Ticket Number']}</div>
-                    <div class="ticket-title">${ticket['Ticket Title']}</div>
-                    <div class="ticket-meta">
-                        Customer: ${ticket.Customer}<br>
-                        Priority: ${ticket.Priority}<br>
-                        Status: ${ticket.Status}<br>
-                        SLA Status: ${ticket['SLA Status']}<br>
-                        Scheduled: ${ticket['Scheduled Date'].toLocaleDateString()} ${ticket['Scheduled time'].toLocaleTimeString()}
-                    </div>
-                </div>
-            `).join('');
-
-            document.getElementById('ticketModal').style.display = 'flex';
-        };
-
-        // Close ticket modal
-        window.closeTicketModal = function() {
-            document.getElementById('ticketModal').style.display = 'none';
-        };
-
-        // Toggle table/chart view
-        window.toggleView = function(pivotId, view) {
-            const pivot = document.getElementById(`${pivotId}Pivot`);
-            const chart = document.getElementById(`${pivotId}Chart`);
-            const buttons = document.querySelectorAll(`#${pivotId}Pivot + canvas + .view-toggle button, #${pivotId}Pivot ~ .view-toggle button`);
-
-            pivot.style.display = view === 'table' ? 'block' : 'none';
-            chart.style.display = view === 'chart' ? 'block' : 'none';
-
-            buttons.forEach(button => {
-                button.classList.toggle('active', button.textContent.toLowerCase() === view);
-            });
-        };
-
-        // Setup filter listeners
-        function setupFilterListeners() {
-            document.querySelectorAll('.filter-button').forEach(button => {
-                button.onclick = () => {
-                    const filterOptions = button.nextElementSibling;
-                    const isOpen = filterOptions.classList.contains('show');
-                    document.querySelectorAll('.filter-options').forEach(opt => opt.classList.remove('show'));
-                    document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
-                    if (!isOpen) {
-                        filterOptions.classList.add('show');
-                        button.classList.add('active');
-                    }
+    // Apply filters to data
+    function applyFilters() {
+        filteredData = originalData.filter(ticket => {
+            return Object.entries(activeFilters).every(([key, values]) => {
+                if (values.length === 0) return true;
+                const fieldMap = {
+                    customer: 'Customer',
+                    status: 'Status',
+                    priority: 'Priority',
+                    region: 'Region',
+                    scheduledBy: 'Scheduled By',
+                    primaryResource: 'Primary Resource'
                 };
+                return values.includes(ticket[fieldMap[key]]);
             });
+        });
+        console.log('Filtered Data:', filteredData); // Debug log
+        initializeDashboard();
+    }
 
-            document.querySelectorAll('.filter-options').forEach(options => {
-                options.onclick = (e) => {
-                    if (e.target.type === 'checkbox') {
-                        const filterKey = e.target.parentElement.dataset.filter;
-                        const value = e.target.value;
-                        const isSelectAll = e.target.parentElement.classList.contains('select-all');
+    // Reset date filter
+    window.resetDateFilter = function() {
+        document.getElementById('startDate').value = '';
+        document.getElementById('endDate').value = '';
+        updateEngineersOnShift();
+    };
 
-                        if (isSelectAll) {
-                            const checkboxes = options.querySelectorAll('input[type="checkbox"]:not(.select-all input)');
-                            checkboxes.forEach(checkbox => {
-                                checkbox.checked = e.target.checked;
-                                updateFilter(filterKey, checkbox.value, e.target.checked);
-                            });
-                        } else {
-                            updateFilter(filterKey, value, e.target.checked);
-                            const allChecked = Array.from(options.querySelectorAll('input[type="checkbox"]:not(.select-all input)')).every(cb => cb.checked);
-                            options.querySelector('.select-all input').checked = allChecked;
-                        }
-
-                        applyFilters();
-                        updateFilterCount(filterKey);
-                        options.classList.remove('show');
-                        options.previousElementSibling.classList.remove('active');
-                    }
-                };
-            });
-
-            document.getElementById('clearAllFilters').onclick = () => {
-                Object.keys(activeFilters).forEach(key => {
-                    activeFilters[key] = [];
-                    const options = document.getElementById(`${key}Options`);
-                    options.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
-                    updateFilterCount(key);
-                });
-                filteredData = [...originalData];
-                initializeDashboard();
-            };
-
-            document.addEventListener('click', (e) => {
-                if (!e.target.closest('.filter-dropdown')) {
-                    document.querySelectorAll('.filter-options').forEach(opt => opt.classList.remove('show'));
-                    document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
-                }
-            });
-        }
-
-        // Update filter state
-        function updateFilter(filterKey, value, isChecked) {
-            if (isChecked) {
-                if (!activeFilters[filterKey].includes(value)) {
-                    activeFilters[filterKey].push(value);
-                }
-            } else {
-                activeFilters[filterKey] = activeFilters[filterKey].filter(v => v !== value);
-            }
-        }
-
-        // Update filter count display
-        function updateFilterCount(filterKey) {
-            const button = document.querySelector(`.filter-button[data-filter="${filterKey}"]`);
-            const count = activeFilters[filterKey].length;
-            button.querySelector('.filter-text').textContent = count === 0 ? `All ${filterKey.charAt(0).toUpperCase() + filterKey.slice(1)}s` : `${count} Selected`;
-            button.querySelector('.filter-count').textContent = count > 0 ? `(${count})` : '';
-        }
-
-        // Apply filters to data
-        function applyFilters() {
-            filteredData = originalData.filter(ticket => {
-                return Object.entries(activeFilters).every(([key, values]) => {
-                    if (values.length === 0) return true;
-                    const fieldMap = {
-                        customer: 'Customer',
-                        status: 'Status',
-                        priority: 'Priority',
-                        region: 'Region',
-                        scheduledBy: 'Scheduled By',
-                        primaryResource: 'Primary Resource'
-                    };
-                    return values.includes(ticket[fieldMap[key]]);
-                });
-            });
-            initializeDashboard();
-        }
-
-        // Reset date filter
-        window.resetDateFilter = function() {
-            document.getElementById('startDate').value = '';
-            document.getElementById('endDate').value = '';
-            updateEngineersOnShift();
-        };
-    </script>
+    // Update engineers on shift when date filter is applied
+    window.updateEngineersOnShift = function() {
+        updateEngineersOnShift();
+    };
+</script>
 </body>
 </html>
