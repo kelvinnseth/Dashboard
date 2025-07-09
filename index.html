@@ -2169,10 +2169,7 @@ function updateEngineerPivot() {
     const engineerEntries = Object.entries(engineerCounts)
         .sort((a, b) => b[1].length - a[1].length);
 
-    // Only show top 10 if not toggled to show all
-    const rowsToShow = showAllEngineers ? engineerEntries : engineerEntries.slice(0, 10);
-
-    const html = createPivotTable([
+    const htmlTable = createPivotTable([
         [
             'Engineer',
             'Total Tickets',
@@ -2181,7 +2178,7 @@ function updateEngineerPivot() {
             'Average Ticket per Shift'
         ]
     ].concat(
-        rowsToShow.map(([engineer, tickets]) => {
+        engineerEntries.map(([engineer, tickets]) => {
             // Completed on schedule
             const scheduledTickets = tickets.filter(t => t['Scheduled Date']);
             const completedOnSchedule = scheduledTickets.filter(t => {
@@ -2221,52 +2218,15 @@ function updateEngineerPivot() {
         })
     ));
 
-    // Add the "View All" or "Show Top 10" button
-    const toggleButtonLabel = showAllEngineers ? 'Show Top 10' : 'View All';
-    const toggleButton = `<div style="text-align:right;margin:10px 0;">
-        <button id="toggleEngineerView" style="padding:7px 18px; border-radius:7px; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; font-weight:bold; cursor:pointer;">
-            ${toggleButtonLabel}
-        </button>
-    </div>`;
+    // Wrap the table in a scrollable container (max-height: 400px, you can adjust)
+    const scrollContainer = `
+      <div style="max-height:400px;overflow-y:auto;border-radius:8px;border:1px solid #e1e1e1;">
+        ${htmlTable}
+      </div>
+    `;
 
-    document.getElementById('engineerPivot').innerHTML = toggleButton + html;
-
-    // Add click handler for the toggle view button
-    document.getElementById('toggleEngineerView').onclick = () => {
-        showAllEngineers = !showAllEngineers;
-        updateEngineerPivot();
-    };
+    document.getElementById('engineerPivot').innerHTML = scrollContainer;
 }
-        function updateSchedulerPivot() {
-            const schedulerCounts = groupBy(filteredData, t => t['Scheduled By'] || 'Unassigned');
-            const html = createPivotTable([
-                ['Scheduler', 'Total Tickets', 'Avg Priority', 'SLA Success Rate']
-            ].concat(
-                Object.entries(schedulerCounts)
-                    .sort((a, b) => b[1].length - a[1].length)
-                    .slice(0, 10)
-                    .map(([scheduler, tickets]) => {
-                        const priorities = tickets.map(t => t.Priority).filter(p => p);
-                        const avgPriority = priorities.length > 0 
-                            ? (priorities.reduce((sum, p) => sum + parseInt(p.substring(1) || '0'), 0) / priorities.length).toFixed(1)
-                            : 'N/A';
-                        
-                        const slaSuccess = tickets.filter(t => 
-                            (t['SLA Status'] || '').includes('Met SLA') || 
-                            (t['SLA Status'] || '').includes('Within SLA')
-                        ).length;
-                        const slaRate = tickets.length > 0 ? ((slaSuccess / tickets.length) * 100).toFixed(1) + '%' : '0%';
-                        
-                        return [
-                            scheduler,
-                            tickets.length,
-                            avgPriority !== 'N/A' ? 'P' + avgPriority : 'N/A',
-                            slaRate
-                        ];
-                    })
-            ));
-            document.getElementById('schedulerPivot').innerHTML = html;
-        }
         
         function groupBy(array, keyFunc) {
             return array.reduce((groups, item) => {
