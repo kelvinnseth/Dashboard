@@ -2008,43 +2008,46 @@ function closeModal() {
 }
        
 function updateEngineeringResourceCard() {
-    // Get last 5 unique scheduled dates in descending order
-    const dates = [...new Set(filteredData
-        .map(t => t['Scheduled Date'])
-        .filter(d => d)
-        .map(d => {
-            // Normalize to date string YYYY-MM-DD
-            let dt = d instanceof Date ? d : convertExcelDate(d);
-            return dt && !isNaN(dt) ? dt.toISOString().slice(0, 10) : null;
-        })
-        .filter(d => d)
-    )].sort((a, b) => b.localeCompare(a)).slice(0, 5);
-
+    const last5Dates = getLastNDates(5);
     let html = `
         <table class="pivot-table">
             <thead>
                 <tr>
                     <th>Date</th>
                     <th>Unique Engineering Resources</th>
+                    <th>SLA Performance</th>
                 </tr>
             </thead>
             <tbody>
     `;
 
-    dates.forEach(dateStr => {
-        // Get tickets for this scheduled date
+    last5Dates.forEach(dateStr => {
+        // Tickets for this scheduled date
         const ticketsForDate = filteredData.filter(t => {
             let dt = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
-            return dt && dt.toISOString().slice(0, 10) === dateStr;
+            return dt && dt.toISOString().slice(0,10) === dateStr;
         });
-        // Get unique primary resources
+        // Unique primary resources
         const resources = [...new Set(ticketsForDate.map(t => t['Primary Resource']).filter(Boolean))];
+        // SLA performance calculation
+        const metSLA = ticketsForDate.filter(t => {
+            const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
+            return (
+                status === 'completed within sla' ||
+                status === 'still within sla' ||
+                status === 'within sla' ||
+                status === 'met sla'
+            );
+        }).length;
+        const slaPerformance = ticketsForDate.length > 0 ? ((metSLA / ticketsForDate.length) * 100).toFixed(1) + '%' : 'N/A';
+
         html += `
             <tr>
                 <td>${dateStr}</td>
                 <td>
                     <span class="clickable-count" data-date="${dateStr}">${resources.length}</span>
                 </td>
+                <td>${slaPerformance}</td>
             </tr>
         `;
     });
@@ -2053,13 +2056,26 @@ function updateEngineeringResourceCard() {
 
     document.getElementById('engineeringResourceCard').innerHTML = html;
 
-    // Add click event for the counts
+    // Click event for the counts
     document.getElementById('engineeringResourceCard').onclick = function(e) {
         if (e.target.classList.contains('clickable-count')) {
             const dateStr = e.target.getAttribute('data-date');
             showEngineeringResourceModal(dateStr);
         }
     };
+}
+
+
+function getLastNDates(n) {
+    const dates = [];
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    for (let i = 0; i < n; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        dates.push(d.toISOString().slice(0, 10));
+    }
+    return dates;
 }
 
         function showEngineeringResourceModal(dateStr) {
