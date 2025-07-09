@@ -2043,12 +2043,10 @@ atRiskTickets.forEach(ticket => {
                 return;
             }
             
-            const slaCounts = groupBy(slaData, t => t['SLA Status'] || 'Unknown');
-            
             const totalTickets = slaData.length;
-            const metSLA = (slaCounts['Met SLA'] || []).length + (slaCounts['Within SLA'] || []).length;
-            const missedSLA = (slaCounts['Missed SLA'] || []).length + (slaCounts['Out of SLA'] || []).length;
-            const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixed(1) : '0';
+const metSLA = slaData.filter(t => (t['SLA Status'] || '').trim() === 'Completed Within SLA').length;
+const missedSLA = slaData.filter(t => (t['SLA Status'] || '').trim() === 'Failed SLA').length;
+const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixed(1) : '0';
             
             const slaTableData = [
                 ['SLA Status', 'Count', 'Percentage']
