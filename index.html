@@ -1539,13 +1539,23 @@
             const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
             
             const atRiskTickets = filteredData.filter(ticket => {
-                const status = ticket.Status || ticket.Satus || '';
-                
-                if (status === 'Complete') return false;
-                
-                const sladue = calculateSLADueDate(ticket);
-                return sladue && sladue <= endOfToday;
-            });
+    const status = ticket.Status || ticket.Satus || '';
+    const slaStatus = (ticket['SLA Status'] || '').toString().toLowerCase();
+
+    // Exclude completed or already missed SLA tickets
+    if (status === 'Complete') return false;
+    if (
+        slaStatus.includes('missed sla') ||
+        slaStatus.includes('out of sla') ||
+        slaStatus.includes('failed sla') ||
+        slaStatus.includes('fail')
+    ) {
+        return false;
+    }
+
+    const sladue = calculateSLADueDate(ticket);
+    return sladue && sladue <= endOfToday;
+});
             
             if (atRiskTickets.length === 0) {
                 document.getElementById('slaRiskPivot').innerHTML = 
