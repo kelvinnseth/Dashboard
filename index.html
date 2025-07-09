@@ -1173,10 +1173,35 @@ function getSLAPerformanceByWeek(tickets) { ... }
                     }
                     
                     originalData = rows.map((row) => {
-                        const ticket = {};
-                        headers.forEach((header, index) => {
-                            ticket[header] = row[index];
-                        });
+    const ticket = {};
+    headers.forEach((header, index) => {
+        ticket[header] = row[index];
+    });
+
+    // ---- Date Normalization ----
+    // List of all your date fields
+    const dateFields = [
+        "Create Date",
+        "Scheduled Date",
+        "Complete Date",
+        "Create Time",
+        "Scheduled time"
+    ];
+    dateFields.forEach(field => {
+        if (ticket[field]) {
+            const converted = convertExcelDate(ticket[field]);
+            if (converted) ticket[field] = converted;
+        }
+    });
+    // ---- End Date Normalization ----
+
+    // ... region lookup logic ...
+    if (ticket.City && (!ticket.Region || ticket.Region === '' || ticket.Region === null || ticket.Region === undefined)) {
+        // ... existing region logic ...
+    }
+
+    return ticket;
+});
                         
                         // Apply region lookup if needed
                         if (ticket.City && (!ticket.Region || ticket.Region === '' || ticket.Region === null || ticket.Region === undefined)) {
