@@ -331,9 +331,10 @@
         .filters {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 30px;
+             padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-size: 13px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             position: relative;
@@ -345,23 +346,20 @@
         }
         
         .filter-group {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            overflow: visible;
+            gap: 8px !important;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         }
         
         .filter-item {
-            position: relative;
-            overflow: visible;
+            padding: 0 !important;
+    margin: 0 !important;
         }
         
     
         .filter-button {
             width: 100%;
-            padding: 10px;
+           
             border: 2px solid #e0e0e0;
-            border-radius: 8px;
             background: white;
             text-align: left;
             cursor: pointer;
@@ -369,7 +367,10 @@
             justify-content: space-between;
             align-items: center;
             transition: all 0.3s ease;
-            font-size: 1rem;
+           
+            padding: 7px;
+    font-size: 0.95rem;
+    border-radius: 6px;
         }
         
         .filter-button:hover, .filter-button.active {
@@ -387,22 +388,30 @@
         }
         
        .filter-dropdown {
-  position: relative;
+  min-width: 0;
 }
 .filter-options {
   position: absolute;
   top: 100%;
   left: 0;
-  width: 100%;
   z-index: 999;
   display: none;
   background: white;
   border: 1px solid #e0e0e0;
   box-shadow: 0 4px 16px rgba(102,126,234,0.09);
   border-radius: 8px;
-  padding: 8px 16px;   /* 8px top/bottom, 16px left/right */
+  
   cursor: pointer;
   transition: background 0.2s;
+
+max-height: 120px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 8px;
+    font-size: 13px;
+    min-width: 120px;
+    width: 100%;
+    box-sizing: border-box;
 }
 .filter-options.show {
   display: block;
@@ -545,6 +554,19 @@
                 font-size: 2rem;
             }
         }
+
+         .filters {
+        padding: 6px 4px;
+        font-size: 12px;
+    }
+    .filter-group {
+        gap: 4px !important;
+        grid-template-columns: 1fr 1fr;
+    }
+    .filter-options {
+        max-height: 80px;
+        font-size: 12px;
+    }
         
         .no-data {
             text-align: center;
