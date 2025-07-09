@@ -898,6 +898,22 @@ function getSLAStatus(ticket) {
     }
 }
 
+
+
+        async function lookupPrimaryCareTrust(postcode) {
+    const pc = postcode.replace(/\s+/g, '').toUpperCase();
+    const url = `https://api.postcodes.io/postcodes/${pc}`;
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Postcode not found');
+        const data = await response.json();
+        if (!data.result) throw new Error('No result');
+        return data.result.primary_care_trust || '';
+    } catch (err) {
+        return '';
+    }
+}
+
 function getAtRiskOfFailingSLA(ticket) {
     if (ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '') return { atRisk: "No", riskLevel: "" };
     const slaDeadline = calculateSLADeadline(ticket);
@@ -1331,6 +1347,50 @@ function getAtRiskOfFailingSLA(ticket) {
         }
     }
     // ---- End Region Lookup ----
+
+async function enrichTicketsWithPrimaryCareTrust(tickets) {
+    const postcodeCache = {};
+    for (let ticket of tickets) {
+        const pc = ticket.Postcode ? ticket.Postcode.replace(/\s+/g, '').toUpperCase() : '';
+        if (!pc) continue;
+
+        if (postcodeCache[pc]) {
+            // Use cached value
+            ticket.Region = postcodeCache[pc];
+        } else {
+            const trust = await lookupPrimaryCareTrust(pc);
+            ticket.Region = trust;
+            postcodeCache[pc] = trust;
+            // Optional: Respect API rate limit
+            await new Promise(resolve => setTimeout(resolve, 120));
+        }
+    }
+}
+
+
+
+async function batchPrimaryCareTrustLookup(postcodes) {
+    const url = 'https://api.postcodes.io/postcodes';
+    const response = await fetch(url, {
+        method: 'POST',
+        body: JSON.stringify({ postcodes }),
+        headers: {'Content-Type': 'application/json'}
+    });
+    const data = await response.json();
+    const trustMap = {};
+    data.result.forEach(r => {
+        trustMap[r.query.replace(/\s+/g, '').toUpperCase()] = r.result ? r.result.primary_care_trust : '';
+    });
+    return trustMap;
+}
+
+// Usage after loading tickets:
+const uniquePostcodes = [...new Set(tickets.map(t => t.Postcode && t.Postcode.replace(/\s+/g, '').toUpperCase()).filter(Boolean))];
+const trustMap = await batchPrimaryCareTrustLookup(uniquePostcodes);
+tickets.forEach(ticket => {
+    const pc = ticket.Postcode ? ticket.Postcode.replace(/\s+/g, '').toUpperCase() : '';
+    ticket.Region = trustMap[pc] || '';
+});
 
     // ---- SLA and At Risk logic ----
     ticket['SLA Status'] = getSLAStatus(ticket);
