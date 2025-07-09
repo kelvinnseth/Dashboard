@@ -2322,12 +2322,10 @@ document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">
     const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
     const allRegions = Object.keys(regionCounts);
 
-    // Build data with SLA performance for each region
     const tableData = [
         ['Region', 'Count', 'Percentage', 'SLA Performance']
     ].concat(
         allRegions
-            .sort((a, b) => regionCounts[b].length - regionCounts[a].length)
             .map(region => {
                 const tickets = regionCounts[region];
                 const total = tickets.length;
@@ -2340,17 +2338,24 @@ document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">
                         status === 'met sla'
                     );
                 }).length;
-                const slaPerf = total > 0 ? ((metSLA / total) * 100).toFixed(1) + '%' : 'N/A';
-                return [
+                const slaPerf = total > 0 ? ((metSLA / total) * 100) : 0;
+                return {
                     region,
                     total,
-                    ((total / filteredData.length) * 100).toFixed(1) + '%',
-                    slaPerf
-                ];
+                    percent: ((total / filteredData.length) * 100).toFixed(1) + '%',
+                    slaPerfDisplay: total > 0 ? slaPerf.toFixed(1) + '%' : 'N/A',
+                    slaPerf // for sorting
+                };
             })
+            .sort((a, b) => b.slaPerf - a.slaPerf)
+            .map(item => [
+                item.region,
+                item.total,
+                item.percent,
+                item.slaPerfDisplay
+            ])
     );
 
-    // Add horizontal and vertical scrolling
     const html = `
       <div style="overflow-x:auto; overflow-y:auto; max-height:400px; max-width:100%;">
         ${createPivotTable(tableData)}
