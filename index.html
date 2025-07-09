@@ -514,6 +514,16 @@
             font-weight: bold;
             margin-left: 5px;
         }
+
+.clickable-customer {
+    color: #667eea;
+    cursor: pointer;
+    text-decoration: underline;
+    font-weight: 500;
+}
+.clickable-customer:hover {
+    color: #764ba2;
+}
         
         @media (max-width: 768px) {
             .dashboard-grid {
@@ -1565,88 +1575,123 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
 }
         
         function updateSLARiskPivot() {
-            const today = new Date();
-            const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-            
-            const atRiskTickets = filteredData.filter(ticket => {
-    const status = ticket.Status || ticket.Satus || '';
-    const slaStatus = (ticket['SLA Status'] || '').toString().toLowerCase();
+    const today = new Date();
+    const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
 
-    // Exclude completed or already missed SLA tickets
-    if (status === 'Complete') return false;
-    if (
-        slaStatus.includes('missed sla') ||
-        slaStatus.includes('out of sla') ||
-        slaStatus.includes('failed sla') ||
-        slaStatus.includes('fail')
-    ) {
-        return false;
-    }
+    const atRiskTickets = filteredData.filter(ticket => {
+        const status = ticket.Status || ticket.Satus || '';
+        const slaStatus = (ticket['SLA Status'] || '').toString().toLowerCase();
 
-    const sladue = calculateSLADueDate(ticket);
-    return sladue && sladue <= endOfToday;
-});
-            
-            if (atRiskTickets.length === 0) {
-                document.getElementById('slaRiskPivot').innerHTML = 
-                    '<div class="no-data">No tickets currently at risk of failing SLA</div>';
-                return;
-            }
-            
-           const riskCategories = {
-    'Needs Attention': [],
-    'High Risk': [],
-    'Low Risk': []
-};
-
-atRiskTickets.forEach(ticket => {
-    const priority = ticket.Priority || '';
-
-    if (priority === 'P1') {
-        riskCategories['Needs Attention'].push(ticket);
-    } else if (priority === 'P2' || priority === 'P3') {
-        riskCategories['High Risk'].push(ticket);
-    } else {
-        riskCategories['Low Risk'].push(ticket);
-    }
-});
-            
-            const totalAtRisk = atRiskTickets.length;
-            
-            const tableData = [
-    ['Risk Level', 'Count', 'Percentage', 'Top Customer']
-].concat(
-    Object.entries(riskCategories)
-        .filter(([risk, tickets]) => tickets.length > 0)
-        .map(([risk, tickets]) => {
-            const topCustomer = getTopCustomer(tickets);
-            return [
-                risk,
-                tickets.length,
-                ((tickets.length / totalAtRisk) * 100).toFixed(1) + '%',
-                topCustomer
-            ];
-        })
-);
-            
-            window.slaRiskTickets = riskCategories;
-            
-            let html = createPivotTable(tableData);
-            
-            setTimeout(() => {
-                const countCells = document.querySelectorAll('#slaRiskPivot tbody tr td:nth-child(2)');
-                countCells.forEach((cell, index) => {
-                    const riskLevels = Object.keys(riskCategories).filter(key => riskCategories[key].length > 0);
-                    if (riskLevels[index]) {
-                        const riskLevel = riskLevels[index];
-                        const riskId = riskLevel.replace(/\s+/g, '').toLowerCase();
-                        cell.innerHTML = `<span class="clickable-count" onclick="showTicketDetails('${riskId}', '${riskLevel}')">${cell.textContent}</span>`;
-                    }
-                });
-            }, 100);
-            
-            document.getElementById('slaRiskPivot').innerHTML = html;
+        // Exclude completed or already missed SLA tickets
+        if (status === 'Complete') return false;
+        if (
+            slaStatus.includes('missed sla') ||
+            slaStatus.includes('out of sla') ||
+            slaStatus.includes('failed sla') ||
+            slaStatus.includes('fail')
+        ) {
+            return false;
         }
+
+        const sladue = calculateSLADueDate(ticket);
+        return sladue && sladue <= endOfToday;
+    });
+
+    if (atRiskTickets.length === 0) {
+        document.getElementById('slaRiskPivot').innerHTML = 
+            '<div class="no-data">No tickets currently at risk of failing SLA</div>';
+        return;
+    }
+
+    // Group into risk categories and then by customer
+    const riskCategories = {
+        'Needs Attention': {},
+        'High Risk': {},
+        'Low Risk': {}
+    };
+
+    atRiskTickets.forEach(ticket => {
+        const priority = ticket.Priority || '';
+        let risk = 'Low Risk';
+        if (priority === 'P1') risk = 'Needs Attention';
+        else if (priority === 'P2' || priority === 'P3') risk = 'High Risk';
+
+        const customer = ticket.Customer || 'Unknown Customer';
+        if (!riskCategories[risk][customer]) riskCategories[risk][customer] = [];
+        riskCategories[risk][customer].push(ticket);
+    });
+
+    const totalAtRisk = atRiskTickets.length;
+
+    const tableData = [
+        ['Risk Level', 'Count', 'Percentage', 'Customers']
+    ].concat(
+        Object.entries(riskCategories)
+            .filter(([risk, customers]) => Object.values(customers).flat().length > 0)
+            .map(([risk, customers]) => {
+                const tickets = Object.values(customers).flat();
+                const customerLinks = Object.keys(customers)
+                    .map(customer => `<span class="clickable-customer" onclick="showSLARiskCustomerTickets('${risk}', '${customer.replace(/'/g, "\\'")}')">${customer}</span>`)
+                    .join(', ');
+                return [
+                    risk,
+                    tickets.length,
+                    ((tickets.length / totalAtRisk) * 100).toFixed(1) + '%',
+                    customerLinks
+                ];
+            })
+    );
+
+    // Store for modal use
+    window.slaRiskTicketsByCategoryAndCustomer = riskCategories;
+
+    let html = createPivotTable(tableData);
+
+    document.getElementById('slaRiskPivot').innerHTML = html;
+}
+
+        function showSLARiskCustomerTickets(riskLevel, customer) {
+    const tickets = (window.slaRiskTicketsByCategoryAndCustomer[riskLevel] && window.slaRiskTicketsByCategoryAndCustomer[riskLevel][customer]) || [];
+
+    if (!tickets.length) {
+        alert('No tickets found for this customer and risk level.');
+        return;
+    }
+
+    const modalTitle = `Tickets for ${customer} (${riskLevel})`;
+    const ticketListHtml = `
+        <div class="ticket-list-modal-info"><b>Customer:</b> ${customer}</div>
+        <table class="pivot-table" style="margin-top:10px;">
+            <thead>
+                <tr>
+                    <th>Ticket Number</th>
+                    <th>Title</th>
+                    <th>SLA Due Date</th>
+                    <th>Status</th>
+                    <th>Primary Resource</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${tickets.map(ticket => {
+                    const slaDue = calculateSLADueDate(ticket);
+                    const dueDate = slaDue ? slaDue.toLocaleString('en-GB') : 'N/A';
+                    return `<tr>
+                        <td>${ticket['Ticket Number'] || 'N/A'}</td>
+                        <td>${ticket['Ticket Title'] || 'N/A'}</td>
+                        <td>${dueDate}</td>
+                        <td>${ticket.Status || ticket.Satus || 'N/A'}</td>
+                        <td>${ticket['Primary Resource'] || 'N/A'}</td>
+                    </tr>`;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+
+    document.getElementById('modalTitle').textContent = modalTitle;
+    document.getElementById('ticketList').innerHTML = ticketListHtml;
+    document.getElementById('ticketModal').style.display = 'flex';
+}
+
         
         function calculateSLADueDate(ticket) {
             const createDate = convertExcelDate(ticket['Create Date']);
