@@ -1805,91 +1805,90 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
        function updatePivotTables() {
     updateStatusPivot();
     updateSLAPivot();
-    updateSLARiskPivot();
+    updateSLARiskPivot(); // <-- Required!
     updatePriorityPivot();
     updateRegionPivot();
     updateCustomerPivot();
     updateEngineerPivot();
-    updateSchedulerPivot(); // <--- Make sure this is present
+    updateSchedulerPivot();
 }
         
-       function updateSLAPivot() {
-    const slaCounts = groupBy(filteredData, t => t['SLA Status'] || 'Unknown');
-    const totalTickets = filteredData.length;
-    const metSLA = (slaCounts['Met SLA'] || []).length + (slaCounts['Within SLA'] || []).length;
-    const missedSLA = (slaCounts['Missed SLA'] || []).length + (slaCounts['Out of SLA'] || []).length;
-    const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixed(1) : '0';
+      function updateSLARiskPivot() {
+    // Group tickets by SLA Risk and then by Customer
+    const riskCategories = ["Urgent Attention Needed", "High Risk"];
+    const slaAtRiskTickets = filteredData.filter(t => 
+        t['At Risk of Failing SLA'] === "Yes" && riskCategories.includes(t['SLA Risk Level'])
+    );
 
-    const summaryHtml = `
-        <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; text-align: center;">
-                <div>
-                    <div style="font-size: 1.5rem; font-weight: bold;">${totalTickets}</div>
-                    <div style="font-size: 0.9rem;">Total Tickets</div>
-                </div>
-                <div>
-                    <div style="font-size: 1.5rem; font-weight: bold; color: #90EE90;">${metSLA}</div>
-                    <div style="font-size: 0.9rem;">Met SLA</div>
-                </div>
-                <div>
-                    <div style="font-size: 1.5rem; font-weight: bold; color: #FFB6C1;">${missedSLA}</div>
-                    <div style="font-size: 0.9rem;">Missed SLA</div>
-                </div>
-                <div>
-                    <div style="font-size: 1.5rem; font-weight: bold; color: #FFD700;">${slaPerformance}%</div>
-                    <div style="font-size: 0.9rem;">SLA Performance</div>
-                </div>
-            </div>
-        </div>
+    // Build a mapping by risk then customer for modal lookup
+    window.slaRiskTicketsByCategoryAndCustomer = {};
+    riskCategories.forEach(riskLevel => {
+        window.slaRiskTicketsByCategoryAndCustomer[riskLevel] = {};
+        const byCustomer = groupBy(
+            slaAtRiskTickets.filter(t => t['SLA Risk Level'] === riskLevel),
+            t => t.Customer || 'Unknown'
+        );
+        Object.assign(window.slaRiskTicketsByCategoryAndCustomer[riskLevel], byCustomer);
+    });
+
+    // Table data
+    const tableRows = [];
+    riskCategories.forEach(riskLevel => {
+        const byCustomer = window.slaRiskTicketsByCategoryAndCustomer[riskLevel];
+        Object.entries(byCustomer).sort((a,b)=>b[1].length-a[1].length).forEach(([customer, tickets]) => {
+            tableRows.push([
+                riskLevel,
+                `<span class="clickable-customer" onclick="showSLARiskCustomerTickets('${riskLevel}','${customer.replace(/'/g,"\\'")}')">${customer}</span>`,
+                tickets.length,
+                getAverageHoursUntilDue(tickets)
+            ]);
+        });
+    });
+
+    let html = createPivotTable([
+        ['Risk Level', 'Customer', 'Count', 'Avg Hours Until Due']
+    ].concat(tableRows));
+    document.getElementById('slaRiskPivot').innerHTML = html;
+}
+
+function showSLARiskCustomerTickets(riskLevel, customer) {
+    const tickets = (window.slaRiskTicketsByCategoryAndCustomer[riskLevel] && window.slaRiskTicketsByCategoryAndCustomer[riskLevel][customer]) || [];
+    if (!tickets.length) {
+        alert('No tickets found for this customer and risk level.');
+        return;
+    }
+    const modalTitle = `Tickets for ${customer} (${riskLevel})`;
+    const ticketListHtml = `
+        <div class="ticket-list-modal-info"><b>Customer:</b> ${customer}</div>
+        <table class="pivot-table" style="margin-top:10px;">
+            <thead>
+                <tr>
+                    <th>Ticket Number</th>
+                    <th>Title</th>
+                    <th>SLA Due Date</th>
+                    <th>Status</th>
+                    <th>Primary Resource</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${tickets.map(ticket => {
+                    const slaDue = calculateSLADueDate(ticket);
+                    const dueDate = slaDue ? slaDue.toLocaleString('en-GB') : 'N/A';
+                    return `<tr>
+                        <td>${ticket['Ticket Number'] || 'N/A'}</td>
+                        <td>${ticket['Ticket Title'] || 'N/A'}</td>
+                        <td>${dueDate}</td>
+                        <td>${ticket.Status || ticket.Satus || 'N/A'}</td>
+                        <td>${ticket['Primary Resource'] || 'N/A'}</td>
+                    </tr>`;
+                }).join('')}
+            </tbody>
+        </table>
     `;
 
-    // Build clickable rows for each SLA status
-    let tableHtml = `<table class="pivot-table"><thead><tr><th>SLA Status</th><th>Count</th><th>Percentage</th></tr></thead><tbody>`;
-    Object.entries(slaCounts).forEach(([sla, tickets], idx) => {
-        tableHtml += `
-            <tr class="sla-row" data-sla="${encodeURIComponent(sla)}" style="cursor:pointer;">
-                <td>${sla}</td>
-                <td>${tickets.length}</td>
-                <td>${((tickets.length / filteredData.length) * 100).toFixed(1)}%</td>
-            </tr>
-        `;
-    });
-    tableHtml += `</tbody></table>`;
-
-    document.getElementById('slaPivot').innerHTML = summaryHtml + tableHtml;
-
-    // Attach event listeners to each clickable SLA row
-    document.querySelectorAll('#slaPivot .sla-row').forEach(row => {
-        row.addEventListener('click', function() {
-            const sla = decodeURIComponent(this.getAttribute('data-sla'));
-            const tickets = slaCounts[sla] || [];
-            showModalForSLA(sla, tickets);
-        });
-    });
-}
-
-// Show modal with all tickets for that SLA status
-function showModalForSLA(sla, tickets) {
-    let html = `<h2>Tickets for SLA Status: ${sla}</h2>`;
-    if (tickets.length === 0) {
-        html += "<p>No tickets found.</p>";
-    } else {
-        html += `<table class="pivot-table"><thead><tr>`;
-        // Display key columns (customize as needed)
-        const columns = Object.keys(tickets[0]);
-        columns.forEach(col => html += `<th>${col}</th>`);
-        html += `</tr></thead><tbody>`;
-        tickets.forEach(t => {
-            html += `<tr>`;
-            columns.forEach(col => html += `<td>${t[col] || ""}</td>`);
-            html += `</tr>`;
-        });
-        html += `</tbody></table>`;
-    }
-    document.getElementById('modalBody').innerHTML = html;
+    document.getElementById('modalBody').innerHTML = ticketListHtml;
     document.getElementById('modal').classList.remove('hidden');
 }
-
 // Hide modal
 function closeModal() {
     document.getElementById('modal').classList.add('hidden');
