@@ -380,27 +380,18 @@
         }
         
        .filter-dropdown {
-    position: relative;
-    width: 100%;
+  position: relative;
 }
-
 .filter-options {
-    position: absolute !important;
-    top: 100%;
-    left: 0;
-    width: 100%;
-    min-width: 200px;
-    z-index: 9999;
-    background: white;
-    border: 2px solid #667eea;
-    border-radius: 8px;
-    max-height: 200px;
-    overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  z-index: 999;
+  display: none;
 }
 .filter-options.show {
-    display: block;
+  display: block;
 }
         
         .filter-option:hover {
@@ -1321,74 +1312,53 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
         }
         
         function createFilterDropdown(filterType, options, containerId) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
-            
-            // Add "Select All" option
-            const selectAllDiv = document.createElement('div');
-            selectAllDiv.className = 'filter-option select-all';
-            selectAllDiv.innerHTML = `
-                <input type="checkbox" id="${filterType}-select-all" ${activeFilters[filterType].length === 0 ? 'checked' : ''}>
-                <label for="${filterType}-select-all">Select All</label>
-            `;
-            container.appendChild(selectAllDiv);
-            
-            // Add individual options
-            options.forEach(option => {
-                const optionDiv = document.createElement('div');
-                optionDiv.className = 'filter-option';
-                const isChecked = activeFilters[filterType].length === 0 || activeFilters[filterType].includes(option);
-                optionDiv.innerHTML = `
-                    <input type="checkbox" id="${filterType}-${option.replace(/[^a-zA-Z0-9]/g, '_')}" 
-                           value="${option}" ${isChecked ? 'checked' : ''}>
-                    <label for="${filterType}-${option.replace(/[^a-zA-Z0-9]/g, '_')}">${option}</label>
-                `;
-                container.appendChild(optionDiv);
-            });
-            
-            container.addEventListener('change', (e) => handleFilterChange(filterType, e));
-            updateFilterButtonText(filterType);
-        }
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+
+    // Add "Select All"
+    const selectAllDiv = document.createElement('div');
+    selectAllDiv.className = 'filter-option select-all';
+    selectAllDiv.innerHTML = `
+        <input type="checkbox" id="${filterType}-select-all" ${activeFilters[filterType].length === 0 ? 'checked' : ''}>
+        <label for="${filterType}-select-all">Select All</label>
+    `;
+    container.appendChild(selectAllDiv);
+
+    // Add individual options
+    options.forEach(option => {
+        const optionDiv = document.createElement('div');
+        optionDiv.className = 'filter-option';
+        const optionId = `${filterType}-${option.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const isChecked = activeFilters[filterType].length === 0 || activeFilters[filterType].includes(option);
+
+        optionDiv.innerHTML = `
+            <input type="checkbox" id="${optionId}" value="${option}" ${isChecked ? 'checked' : ''}>
+            <label for="${optionId}">${option}</label>
+        `;
+        container.appendChild(optionDiv);
+    });
+
+    container.addEventListener('change', (e) => handleFilterChange(filterType, e));
+    updateFilterButtonText(filterType);
+}
         
         function toggleFilterDropdown(e) {
-            e.stopPropagation();
-            const button = e.currentTarget;
-            const dropdown = button.nextElementSibling;
-            const isActive = button.classList.contains('active');
-            
-            // Close all other dropdowns
-            document.querySelectorAll('.filter-button').forEach(btn => {
-                btn.classList.remove('active');
-                btn.nextElementSibling.classList.remove('show');
-            });
-            
-            if (!isActive) {
-                button.classList.add('active');
-                dropdown.classList.add('show');
-                
-                // Position the dropdown
-                const buttonRect = button.getBoundingClientRect();
-                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-                
-                dropdown.style.top = (buttonRect.bottom + scrollTop + 2) + 'px';
-                dropdown.style.left = (buttonRect.left + scrollLeft) + 'px';
-                dropdown.style.width = buttonRect.width + 'px';
-                
-                // Ensure dropdown doesn't go off screen
-                const dropdownRect = dropdown.getBoundingClientRect();
-                const viewportHeight = window.innerHeight;
-                const viewportWidth = window.innerWidth;
-                
-                if (dropdownRect.bottom > viewportHeight) {
-                    dropdown.style.top = (buttonRect.top + scrollTop - dropdown.offsetHeight - 2) + 'px';
-                }
-                
-                if (dropdownRect.right > viewportWidth) {
-                    dropdown.style.left = (buttonRect.right + scrollLeft - dropdown.offsetWidth) + 'px';
-                }
-            }
-        }
+    e.stopPropagation();
+    const button = e.currentTarget;
+    const dropdown = button.nextElementSibling;
+    const isActive = button.classList.contains('active');
+
+    // Close all other dropdowns
+    document.querySelectorAll('.filter-button').forEach(btn => {
+        btn.classList.remove('active');
+        btn.nextElementSibling.classList.remove('show');
+    });
+
+    if (!isActive) {
+        button.classList.add('active');
+        dropdown.classList.add('show');
+    }
+}
         
         function closeAllDropdowns(e) {
             if (!e.target.closest('.filter-dropdown')) {
