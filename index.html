@@ -1813,7 +1813,7 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
     updateSchedulerPivot();
 }
         
-      function updateSLARiskPivot() {
+   function updateSLARiskPivot() {
     // Group tickets by SLA Risk and then by Customer
     const riskCategories = ["Urgent Attention Needed", "High Risk"];
     const slaAtRiskTickets = filteredData.filter(t => 
@@ -1831,7 +1831,7 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
         Object.assign(window.slaRiskTicketsByCategoryAndCustomer[riskLevel], byCustomer);
     });
 
-    // Table data
+    // Table data, without the Avg Hours column
     const tableRows = [];
     riskCategories.forEach(riskLevel => {
         const byCustomer = window.slaRiskTicketsByCategoryAndCustomer[riskLevel];
@@ -1839,14 +1839,13 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
             tableRows.push([
                 riskLevel,
                 `<span class="clickable-customer" onclick="showSLARiskCustomerTickets('${riskLevel}','${customer.replace(/'/g,"\\'")}')">${customer}</span>`,
-                tickets.length,
-                getAverageHoursUntilDue(tickets)
+                tickets.length
             ]);
         });
     });
 
     let html = createPivotTable([
-        ['Risk Level', 'Customer', 'Count', 'Avg Hours Until Due']
+        ['Risk Level', 'Customer', 'Count']
     ].concat(tableRows));
     document.getElementById('slaRiskPivot').innerHTML = html;
 }
@@ -1857,33 +1856,118 @@ function showSLARiskCustomerTickets(riskLevel, customer) {
         alert('No tickets found for this customer and risk level.');
         return;
     }
-    const modalTitle = `Tickets for ${customer} (${riskLevel})`;
+    const modalTitle = `${customer} (${riskLevel})`;
+    const totalTickets = tickets.length;
     const ticketListHtml = `
-        <div class="ticket-list-modal-info"><b>Customer:</b> ${customer}</div>
-        <table class="pivot-table" style="margin-top:10px;">
-            <thead>
-                <tr>
-                    <th>Ticket Number</th>
-                    <th>Title</th>
-                    <th>SLA Due Date</th>
-                    <th>Status</th>
-                    <th>Primary Resource</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${tickets.map(ticket => {
-                    const slaDue = calculateSLADueDate(ticket);
-                    const dueDate = slaDue ? slaDue.toLocaleString('en-GB') : 'N/A';
-                    return `<tr>
-                        <td>${ticket['Ticket Number'] || 'N/A'}</td>
-                        <td>${ticket['Ticket Title'] || 'N/A'}</td>
-                        <td>${dueDate}</td>
-                        <td>${ticket.Status || ticket.Satus || 'N/A'}</td>
-                        <td>${ticket['Primary Resource'] || 'N/A'}</td>
-                    </tr>`;
-                }).join('')}
-            </tbody>
-        </table>
+        <h2>${customer}</h2>
+        <p><b>Risk Level:</b> ${riskLevel}</p>
+        <p><b>Total Tickets:</b> ${totalTickets}</p>
+        <div class="ticket-list">
+        ${
+            tickets.map(ticket => {
+                // Format Create Date/Time
+                let createDateTime = 'N/A';
+                if (ticket['Create Date']) {
+                    try {
+                        const createDate = convertExcelDate(ticket['Create Date']);
+                        if (createDate && !isNaN(createDate.getTime())) {
+                            createDateTime = createDate.toLocaleDateString('en-GB') + ' ' + createDate.toLocaleTimeString('en-GB');
+                        } else {
+                            createDateTime = ticket['Create Date'].toString();
+                        }
+                    } catch (e) {
+                        createDateTime = ticket['Create Date'].toString();
+                    }
+                }
+
+                let createTimeDisplay = '';
+                if (ticket['Create Time']) {
+                    try {
+                        const createTime = convertExcelDate(ticket['Create Time']);
+                        if (createTime && !isNaN(createTime.getTime())) {
+                            createTimeDisplay = ' (Time: ' + createTime.toLocaleTimeString('en-GB') + ')';
+                        } else {
+                            createTimeDisplay = ' (Time: ' + ticket['Create Time'].toString() + ')';
+                        }
+                    } catch (e) {
+                        createTimeDisplay = ' (Time: ' + ticket['Create Time'].toString() + ')';
+                    }
+                }
+
+                // Format Scheduled Date/Time
+                let scheduledDate = 'N/A';
+                if (ticket['Scheduled Date']) {
+                    try {
+                        const schedDate = convertExcelDate(ticket['Scheduled Date']);
+                        if (schedDate && !isNaN(schedDate.getTime())) {
+                            scheduledDate = schedDate.toLocaleDateString('en-GB');
+                        } else {
+                            scheduledDate = ticket['Scheduled Date'].toString();
+                        }
+                    } catch (e) {
+                        scheduledDate = ticket['Scheduled Date'].toString();
+                    }
+                }
+
+                let scheduledTime = '';
+                if (ticket['Scheduled time']) {
+                    try {
+                        const schedTime = convertExcelDate(ticket['Scheduled time']);
+                        if (schedTime && !isNaN(schedTime.getTime())) {
+                            scheduledTime = ' at ' + schedTime.toLocaleTimeString('en-GB');
+                        } else {
+                            scheduledTime = ' at ' + ticket['Scheduled time'].toString();
+                        }
+                    } catch (e) {
+                        scheduledTime = ' at ' + ticket['Scheduled time'].toString();
+                    }
+                }
+
+                // Format Complete Date
+                let completeDate = 'N/A';
+                if (ticket['Complete Date']) {
+                    try {
+                        const compDate = convertExcelDate(ticket['Complete Date']);
+                        if (compDate && !isNaN(compDate.getTime())) {
+                            completeDate = compDate.toLocaleDateString('en-GB');
+                        } else {
+                            completeDate = ticket['Complete Date'].toString();
+                        }
+                    } catch (e) {
+                        completeDate = ticket['Complete Date'].toString();
+                    }
+                }
+
+                return `
+                    <div class="ticket-item">
+                        <div class="ticket-number">${ticket['Ticket Number'] || 'N/A'}</div>
+                        <div class="ticket-title">${ticket['Ticket Title'] || 'No title available'}</div>
+                        <div class="ticket-meta">
+                            <strong>Customer:</strong> ${ticket.Customer || 'N/A'} | 
+                            <strong>Priority:</strong> ${ticket.Priority || 'N/A'} | 
+                            <strong>Status:</strong> ${ticket.Status || ticket.Satus || 'N/A'} |
+                            <strong>SLA:</strong> ${ticket['SLA Status'] || 'N/A'}
+                        </div>
+                        <div class="ticket-meta">
+                            <strong>Created:</strong> ${createDateTime}${createTimeDisplay}
+                        </div>
+                        <div class="ticket-meta">
+                            <strong>Scheduled:</strong> ${scheduledDate}${scheduledTime} |
+                            <strong>Resource:</strong> ${ticket['Primary Resource'] || 'N/A'}
+                        </div>
+                        <div class="ticket-meta">
+                            <strong>Complete Date:</strong> ${completeDate}
+                        </div>
+                        <div class="ticket-meta">
+                            <strong>City:</strong> ${ticket.City || 'N/A'} |
+                            <strong>Region:</strong> ${ticket.Region || 'N/A'} |
+                            <strong>Postcode:</strong> ${ticket.Postcode || 'N/A'}
+                        </div>
+                    </div>
+                `;
+            }).join('')
+        }
+        </div>
     `;
     document.getElementById('modalBody').innerHTML = ticketListHtml;
     document.getElementById('modal').classList.remove('hidden');
@@ -1892,47 +1976,7 @@ function showSLARiskCustomerTickets(riskLevel, customer) {
 function closeModal() {
     document.getElementById('modal').classList.add('hidden');
 }
-        function showSLARiskCustomerTickets(riskLevel, customer) {
-    const tickets = (window.slaRiskTicketsByCategoryAndCustomer[riskLevel] && window.slaRiskTicketsByCategoryAndCustomer[riskLevel][customer]) || [];
-
-    if (!tickets.length) {
-        alert('No tickets found for this customer and risk level.');
-        return;
-    }
-
-    const modalTitle = `Tickets for ${customer} (${riskLevel})`;
-    const ticketListHtml = `
-        <div class="ticket-list-modal-info"><b>Customer:</b> ${customer}</div>
-        <table class="pivot-table" style="margin-top:10px;">
-            <thead>
-                <tr>
-                    <th>Ticket Number</th>
-                    <th>Title</th>
-                    <th>SLA Due Date</th>
-                    <th>Status</th>
-                    <th>Primary Resource</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${tickets.map(ticket => {
-                    const slaDue = calculateSLADueDate(ticket);
-                    const dueDate = slaDue ? slaDue.toLocaleString('en-GB') : 'N/A';
-                    return `<tr>
-                        <td>${ticket['Ticket Number'] || 'N/A'}</td>
-                        <td>${ticket['Ticket Title'] || 'N/A'}</td>
-                        <td>${dueDate}</td>
-                        <td>${ticket.Status || ticket.Satus || 'N/A'}</td>
-                        <td>${ticket['Primary Resource'] || 'N/A'}</td>
-                    </tr>`;
-                }).join('')}
-            </tbody>
-        </table>
-    `;
-
-    document.getElementById('modalTitle').textContent = modalTitle;
-    document.getElementById('ticketList').innerHTML = ticketListHtml;
-    document.getElementById('ticketModal').style.display = 'flex';
-}
+       
 
         
         function calculateSLADueDate(ticket) {
