@@ -1563,30 +1563,23 @@
                 return;
             }
             
-            const riskCategories = {
-                'Critical Risk': [],
-                'High Risk': [],
-                'Medium Risk': [],
-                'Low Risk': []
-            };
-            
-            atRiskTickets.forEach(ticket => {
-                const priority = ticket.Priority || '';
-                const sladue = calculateSLADueDate(ticket);
-                const status = ticket.Status || ticket.Satus || '';
-                
-                const hoursUntilDue = sladue ? (sladue - new Date()) / (1000 * 60 * 60) : 999;
-                
-                if ((hoursUntilDue <= 24 && (priority === 'P1' || priority === 'P2')) || hoursUntilDue <= 0) {
-                    riskCategories['Critical Risk'].push(ticket);
-                } else if (hoursUntilDue <= 24 && (priority === 'P3' || status === 'Action Required')) {
-                    riskCategories['High Risk'].push(ticket);
-                } else if (hoursUntilDue <= 48) {
-                    riskCategories['Medium Risk'].push(ticket);
-                } else {
-                    riskCategories['Low Risk'].push(ticket);
-                }
-            });
+           const riskCategories = {
+    'Needs Attention': [],
+    'High Risk': [],
+    'Low Risk': []
+};
+
+atRiskTickets.forEach(ticket => {
+    const priority = ticket.Priority || '';
+
+    if (priority === 'P1') {
+        riskCategories['Needs Attention'].push(ticket);
+    } else if (priority === 'P2' || priority === 'P3') {
+        riskCategories['High Risk'].push(ticket);
+    } else {
+        riskCategories['Low Risk'].push(ticket);
+    }
+});
             
             const totalAtRisk = atRiskTickets.length;
             
