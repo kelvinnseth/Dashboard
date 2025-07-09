@@ -2312,21 +2312,46 @@ document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">
 }
         
         function updateRegionPivot() {
-            const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
-            const html = createPivotTable([
-                ['Region', 'Count', 'Percentage']
-            ].concat(
-                Object.entries(regionCounts)
-                    .sort((a, b) => b[1].length - a[1].length)
-                    .slice(0, 10)
-                    .map(([region, tickets]) => [
-                        region,
-                        tickets.length,
-                        ((tickets.length / filteredData.length) * 100).toFixed(1) + '%'
-                    ])
-            ));
-            document.getElementById('regionPivot').innerHTML = html;
-        }
+    const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
+    const allRegions = Object.keys(regionCounts);
+
+    // Build data with SLA performance for each region
+    const tableData = [
+        ['Region', 'Count', 'Percentage', 'SLA Performance']
+    ].concat(
+        allRegions
+            .sort((a, b) => regionCounts[b].length - regionCounts[a].length)
+            .map(region => {
+                const tickets = regionCounts[region];
+                const total = tickets.length;
+                const metSLA = tickets.filter(t => {
+                    const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
+                    return (
+                        status === 'completed within sla' ||
+                        status === 'still within sla' ||
+                        status === 'within sla' ||
+                        status === 'met sla'
+                    );
+                }).length;
+                const slaPerf = total > 0 ? ((metSLA / total) * 100).toFixed(1) + '%' : 'N/A';
+                return [
+                    region,
+                    total,
+                    ((total / filteredData.length) * 100).toFixed(1) + '%',
+                    slaPerf
+                ];
+            })
+    );
+
+    // Scrollable container for overflow
+    const html = `
+      <div style="overflow-x:auto; max-width:100%;">
+        ${createPivotTable(tableData)}
+      </div>
+    `;
+    document.getElementById('regionPivot').innerHTML = html;
+}
+
         
         function updateCustomerPivot() {
             const customerCounts = groupBy(filteredData, t => t.Customer || 'Unknown');
