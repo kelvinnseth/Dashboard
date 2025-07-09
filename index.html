@@ -2263,11 +2263,30 @@ document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">
         let showAllEngineers = false; // State variable
 
 
+        
+function countWeekdays(startDate, endDate) {
+    let count = 0;
+    let current = new Date(startDate);
+    // Zero out time for safety
+    current.setHours(0, 0, 0, 0);
+    endDate = new Date(endDate);
+    endDate.setHours(0, 0, 0, 0);
+    while (current <= endDate) {
+        const day = current.getDay();
+        if (day !== 0 && day !== 6) count++; // 0 = Sunday, 6 = Saturday
+        current.setDate(current.getDate() + 1);
+    }
+    return count;
+}
+
 function updateSchedulerPivot() {
     const schedulerCounts = groupBy(filteredData, t => t['Scheduled By'] || 'Unassigned');
     const schedulerStats = Object.entries(schedulerCounts).map(([scheduler, tickets]) => {
         // Only tickets with a scheduled date
         const scheduledTickets = tickets.filter(t => t['Scheduled Date']);
+        const scheduledDates = scheduledTickets
+            .map(t => t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null)
+            .filter(d => d);
 
         // Completed within SLA (based on SLA Status)
         const completedWithinSLA = scheduledTickets.filter(t => {
@@ -2279,24 +2298,19 @@ function updateSchedulerPivot() {
             );
         }).length;
 
+        let avgTicketsPerShift = 'N/A';
+        if (scheduledDates.length > 0) {
+            const minDate = new Date(Math.min(...scheduledDates.map(d => d.getTime())));
+            const maxDate = new Date(Math.max(...scheduledDates.map(d => d.getTime())));
+            const numWeekdays = countWeekdays(minDate, maxDate);
+            avgTicketsPerShift = numWeekdays > 0
+                ? (scheduledTickets.length / numWeekdays).toFixed(2)
+                : 'N/A';
+        }
+
         const onTimeRate = scheduledTickets.length > 0
             ? ((completedWithinSLA / scheduledTickets.length) * 100)
             : null;
-
-        // Average ticket per shift logic
-        const ticketsByDate = {};
-        scheduledTickets.forEach(t => {
-            const d = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
-            if (!d) return;
-            const dateStr = d.toDateString();
-            if (!ticketsByDate[dateStr]) ticketsByDate[dateStr] = 0;
-            ticketsByDate[dateStr]++;
-        });
-        const shiftCounts = Object.values(ticketsByDate);
-        const avgTicketsPerShift =
-            shiftCounts.length > 0
-                ? (shiftCounts.reduce((a, b) => a + b, 0) / shiftCounts.length).toFixed(2)
-                : 'N/A';
 
         return {
             scheduler,
@@ -2317,7 +2331,7 @@ function updateSchedulerPivot() {
             'Total Tickets',
             'Completed Within SLA',
             'On-Time Completion Rate',
-            'Average Ticket per Shift'
+            'Average Ticket per Shift (Weekdays)'
         ]
     ].concat(
         schedulerStats.map(row => [
