@@ -1247,19 +1247,11 @@ function getAtRiskOfFailingSLA(ticket) {
                         throw new Error('No data rows found starting from row 4');
                     }
                     
-                   originalData = rows.map((row) => {
+      originalData = rows.map((row) => {
     const ticket = {};
     headers.forEach((header, index) => {
         ticket[header] = row[index];
     });
-// Add SLA status and risk
-    ticket['SLA Status'] = getSLAStatus(ticket);
-    const riskInfo = getAtRiskOfFailingSLA(ticket);
-    ticket['At Risk of Failing SLA'] = riskInfo.atRisk;
-    ticket['SLA Risk Level'] = riskInfo.riskLevel;
-
-    return ticket;
-});
 
     // ---- Date Normalization ----
     const dateFields = [
@@ -1301,6 +1293,13 @@ function getAtRiskOfFailingSLA(ticket) {
         }
     }
     // ---- End Region Lookup ----
+
+    // ---- SLA and At Risk logic ----
+    ticket['SLA Status'] = getSLAStatus(ticket);
+    const riskInfo = getAtRiskOfFailingSLA(ticket);
+    ticket['At Risk of Failing SLA'] = riskInfo.atRisk;
+    ticket['SLA Risk Level'] = riskInfo.riskLevel;
+    // ---- End SLA logic ----
 
     return ticket;
 });
