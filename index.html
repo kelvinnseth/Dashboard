@@ -1368,12 +1368,14 @@ async function batchPrimaryCareTrustLookup(postcodes) {
 
 
 function isLikelyUKPostcode(pc) {
-    // At least one letter, one number, and 5-8 chars (after removing spaces)
-    return typeof pc === 'string' && /[A-Z]/i.test(pc) && /\d/.test(pc) && pc.length <= 8 && pc.length >= 5;
+    return typeof pc === 'string'
+        && /[A-Z]/i.test(pc)
+        && /\d/.test(pc)
+        && pc.length <= 8 && pc.length >= 5;
 }
 
 try {
-    // Only send likely UK postcodes as strings to the API
+    // 1. Extract unique UK postcodes
     const uniquePostcodes = [
         ...new Set(
             originalData
@@ -1383,17 +1385,20 @@ try {
     ];
     console.log("UK postcodes to send to API:", uniquePostcodes);
 
+    // 2. Call the batch API
     let trustMap = {};
     if (uniquePostcodes.length > 0) {
         trustMap = await batchPrimaryCareTrustLookup(uniquePostcodes);
     }
+    console.log("Trust map returned from API:", trustMap);
 
+    // 3. Assign Region to tickets
     originalData.forEach(ticket => {
         let pc = typeof ticket.Postcode === 'string' ? ticket.Postcode.replace(/\s+/g, '').toUpperCase() : '';
         if (pc && trustMap[pc]) {
             ticket.Region = trustMap[pc];
         } else if (ticket.Postcode) {
-            ticket.Region = "Europe"; // fallback for international
+            ticket.Region = "Europe";
         } else {
             ticket.Region = "Unknown";
         }
