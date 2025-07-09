@@ -2043,10 +2043,25 @@ atRiskTickets.forEach(ticket => {
     }
 
     // --- This is the fixed stats block ---
-    const totalTickets = slaData.length;
-    const metSLA = slaData.filter(t => (t['SLA Status'] || '').trim() === 'Completed Within SLA').length;
-    const missedSLA = slaData.filter(t => (t['SLA Status'] || '').trim() === 'Failed SLA').length;
-    const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixed(1) : '0';
+   const totalTickets = slaData.length;
+const metSLA = slaData.filter(t => {
+    const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
+    return (
+        status === 'completed within sla' ||
+        status === 'still within sla' ||
+        status === 'within sla' ||
+        status === 'met sla'
+    );
+}).length;
+const missedSLA = slaData.filter(t => {
+    const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
+    return (
+        status === 'failed sla' ||
+        status === 'missed sla' ||
+        status === 'out of sla'
+    );
+}).length;
+const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixed(1) : '0';
 
     const summaryHtml = `
         <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
