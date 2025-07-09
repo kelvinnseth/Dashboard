@@ -2237,9 +2237,7 @@ document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">
                         ((priorityCounts[priority].length / filteredData.length) * 100).toFixed(1) + '%'
                     ])
             ));
-            document.getElementById('priorityPivot').innerHTML = html;
-            const slaByWeekHtml = getSLAPerformanceByWeek(filteredData); // or slaData if you're filtering by customer
-document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">' + slaByWeekHtml + '</div>';
+          
         }
         
         function updateRegionPivot() {
