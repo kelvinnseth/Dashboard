@@ -2163,26 +2163,46 @@ const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixe
         }
         
         function updateEngineerPivot() {
-            const engineerCounts = groupBy(filteredData, t => t['Primary Resource'] || 'Unassigned');
-            const html = createPivotTable([
-                ['Engineer', 'Total Tickets', 'Completed', 'Completion Rate']
-            ].concat(
-                Object.entries(engineerCounts)
-                    .sort((a, b) => b[1].length - a[1].length)
-                    .slice(0, 10)
-                    .map(([engineer, tickets]) => {
-                        const completed = tickets.filter(t => t.Status === 'Complete' || t.Satus === 'Complete').length;
-                        const completionRate = tickets.length > 0 ? ((completed / tickets.length) * 100).toFixed(1) + '%' : '0%';
-                        return [
-                            engineer,
-                            tickets.length,
-                            completed,
-                            completionRate
-                        ];
-                    })
-            ));
-            document.getElementById('engineerPivot').innerHTML = html;
-        }
+    const engineerCounts = groupBy(filteredData, t => t['Primary Resource'] || 'Unassigned');
+    const html = createPivotTable([
+        [
+            'Engineer',
+            'Total Tickets',
+            'Scheduled',
+            'Completed On Schedule',
+            'On-Time Completion Rate'
+        ]
+    ].concat(
+        Object.entries(engineerCounts)
+            .sort((a, b) => b[1].length - a[1].length)
+            .slice(0, 10)
+            .map(([engineer, tickets]) => {
+                // Tickets with a scheduled date
+                const scheduledTickets = tickets.filter(t => t['Scheduled Date']);
+                // Of those, how many were completed on the scheduled date?
+                const completedOnSchedule = scheduledTickets.filter(t => {
+                    const status = (t.Status || t.Satus || '').toString().toLowerCase();
+                    if (!status.includes('complete') && status !== 'closed') return false;
+                    // Parse dates
+                    const schedDate = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
+                    const compDate = t['Complete Date'] ? convertExcelDate(t['Complete Date']) : null;
+                    if (!schedDate || !compDate) return false;
+                    return schedDate.toDateString() === compDate.toDateString();
+                }).length;
+                const onTimeRate = scheduledTickets.length > 0
+                    ? ((completedOnSchedule / scheduledTickets.length) * 100).toFixed(1) + '%'
+                    : 'N/A';
+                return [
+                    engineer,
+                    tickets.length,
+                    scheduledTickets.length,
+                    completedOnSchedule,
+                    onTimeRate
+                ];
+            })
+    ));
+    document.getElementById('engineerPivot').innerHTML = html;
+}
         
         function updateSchedulerPivot() {
             const schedulerCounts = groupBy(filteredData, t => t['Scheduled By'] || 'Unassigned');
