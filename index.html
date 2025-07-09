@@ -2817,31 +2817,29 @@ function updateEngineerPivot() {
         }
         
         function createPivotTable(data) {
-            if (!data || data.length === 0) {
-                return '<div class="no-data">No data available</div>';
-            }
-            
-            let html = '<table class="pivot-table">';
-            
-            html += '<thead><tr>';
-            data[0].forEach(header => {
-                html += `<th>${header}</th>`;
-            });
-            html += '</tr></thead>';
-            
-            html += '<tbody>';
-            for (let i = 1; i < data.length; i++) {
-                html += '<tr>';
-                data[i].forEach(cell => {
-                    html += `<td>${cell}</td>`;
-                });
-                html += '</tr>';
-            }
-            html += '</tbody>';
-            
-            html += '</table>';
-            return html;
-        }
+    if (!data || data.length === 0) {
+        return '<div class="no-data">No data available</div>';
+    }
+
+    let html = '<table class="pivot-table">';
+    html += '<thead><tr>';
+    data[0].forEach(header => {
+        html += `<th>${header}</th>`;
+    });
+    html += '</tr></thead>';
+    html += '<tbody>';
+    for (let i = 1; i < data.length; i++) {
+        html += '<tr>';
+        data[i].forEach(cell => {
+            // Allow HTML in cell content (for clickable customer!)
+            html += `<td>${cell}</td>`;
+        });
+        html += '</tr>';
+    }
+    html += '</tbody>';
+    html += '</table>';
+    return html;
+}
     </script>
 
 
