@@ -2030,6 +2030,71 @@ atRiskTickets.forEach(ticket => {
             document.getElementById('statusPivot').innerHTML = html;
         }
         
+
+function getWeeksOfMonth(year, month) {
+    // Returns array of [startDate, endDate] for each week in the month (1-based month)
+    const weeks = [];
+    let date = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0).getDate();
+    let weekStart = 1;
+    while (weekStart <= lastDay) {
+        let weekEnd = weekStart + 6;
+        if (weekEnd > lastDay) weekEnd = lastDay;
+        weeks.push([
+            new Date(year, month - 1, weekStart),
+            new Date(year, month - 1, weekEnd)
+        ]);
+        weekStart = weekEnd + 1;
+    }
+    return weeks;
+}
+
+function getSLAPerformanceByWeek(tickets) {
+    // Use Scheduled Date if available, else Created Date
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1; // getMonth is 0-based
+    const weeks = getWeeksOfMonth(year, month);
+
+    const weekRows = weeks.map(([start, end], idx) => {
+        // Filter tickets scheduled in this week
+        const weekTickets = tickets.filter(t => {
+            const sched = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
+            if (!sched) return false;
+            return sched >= start && sched <= end;
+        });
+
+        // If week hasn't ended, mark Pending
+        if (today <= end) {
+            return [`Week ${idx + 1} (${start.toLocaleDateString()} - ${end.toLocaleDateString()})`, "Pending SLA"];
+        }
+        if (weekTickets.length === 0) {
+            return [`Week ${idx + 1} (${start.toLocaleDateString()} - ${end.toLocaleDateString()})`, "No Data"];
+        }
+        // Calculate SLA performance
+        const metSLA = weekTickets.filter(t => {
+            const slaStatus = (t['SLA Status'] || '').toString().toLowerCase().trim();
+            return (
+                slaStatus === 'completed within sla' ||
+                slaStatus === 'met sla' ||
+                slaStatus === 'within sla'
+            );
+        }).length;
+        const performance = ((metSLA / weekTickets.length) * 100).toFixed(1) + '%';
+        return [`Week ${idx + 1} (${start.toLocaleDateString()} - ${end.toLocaleDateString()})`, performance];
+    });
+
+    // Table HTML
+    let html = '<table class="pivot-table">';
+    html += '<thead><tr><th>Week</th><th>SLA Performance</th></tr></thead><tbody>';
+    weekRows.forEach(row => {
+        html += `<tr><td>${row[0]}</td><td>${row[1]}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    return html;
+}
+
+
         function updateSLAPivot() {
     const slaCustomerFilter = document.getElementById('slaCustomerFilter').value;
     let slaData = filteredData;
@@ -2120,6 +2185,8 @@ const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixe
                     ])
             ));
             document.getElementById('priorityPivot').innerHTML = html;
+            const slaByWeekHtml = getSLAPerformanceByWeek(filteredData); // or slaData if you're filtering by customer
+document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">' + slaByWeekHtml + '</div>';
         }
         
         function updateRegionPivot() {
