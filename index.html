@@ -1138,6 +1138,22 @@ function getAtRiskOfFailingSLA(ticket) {
                 hideProgress();
             }
         }
+
+
+async function batchPrimaryCareTrustLookup(postcodes) {
+    const url = 'https://api.postcodes.io/postcodes';
+    const response = await fetch(url, {
+        method: 'POST',
+        body: JSON.stringify({ postcodes }),
+        headers: {'Content-Type': 'application/json'}
+    });
+    const data = await response.json();
+    const trustMap = {};
+    data.result.forEach(r => {
+        trustMap[r.query.replace(/\s+/g, '').toUpperCase()] = r.result ? r.result.primary_care_trust : '';
+    });
+    return trustMap;
+}
         
         async function processExcelData(data) {
             try {
@@ -1301,7 +1317,7 @@ function getAtRiskOfFailingSLA(ticket) {
                         throw new Error('No data rows found starting from row 4');
                     }
                     
-      originalData = rows.map((row) => {
+     originalData = rows.map((row) => {
     const ticket = {};
     headers.forEach((header, index) => {
         ticket[header] = row[index];
@@ -1323,29 +1339,6 @@ function getAtRiskOfFailingSLA(ticket) {
     });
     // ---- End Date Normalization ----
 
-    
-
-
-
-
-
-async function batchPrimaryCareTrustLookup(postcodes) {
-    const url = 'https://api.postcodes.io/postcodes';
-    const response = await fetch(url, {
-        method: 'POST',
-        body: JSON.stringify({ postcodes }),
-        headers: {'Content-Type': 'application/json'}
-    });
-    const data = await response.json();
-    const trustMap = {};
-    data.result.forEach(r => {
-        trustMap[r.query.replace(/\s+/g, '').toUpperCase()] = r.result ? r.result.primary_care_trust : '';
-    });
-    return trustMap;
-}
-
-
-
     // ---- SLA and At Risk logic ----
     ticket['SLA Status'] = getSLAStatus(ticket);
     const riskInfo = getAtRiskOfFailingSLA(ticket);
@@ -1356,6 +1349,26 @@ async function batchPrimaryCareTrustLookup(postcodes) {
     return ticket;
 });
 
+
+try {
+    const uniquePostcodes = [
+        ...new Set(
+            originalData
+                .map(t => t.Postcode && t.Postcode.replace(/\s+/g, '').toUpperCase())
+                .filter(Boolean)
+        )
+    ];
+    if (uniquePostcodes.length > 0) {
+        const trustMap = await batchPrimaryCareTrustLookup(uniquePostcodes);
+        originalData.forEach(ticket => {
+            const pc = ticket.Postcode ? ticket.Postcode.replace(/\s+/g, '').toUpperCase() : '';
+            ticket.Region = trustMap[pc] || "Europe";
+        });
+    }
+} catch (e) {
+    console.error("Error enriching Region with PCT API", e);
+    alert("An error occurred while enriching ticket Regions. Check the console for details.");
+}
 
 
 // ---- Enrich Region with Primary Care Trust API ----
