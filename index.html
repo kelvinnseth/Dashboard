@@ -1367,21 +1367,37 @@ async function batchPrimaryCareTrustLookup(postcodes) {
 
 
 
+function isLikelyUKPostcode(pc) {
+    // At least one letter, one number, and 5-8 chars (after removing spaces)
+    return typeof pc === 'string' && /[A-Z]/i.test(pc) && /\d/.test(pc) && pc.length <= 8 && pc.length >= 5;
+}
+
 try {
+    // Only send likely UK postcodes as strings to the API
     const uniquePostcodes = [
         ...new Set(
             originalData
-                .map(t => t.Postcode && t.Postcode.replace(/\s+/g, '').toUpperCase())
-                .filter(Boolean)
+                .map(t => (typeof t.Postcode === 'string' ? t.Postcode.replace(/\s+/g, '').toUpperCase() : null))
+                .filter(pc => pc && isLikelyUKPostcode(pc))
         )
     ];
+    console.log("UK postcodes to send to API:", uniquePostcodes);
+
+    let trustMap = {};
     if (uniquePostcodes.length > 0) {
-        const trustMap = await batchPrimaryCareTrustLookup(uniquePostcodes);
-        originalData.forEach(ticket => {
-            const pc = ticket.Postcode ? ticket.Postcode.replace(/\s+/g, '').toUpperCase() : '';
-            ticket.Region = trustMap[pc] || "Europe";
-        });
+        trustMap = await batchPrimaryCareTrustLookup(uniquePostcodes);
     }
+
+    originalData.forEach(ticket => {
+        let pc = typeof ticket.Postcode === 'string' ? ticket.Postcode.replace(/\s+/g, '').toUpperCase() : '';
+        if (pc && trustMap[pc]) {
+            ticket.Region = trustMap[pc];
+        } else if (ticket.Postcode) {
+            ticket.Region = "Europe"; // fallback for international
+        } else {
+            ticket.Region = "Unknown";
+        }
+    });
 } catch (e) {
     console.error("Error enriching Region with PCT API", e);
     alert("An error occurred while enriching ticket Regions. Check the console for details.");
