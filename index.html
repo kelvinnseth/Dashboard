@@ -914,6 +914,36 @@ function getSLAStatus(ticket) {
     }
 }
 
+
+async function batchPrimaryCareTrustLookupAll(postcodes) {
+    const url = 'https://api.postcodes.io/postcodes';
+    let trustMap = {};
+    // Split into chunks of 100:
+    for (let i = 0; i < postcodes.length; i += 100) {
+        const chunk = postcodes.slice(i, i + 100);
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                body: JSON.stringify({ postcodes: chunk }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!response.ok) {
+                console.error("Postcodes.io API Error: " + response.status + " " + response.statusText);
+                continue;
+            }
+            const data = await response.json();
+            if (data.result && Array.isArray(data.result)) {
+                data.result.forEach(r => {
+                    trustMap[r.query.replace(/\s+/g, '').toUpperCase()] = r.result ? r.result.primary_care_trust : '';
+                });
+            }
+        } catch (e) {
+            console.error("Error in batchPrimaryCareTrustLookupAll:", e);
+        }
+    }
+    return trustMap;
+}
+
 function getAtRiskOfFailingSLA(ticket) {
     if (ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '') return { atRisk: "No", riskLevel: "" };
     const slaDeadline = calculateSLADeadline(ticket);
@@ -1387,9 +1417,9 @@ try {
 
     // 2. Call the batch API
     let trustMap = {};
-    if (uniquePostcodes.length > 0) {
-        trustMap = await batchPrimaryCareTrustLookup(uniquePostcodes);
-    }
+if (uniquePostcodes.length > 0) {
+    trustMap = await batchPrimaryCareTrustLookupAll(uniquePostcodes);
+}
     console.log("Trust map returned from API:", trustMap);
 
     // 3. Assign Region to tickets
