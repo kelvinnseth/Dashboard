@@ -465,48 +465,24 @@
 }
 
 @media (max-width: 600px) {
-    .filters {
-        padding: 3px 2px;
-        font-size: 11px;
+     .filters, .filter-group {
+        flex-wrap: wrap;
+        gap: 6px;
     }
-    .filter-group {
-        gap: 2px !important;
-        grid-template-columns: 1fr 1fr;
+    .filter-item {
+        flex: 1 1 120px;
+        min-width: 100px;
+        max-width: 100%;
+    }
+    .filter-button {
+        font-size: 12px;
+        padding: 5px 8px;
+        height: 28px;
     }
     .filter-options {
-        max-height: 55px;
-        font-size: 11px;
+        font-size: 12px;
+        max-height: 120px;
     }
-}
-        .clear-filters {
-            grid-column: 1 / -1;
-            text-align: center;
-            margin-top: 15px;
-        }
-        
-        .clear-button {
-            padding: 10px 20px;
-            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .clear-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
-        }
-        
-        .filter-item label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: #555;
-        }
-        
         .loading {
             text-align: center;
             padding: 40px;
