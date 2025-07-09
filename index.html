@@ -2043,9 +2043,10 @@ atRiskTickets.forEach(ticket => {
                 return;
             }
             
-            const totalTickets = slaData.length;
-const metSLA = slaData.filter(t => (t['SLA Status'] || '').trim() === 'Completed Within SLA').length;
-const missedSLA = slaData.filter(t => (t['SLA Status'] || '').trim() === 'Failed SLA').length;
+            const normalize = v => (v || '').toString().toLowerCase().trim();
+const totalTickets = slaData.length;
+const metSLA = slaData.filter(t => normalize(t['SLA Status']) === 'completed within sla').length;
+const missedSLA = slaData.filter(t => normalize(t['SLA Status']) === 'failed sla').length;
 const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixed(1) : '0';
             
             const slaTableData = [
