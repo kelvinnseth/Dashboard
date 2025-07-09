@@ -2282,14 +2282,14 @@ function countWeekdays(startDate, endDate) {
 function updateSchedulerPivot() {
     const schedulerCounts = groupBy(filteredData, t => t['Scheduled By'] || 'Unassigned');
     const schedulerStats = Object.entries(schedulerCounts).map(([scheduler, tickets]) => {
-        // Only tickets with a scheduled date
-        const scheduledTickets = tickets.filter(t => t['Scheduled Date']);
-        const scheduledDates = scheduledTickets
-            .map(t => t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null)
+        // Only tickets with a created date
+        const createdTickets = tickets.filter(t => t['Create Date']);
+        const createdDates = createdTickets
+            .map(t => t['Create Date'] ? convertExcelDate(t['Create Date']) : null)
             .filter(d => d);
 
         // Completed within SLA (based on SLA Status)
-        const completedWithinSLA = scheduledTickets.filter(t => {
+        const completedWithinSLA = createdTickets.filter(t => {
             const slaStatus = (t['SLA Status'] || '').toString().toLowerCase().trim();
             return (
                 slaStatus === 'completed within sla' ||
@@ -2299,17 +2299,17 @@ function updateSchedulerPivot() {
         }).length;
 
         let avgTicketsPerShift = 'N/A';
-        if (scheduledDates.length > 0) {
-            const minDate = new Date(Math.min(...scheduledDates.map(d => d.getTime())));
-            const maxDate = new Date(Math.max(...scheduledDates.map(d => d.getTime())));
+        if (createdDates.length > 0) {
+            const minDate = new Date(Math.min(...createdDates.map(d => d.getTime())));
+            const maxDate = new Date(Math.max(...createdDates.map(d => d.getTime())));
             const numWeekdays = countWeekdays(minDate, maxDate);
             avgTicketsPerShift = numWeekdays > 0
-                ? (scheduledTickets.length / numWeekdays).toFixed(2)
+                ? (createdTickets.length / numWeekdays).toFixed(2)
                 : 'N/A';
         }
 
-        const onTimeRate = scheduledTickets.length > 0
-            ? ((completedWithinSLA / scheduledTickets.length) * 100)
+        const onTimeRate = createdTickets.length > 0
+            ? ((completedWithinSLA / createdTickets.length) * 100)
             : null;
 
         return {
@@ -2331,7 +2331,7 @@ function updateSchedulerPivot() {
             'Total Tickets',
             'Completed Within SLA',
             'On-Time Completion Rate',
-            'Average Ticket per Shift (Weekdays)'
+            'Average Ticket per Shift (Weekdays, by Created Date)'
         ]
     ].concat(
         schedulerStats.map(row => [
@@ -2352,7 +2352,6 @@ function updateSchedulerPivot() {
 
     document.getElementById('schedulerPivot').innerHTML = scrollContainer;
 }
-
 function updateEngineerPivot() {
     const engineerCounts = groupBy(filteredData, t => t['Primary Resource'] || 'Unassigned');
     // Build stats array first
