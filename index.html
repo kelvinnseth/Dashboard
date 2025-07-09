@@ -825,6 +825,15 @@
                     <div id="schedulerPivot"></div>
                     <canvas id="schedulerChart" class="chart-container"></canvas>
                 </div>
+
+                <div class="pivot-card">
+    <h3>
+        Engineering Resource (Last 5 Days)
+    </h3>
+    <div id="engineeringResourceCard"></div>
+</div>
+
+                
             </div>
         </div>
     </div>
@@ -1821,6 +1830,8 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
     updateCustomerPivot();
     updateEngineerPivot();
     updateSchedulerPivot();
+           updateEngineeringResourceCard();
+
 }
         
    function updateSLARiskPivot() {
@@ -1996,7 +2007,80 @@ function closeModal() {
     document.getElementById('modal').classList.add('hidden');
 }
        
+function updateEngineeringResourceCard() {
+    // Get last 5 unique scheduled dates in descending order
+    const dates = [...new Set(filteredData
+        .map(t => t['Scheduled Date'])
+        .filter(d => d)
+        .map(d => {
+            // Normalize to date string YYYY-MM-DD
+            let dt = d instanceof Date ? d : convertExcelDate(d);
+            return dt && !isNaN(dt) ? dt.toISOString().slice(0, 10) : null;
+        })
+        .filter(d => d)
+    )].sort((a, b) => b.localeCompare(a)).slice(0, 5);
 
+    let html = `
+        <table class="pivot-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Unique Engineering Resources</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    dates.forEach(dateStr => {
+        // Get tickets for this scheduled date
+        const ticketsForDate = filteredData.filter(t => {
+            let dt = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+            return dt && dt.toISOString().slice(0, 10) === dateStr;
+        });
+        // Get unique primary resources
+        const resources = [...new Set(ticketsForDate.map(t => t['Primary Resource']).filter(Boolean))];
+        html += `
+            <tr>
+                <td>${dateStr}</td>
+                <td>
+                    <span class="clickable-count" data-date="${dateStr}">${resources.length}</span>
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `</tbody></table>`;
+
+    document.getElementById('engineeringResourceCard').innerHTML = html;
+
+    // Add click event for the counts
+    document.getElementById('engineeringResourceCard').onclick = function(e) {
+        if (e.target.classList.contains('clickable-count')) {
+            const dateStr = e.target.getAttribute('data-date');
+            showEngineeringResourceModal(dateStr);
+        }
+    };
+}
+
+        function showEngineeringResourceModal(dateStr) {
+    // Find all unique resources for this date
+    const ticketsForDate = filteredData.filter(t => {
+        let dt = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+        return dt && dt.toISOString().slice(0, 10) === dateStr;
+    });
+    const resources = [...new Set(ticketsForDate.map(t => t['Primary Resource']).filter(Boolean))];
+
+    let modalHtml = `<h2>Engineering Resources for ${dateStr}</h2>`;
+    if (resources.length === 0) {
+        modalHtml += `<p>No resources scheduled for this date.</p>`;
+    } else {
+        modalHtml += `<ul style="margin-left:1em;">${resources.map(r => `<li>${r}</li>`).join('')}</ul>`;
+    }
+
+    // Use your existing modal
+    document.getElementById('modalBody').innerHTML = modalHtml;
+    document.getElementById('modal').classList.remove('hidden');
+}
         
         function calculateSLADueDate(ticket) {
             const createDate = convertExcelDate(ticket['Create Date']);
