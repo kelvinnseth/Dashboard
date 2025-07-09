@@ -1645,28 +1645,8 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
     updateSchedulerPivot(); // <--- Make sure this is present
 }
         
-        function updateSLARiskPivot() {
-    const today = new Date();
-    const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-
-    const atRiskTickets = filteredData.filter(ticket => {
-        const status = ticket.Status || ticket.Satus || '';
-        const slaStatus = (ticket['SLA Status'] || '').toString().toLowerCase();
-
-        // Exclude completed or already missed SLA tickets
-        if (status === 'Complete') return false;
-        if (
-            slaStatus.includes('missed sla') ||
-            slaStatus.includes('out of sla') ||
-            slaStatus.includes('failed sla') ||
-            slaStatus.includes('fail')
-        ) {
-            return false;
-        }
-
-        const sladue = calculateSLADueDate(ticket);
-        return sladue && sladue <= endOfToday;
-    });
+       function updateSLARiskPivot() {
+    const atRiskTickets = filteredData.filter(ticket => ticket['At Risk of Failing SLA'] === "Yes");
 
     if (atRiskTickets.length === 0) {
         document.getElementById('slaRiskPivot').innerHTML = 
@@ -1674,19 +1654,14 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
         return;
     }
 
-    // Group into risk categories and then by customer
+    // Group by SLA Risk Level
     const riskCategories = {
-        'Needs Attention': {},
-        'High Risk': {},
-        'Low Risk': {}
+        'Urgent Attention Needed': {},
+        'High Risk': {}
     };
 
     atRiskTickets.forEach(ticket => {
-        const priority = ticket.Priority || '';
-        let risk = 'Low Risk';
-        if (priority === 'P1') risk = 'Needs Attention';
-        else if (priority === 'P2' || priority === 'P3') risk = 'High Risk';
-
+        const risk = ticket['SLA Risk Level'] || 'High Risk';
         const customer = ticket.Customer || 'Unknown Customer';
         if (!riskCategories[risk][customer]) riskCategories[risk][customer] = [];
         riskCategories[risk][customer].push(ticket);
