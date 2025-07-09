@@ -1198,7 +1198,7 @@ async function batchPrimaryCareTrustLookup(postcodes) {
         return {};
     }
 }
-        closeModal();
+
         async function processExcelData(data) {
             try {
                 const workbook = XLSX.read(data, { type: 'array' });
@@ -1489,8 +1489,9 @@ if (uniquePostcodes.length > 0) {
         
         function initializeDashboard() {
             document.getElementById('dashboard').classList.remove('hidden');
-            setupFilters();
-            updateDashboard();
+            closeModal(); // <-- Only call it here, not at the top-level
+    setupFilters();
+    updateDashboard();
         }
         
         function setupFilters() {
