@@ -332,6 +332,9 @@
             position: relative;
             z-index: 1000;
             overflow: visible;
+            position: sticky;
+    top: 0;
+    z-index: 50;
         }
         
         .filter-group {
@@ -346,12 +349,7 @@
             overflow: visible;
         }
         
-        .filter-dropdown {
-            position: relative;
-            width: 100%;
-            overflow: visible;
-        }
-        
+    
         .filter-button {
             width: 100%;
             padding: 10px;
@@ -381,30 +379,29 @@
             transform: rotate(180deg);
         }
         
-        .filter-options {
-            position: fixed;
-            background: white;
-            border: 2px solid #667eea;
-            border-radius: 8px;
-            max-height: 200px;
-            overflow-y: auto;
-            z-index: 2147483647;
-            display: none;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            min-width: 200px;
-        }
-        
-        .filter-options.show {
-            display: block;
-        }
-        
-        .filter-option {
-            padding: 8px 12px;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
+       .filter-dropdown {
+    position: relative;
+    width: 100%;
+}
+
+.filter-options {
+    position: absolute !important;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    min-width: 200px;
+    z-index: 9999;
+    background: white;
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    display: none;
+}
+.filter-options.show {
+    display: block;
+}
         
         .filter-option:hover {
             background-color: #f8f9ff;
@@ -615,6 +612,12 @@
                             <div class="filter-options" id="customerOptions"></div>
                         </div>
                     </div>
+                    
+                    <div class="filter-item">
+    <label for="dateFilter">Scheduled Date</label>
+    <input type="date" id="dateFilter" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e0e0e0;">
+</div>
+                        
                     <div class="filter-item">
                         <label for="statusFilter">Status</label>
                         <div class="filter-dropdown">
@@ -784,16 +787,27 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
+
+
+
+
+
+        // Place after convertExcelDate, groupBy, etc.
+function getWeeksOfMonth(year, month) { ... }
+function getSLAPerformanceByWeek(tickets) { ... }
+
+        
         let originalData = [];
         let filteredData = [];
-        let activeFilters = {
-            customer: [],
-            status: [],
-            priority: [],
-            region: [],
-            scheduledBy: [],
-            primaryResource: []
-        };
+       let activeFilters = {
+    customer: [],
+    status: [],
+    priority: [],
+    region: [],
+    scheduledBy: [],
+    primaryResource: [],
+    scheduledDate: '' // <-- new property
+};
 
         // Sample data for demo
         function loadSampleData() {
@@ -1282,6 +1296,12 @@
                 document.getElementById('slaCustomerFilter').value = '';
                 updateSLAPivot();
             });
+
+            // Add this after your other filter event listeners are set up
+document.getElementById('dateFilter').addEventListener('change', function(e) {
+    activeFilters.scheduledDate = e.target.value;
+    applyFilters();
+});
             
             document.getElementById('clearAllFilters').addEventListener('click', clearAllFilters);
         }
@@ -1471,13 +1491,30 @@
         
         function applyFilters() {
             filteredData = originalData.filter(ticket => {
-                return (activeFilters.customer.length === 0 || activeFilters.customer.includes(ticket.Customer)) &&
-                       (activeFilters.status.length === 0 || activeFilters.status.includes(ticket.Status) || activeFilters.status.includes(ticket.Satus)) &&
-                       (activeFilters.priority.length === 0 || activeFilters.priority.includes(ticket.Priority)) &&
-                       (activeFilters.region.length === 0 || activeFilters.region.includes(ticket.Region)) &&
-                       (activeFilters.scheduledBy.length === 0 || activeFilters.scheduledBy.includes(ticket['Scheduled By'])) &&
-                       (activeFilters.primaryResource.length === 0 || activeFilters.primaryResource.includes(ticket['Primary Resource']));
-            });
+    return (
+        (activeFilters.customer.length === 0 || activeFilters.customer.includes(ticket.Customer)) &&
+        (activeFilters.status.length === 0 || activeFilters.status.includes(ticket.Status) || activeFilters.status.includes(ticket.Satus)) &&
+        (activeFilters.priority.length === 0 || activeFilters.priority.includes(ticket.Priority)) &&
+        (activeFilters.region.length === 0 || activeFilters.region.includes(ticket.Region)) &&
+        (activeFilters.scheduledBy.length === 0 || activeFilters.scheduledBy.includes(ticket['Scheduled By'])) &&
+        (activeFilters.primaryResource.length === 0 || activeFilters.primaryResource.includes(ticket['Primary Resource'])) &&
+        (
+            !activeFilters.scheduledDate ||
+            (
+                ticket['Scheduled Date'] &&
+                (() => {
+                    let d = convertExcelDate(ticket['Scheduled Date']);
+                    if (!d) return false;
+                    let yyyy = d.getFullYear();
+                    let mm = String(d.getMonth() + 1).padStart(2, '0');
+                    let dd = String(d.getDate()).padStart(2, '0');
+                    let dateStr = `${yyyy}-${mm}-${dd}`;
+                    return dateStr === activeFilters.scheduledDate;
+                })()
+            )
+        )
+    );
+});
             
             updateDashboard();
         }
@@ -2168,6 +2205,8 @@ const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixe
 
     const tableHtml = createPivotTable(slaTableData);
     document.getElementById('slaPivot').innerHTML = summaryHtml + tableHtml;
+            const slaByWeekHtml = getSLAPerformanceByWeek(filteredData); // or slaData if filtering by customer
+document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">' + slaByWeekHtml + '</div>';
 }
         
         function updatePriorityPivot() {
