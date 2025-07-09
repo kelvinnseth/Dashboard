@@ -389,6 +389,11 @@
   width: 100%;
   z-index: 999;
   display: none;
+  background: white;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 16px rgba(102,126,234,0.09);
+  border-radius: 8px;
+  padding: 8px 0;
 }
 .filter-options.show {
   display: block;
@@ -2196,21 +2201,22 @@ document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">
 }
         
         function updatePriorityPivot() {
-            const priorityCounts = groupBy(filteredData, t => t.Priority || 'Unknown');
-            const priorityOrder = ['P1', 'P2', 'P3', 'P4', 'Unknown'];
-            const html = createPivotTable([
-                ['Priority', 'Count', 'Percentage']
-            ].concat(
-                priorityOrder
-                    .filter(p => priorityCounts[p])
-                    .map(priority => [
-                        priority,
-                        priorityCounts[priority].length,
-                        ((priorityCounts[priority].length / filteredData.length) * 100).toFixed(1) + '%'
-                    ])
-            ));
-          
-        }
+    const priorityCounts = groupBy(filteredData, t => t.Priority || 'Unknown');
+    const priorityOrder = ['P1', 'P2', 'P3', 'P4', 'Unknown'];
+    const html = createPivotTable([
+        ['Priority', 'Count', 'Percentage']
+    ].concat(
+        priorityOrder
+            .filter(p => priorityCounts[p])
+            .map(priority => [
+                priority,
+                priorityCounts[priority].length,
+                ((priorityCounts[priority].length / filteredData.length) * 100).toFixed(1) + '%'
+            ])
+    ));
+    // FIX: Actually update the DOM
+    document.getElementById('priorityPivot').innerHTML = html;
+}
         
         function updateRegionPivot() {
             const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
