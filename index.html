@@ -1584,23 +1584,20 @@ atRiskTickets.forEach(ticket => {
             const totalAtRisk = atRiskTickets.length;
             
             const tableData = [
-                ['Risk Level', 'Count', 'Percentage', 'Top Customer', 'Avg Hours Until Due']
-            ].concat(
-                Object.entries(riskCategories)
-                    .filter(([risk, tickets]) => tickets.length > 0)
-                    .map(([risk, tickets]) => {
-                        const topCustomer = getTopCustomer(tickets);
-                        const avgHours = getAverageHoursUntilDue(tickets);
-                        
-                        return [
-                            risk,
-                            tickets.length,
-                            ((tickets.length / totalAtRisk) * 100).toFixed(1) + '%',
-                            topCustomer,
-                            avgHours
-                        ];
-                    })
-            );
+    ['Risk Level', 'Count', 'Percentage', 'Top Customer']
+].concat(
+    Object.entries(riskCategories)
+        .filter(([risk, tickets]) => tickets.length > 0)
+        .map(([risk, tickets]) => {
+            const topCustomer = getTopCustomer(tickets);
+            return [
+                risk,
+                tickets.length,
+                ((tickets.length / totalAtRisk) * 100).toFixed(1) + '%',
+                topCustomer
+            ];
+        })
+);
             
             window.slaRiskTickets = riskCategories;
             
