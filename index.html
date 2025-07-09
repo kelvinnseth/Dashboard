@@ -1369,24 +1369,6 @@ try {
     console.error("Error enriching Region with PCT API", e);
     alert("An error occurred while enriching ticket Regions. Check the console for details.");
 }
-
-
-// ---- Enrich Region with Primary Care Trust API ----
-const uniquePostcodes = [
-    ...new Set(
-        originalData
-            .map(t => t.Postcode && t.Postcode.replace(/\s+/g, '').toUpperCase())
-            .filter(Boolean)
-    )
-];
-if (uniquePostcodes.length > 0) {
-    const trustMap = await batchPrimaryCareTrustLookup(uniquePostcodes);
-    originalData.forEach(ticket => {
-        const pc = ticket.Postcode ? ticket.Postcode.replace(/\s+/g, '').toUpperCase() : '';
-        ticket.Region = trustMap[pc] || "Europe";
-    });
-}
-// ---- End PCT Enrichment ----
                     
                     filteredData = [...originalData];
                     
