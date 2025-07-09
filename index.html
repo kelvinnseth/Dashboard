@@ -908,7 +908,7 @@ function getSLAStatus(ticket) {
         if (!response.ok) throw new Error('Postcode not found');
         const data = await response.json();
         if (!data.result) throw new Error('No result');
-        return data.result.primary_care_trust || '';
+        return data.result.european_electoral_region || '';
     } catch (err) {
         return '';
     }
@@ -934,7 +934,7 @@ async function batchPrimaryCareTrustLookupAll(postcodes) {
             const data = await response.json();
             if (data.result && Array.isArray(data.result)) {
                 data.result.forEach(r => {
-                    trustMap[r.query.replace(/\s+/g, '').toUpperCase()] = r.result ? r.result.primary_care_trust : '';
+                    trustMap[r.query.replace(/\s+/g, '').toUpperCase()] = r.result ? r.result.european_electoral_region : '';
                 });
             }
         } catch (e) {
@@ -1190,7 +1190,7 @@ async function batchPrimaryCareTrustLookup(postcodes) {
         }
         const trustMap = {};
         data.result.forEach(r => {
-            trustMap[r.query.replace(/\s+/g, '').toUpperCase()] = r.result ? r.result.primary_care_trust : '';
+            trustMap[r.query.replace(/\s+/g, '').toUpperCase()] = r.result ? r.result.european_electoral_region : '';
         });
         return trustMap;
     } catch (e) {
