@@ -1142,17 +1142,31 @@ function getAtRiskOfFailingSLA(ticket) {
 
 async function batchPrimaryCareTrustLookup(postcodes) {
     const url = 'https://api.postcodes.io/postcodes';
-    const response = await fetch(url, {
-        method: 'POST',
-        body: JSON.stringify({ postcodes }),
-        headers: {'Content-Type': 'application/json'}
-    });
-    const data = await response.json();
-    const trustMap = {};
-    data.result.forEach(r => {
-        trustMap[r.query.replace(/\s+/g, '').toUpperCase()] = r.result ? r.result.primary_care_trust : '';
-    });
-    return trustMap;
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            body: JSON.stringify({ postcodes }),
+            headers: {'Content-Type': 'application/json'}
+        });
+        // If the API returns a 400/500 error, throw
+        if (!response.ok) {
+            console.error("Postcodes.io API Error: " + response.status + " " + response.statusText);
+            return {}; // Return empty trust map on error
+        }
+        const data = await response.json();
+        if (!data.result || !Array.isArray(data.result)) {
+            console.error("Postcodes.io API returned invalid result:", data);
+            return {};
+        }
+        const trustMap = {};
+        data.result.forEach(r => {
+            trustMap[r.query.replace(/\s+/g, '').toUpperCase()] = r.result ? r.result.primary_care_trust : '';
+        });
+        return trustMap;
+    } catch (e) {
+        console.error("Error in batchPrimaryCareTrustLookup:", e);
+        return {};
+    }
 }
         
         async function processExcelData(data) {
