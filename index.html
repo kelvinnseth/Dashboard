@@ -1172,14 +1172,13 @@ function getSLAPerformanceByWeek(tickets) { ... }
                         throw new Error('No data rows found starting from row 4');
                     }
                     
-                    originalData = rows.map((row) => {
+                   originalData = rows.map((row) => {
     const ticket = {};
     headers.forEach((header, index) => {
         ticket[header] = row[index];
     });
 
     // ---- Date Normalization ----
-    // List of all your date fields
     const dateFields = [
         "Create Date",
         "Scheduled Date",
@@ -1195,44 +1194,33 @@ function getSLAPerformanceByWeek(tickets) { ... }
     });
     // ---- End Date Normalization ----
 
-    // ... region lookup logic ...
+    // ---- Region Lookup Logic ----
     if (ticket.City && (!ticket.Region || ticket.Region === '' || ticket.Region === null || ticket.Region === undefined)) {
-        // ... existing region logic ...
+        const cleanCity = ticket.City.toString().trim();
+        const lookedUpRegion = regionLookup[cleanCity];
+        if (lookedUpRegion) {
+            ticket.Region = lookedUpRegion;
+        } else {
+            // Try case-insensitive lookup
+            const cityLower = cleanCity.toLowerCase();
+            const matchingKey = Object.keys(regionLookup).find(key => key.toLowerCase() === cityLower);
+            if (matchingKey) {
+                ticket.Region = regionLookup[matchingKey];
+            } else {
+                // Determine if it's international based on postcode patterns
+                const postcode = ticket.Postcode || '';
+                if (isInternationalLocation(cleanCity, postcode)) {
+                    ticket.Region = 'International';
+                } else {
+                    ticket.Region = 'Unknown';
+                }
+            }
+        }
     }
+    // ---- End Region Lookup ----
 
     return ticket;
 });
-                        
-                        // Apply region lookup if needed
-                        if (ticket.City && (!ticket.Region || ticket.Region === '' || ticket.Region === null || ticket.Region === undefined)) {
-                            const cleanCity = ticket.City.toString().trim();
-                            
-                            const lookedUpRegion = regionLookup[cleanCity];
-                            if (lookedUpRegion) {
-                                ticket.Region = lookedUpRegion;
-                            } else {
-                                // Try case-insensitive lookup
-                                const cityLower = cleanCity.toLowerCase();
-                                const matchingKey = Object.keys(regionLookup).find(key => 
-                                    key.toLowerCase() === cityLower
-                                );
-                                
-                                if (matchingKey) {
-                                    ticket.Region = regionLookup[matchingKey];
-                                } else {
-                                    // Determine if it's international based on postcode patterns
-                                    const postcode = ticket.Postcode || '';
-                                    if (isInternationalLocation(cleanCity, postcode)) {
-                                        ticket.Region = 'International';
-                                    } else {
-                                        ticket.Region = 'Unknown';
-                                    }
-                                }
-                            }
-                        }
-                        
-                        return ticket;
-                    });
                     
                     filteredData = [...originalData];
                     
