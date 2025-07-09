@@ -2170,7 +2170,8 @@ const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixe
             'Total Tickets',
             'Scheduled',
             'Completed On Schedule',
-            'On-Time Completion Rate'
+            'On-Time Completion Rate',
+            'Average Ticket per Shift'
         ]
     ].concat(
         Object.entries(engineerCounts)
@@ -2192,12 +2193,28 @@ const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixe
                 const onTimeRate = scheduledTickets.length > 0
                     ? ((completedOnSchedule / scheduledTickets.length) * 100).toFixed(1) + '%'
                     : 'N/A';
+
+                // Calculate average tickets per shift (unique scheduled dates)
+                const uniqueShiftDates = new Set(
+                    scheduledTickets
+                        .map(t => {
+                            const d = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
+                            return d ? d.toDateString() : null;
+                        })
+                        .filter(Boolean)
+                );
+                const avgTicketsPerShift =
+                    uniqueShiftDates.size > 0
+                        ? (tickets.length / uniqueShiftDates.size).toFixed(2)
+                        : 'N/A';
+
                 return [
                     engineer,
                     tickets.length,
                     scheduledTickets.length,
                     completedOnSchedule,
-                    onTimeRate
+                    onTimeRate,
+                    avgTicketsPerShift
                 ];
             })
     ));
