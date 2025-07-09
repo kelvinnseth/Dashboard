@@ -1601,21 +1601,46 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
             });
         }
         
-        function applyFilters() {
-            filteredData = originalData.filter(ticket => {
-    return (
-        (activeFilters.customer.length === 0 || activeFilters.customer.includes(ticket.Customer)) &&
-        (activeFilters.status.length === 0 || activeFilters.status.includes(ticket.Status) || activeFilters.status.includes(ticket.Satus)) &&
-        (activeFilters.priority.length === 0 || activeFilters.priority.includes(ticket.Priority)) &&
-        (activeFilters.region.length === 0 || activeFilters.region.includes(ticket.Region)) &&
-        (activeFilters.scheduledBy.length === 0 || activeFilters.scheduledBy.includes(ticket['Scheduled By'])) &&
-        (activeFilters.primaryResource.length === 0 || activeFilters.primaryResource.includes(ticket['Primary Resource'])) &&
-        (
+       function applyFilters() {
+    filteredData = originalData.filter(ticket => {
+        // Customer filter
+        const customerMatch =
+            activeFilters.customer.length === 0 ||
+            activeFilters.customer.includes(ticket.Customer);
+
+        // Status filter
+        const statusMatch =
+            activeFilters.status.length === 0 ||
+            activeFilters.status.includes(ticket.Status) ||
+            activeFilters.status.includes(ticket.Satus);
+
+        // Priority filter
+        const priorityMatch =
+            activeFilters.priority.length === 0 ||
+            activeFilters.priority.includes(ticket.Priority);
+
+        // Region filter
+        const regionMatch =
+            activeFilters.region.length === 0 ||
+            activeFilters.region.includes(ticket.Region);
+
+        // Scheduled By filter
+        const scheduledByMatch =
+            activeFilters.scheduledBy.length === 0 ||
+            activeFilters.scheduledBy.includes(ticket['Scheduled By']);
+
+        // Primary Resource filter
+        const primaryResourceMatch =
+            activeFilters.primaryResource.length === 0 ||
+            activeFilters.primaryResource.includes(ticket['Primary Resource']);
+
+        // Service Call Created Date filter (replaces Scheduled Date logic)
+        const dateMatch =
             !activeFilters.scheduledDate ||
             (
-                ticket['Scheduled Date'] &&
+                ticket['Service Call Created Date'] &&
                 (() => {
-                    let d = convertExcelDate(ticket['Scheduled Date']);
+                    let d = convertExcelDate(ticket['Service Call Created Date']);
                     if (!d) return false;
                     let yyyy = d.getFullYear();
                     let mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -1623,13 +1648,22 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
                     let dateStr = `${yyyy}-${mm}-${dd}`;
                     return dateStr === activeFilters.scheduledDate;
                 })()
-            )
-        )
-    );
-});
-            
-            updateDashboard();
-        }
+            );
+
+        // Only include the ticket if ALL filters match
+        return (
+            customerMatch &&
+            statusMatch &&
+            priorityMatch &&
+            regionMatch &&
+            scheduledByMatch &&
+            primaryResourceMatch &&
+            dateMatch
+        );
+    });
+
+    updateDashboard();
+}
         
         function updateDashboard() {
             updateSummaryStats();
