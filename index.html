@@ -1198,7 +1198,7 @@ async function batchPrimaryCareTrustLookup(postcodes) {
         return {};
     }
 }
-        
+        closeModal();
         async function processExcelData(data) {
             try {
                 const workbook = XLSX.read(data, { type: 'array' });
