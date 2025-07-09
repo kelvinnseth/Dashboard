@@ -820,6 +820,68 @@
 
 console.log("First ticket object:", originalData[0]);
 
+
+
+
+        function calculateSLADeadline(ticket) {
+    if (ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '') return null;
+
+    const createDate = convertExcelDate(ticket['Create Date']);
+    const createTime = convertExcelDate(ticket['Create Time']);
+    const priority = (ticket.Priority || '').toUpperCase();
+
+    const startTime = createTime || createDate;
+    if (!startTime || isNaN(startTime.getTime())) return null;
+
+    // P1: SLA = 4 hours from create time
+    if (priority === 'P1') return new Date(startTime.getTime() + 4 * 60 * 60 * 1000);
+
+    // All other priorities
+    const hour = startTime.getHours();
+    let deadline = new Date(startTime);
+    if (hour < 16) deadline.setDate(deadline.getDate() + 1);
+    else deadline.setDate(deadline.getDate() + 2);
+    deadline.setHours(23, 59, 59, 999);
+    return deadline;
+}
+
+function getSLAStatus(ticket) {
+    if (ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '') return '';
+    const slaDeadline = calculateSLADeadline(ticket);
+    if (!slaDeadline) return '';
+
+    const completeDate = convertExcelDate(ticket['Complete Date']);
+    const status = (ticket.Status || ticket.Satus || '').toLowerCase();
+
+    if (completeDate && !isNaN(completeDate.getTime())) {
+        return completeDate <= slaDeadline ? "Completed Within SLA" : "Failed SLA";
+    } else {
+        return new Date() <= slaDeadline ? "Still Within SLA" : "Failed SLA";
+    }
+}
+
+function getAtRiskOfFailingSLA(ticket) {
+    if (ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '') return { atRisk: "No", riskLevel: "" };
+    const slaDeadline = calculateSLADeadline(ticket);
+    if (!slaDeadline) return { atRisk: "No", riskLevel: "" };
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const deadlineDay = new Date(slaDeadline);
+    deadlineDay.setHours(0,0,0,0);
+
+    const status = (ticket.Status || ticket.Satus || '').toLowerCase();
+
+    if (deadlineDay.getTime() === today.getTime() && status !== 'complete') {
+        const priority = (ticket.Priority || '').toUpperCase();
+        return {
+            atRisk: "Yes",
+            riskLevel: priority === "P1" ? "Urgent Attention Needed" : "High Risk"
+        };
+    } else {
+        return { atRisk: "No", riskLevel: "" };
+    }
+}
         // Sample data for demo
         function loadSampleData() {
             const sampleData = [
@@ -1040,6 +1102,8 @@ console.log("First ticket object:", originalData[0]);
                     "Tickets",
                     "Data"
                 ];
+
+                
                 
                 // First try exact matches
                 for (const name of possibleSheetNames) {
@@ -1188,6 +1252,14 @@ console.log("First ticket object:", originalData[0]);
     headers.forEach((header, index) => {
         ticket[header] = row[index];
     });
+// Add SLA status and risk
+    ticket['SLA Status'] = getSLAStatus(ticket);
+    const riskInfo = getAtRiskOfFailingSLA(ticket);
+    ticket['At Risk of Failing SLA'] = riskInfo.atRisk;
+    ticket['SLA Risk Level'] = riskInfo.riskLevel;
+
+    return ticket;
+});
 
     // ---- Date Normalization ----
     const dateFields = [
