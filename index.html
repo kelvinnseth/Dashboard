@@ -2172,13 +2172,10 @@ function updateSchedulerPivot() {
         // Completed on schedule
         const scheduledTickets = tickets.filter(t => t['Scheduled Date']);
         const completedOnSchedule = scheduledTickets.filter(t => {
-            const status = (t.Status || t.Satus || '').toString().toLowerCase();
-            if (!status.includes('complete') && status !== 'closed') return false;
-            const schedDate = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
-            const compDate = t['Complete Date'] ? convertExcelDate(t['Complete Date']) : null;
-            if (!schedDate || !compDate) return false;
-            return schedDate.toDateString() === compDate.toDateString();
-        }).length;
+    const slaStatus = (t['SLA Status'] || '').toString().toLowerCase();
+    // Define all "completed within SLA" variants you expect in your data:
+    return slaStatus === 'completed within sla' || slaStatus === 'met sla' || slaStatus === 'within sla';
+}).length;
         const onTimeRate = scheduledTickets.length > 0
             ? ((completedOnSchedule / scheduledTickets.length) * 100)
             : null;
