@@ -2167,17 +2167,22 @@ const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixe
 
 function updateSchedulerPivot() {
     const schedulerCounts = groupBy(filteredData, t => t['Scheduled By'] || 'Unassigned');
-    // Build stats array first
     const schedulerStats = Object.entries(schedulerCounts).map(([scheduler, tickets]) => {
-        // Completed on schedule
+        // Only tickets with a scheduled date
         const scheduledTickets = tickets.filter(t => t['Scheduled Date']);
-        const completedOnSchedule = scheduledTickets.filter(t => {
-    const slaStatus = (t['SLA Status'] || '').toString().toLowerCase();
-    // Define all "completed within SLA" variants you expect in your data:
-    return slaStatus === 'completed within sla' || slaStatus === 'met sla' || slaStatus === 'within sla';
-}).length;
+
+        // Completed within SLA (based on SLA Status)
+        const completedWithinSLA = scheduledTickets.filter(t => {
+            const slaStatus = (t['SLA Status'] || '').toString().toLowerCase().trim();
+            return (
+                slaStatus === 'completed within sla' ||
+                slaStatus === 'met sla' ||
+                slaStatus === 'within sla'
+            );
+        }).length;
+
         const onTimeRate = scheduledTickets.length > 0
-            ? ((completedOnSchedule / scheduledTickets.length) * 100)
+            ? ((completedWithinSLA / scheduledTickets.length) * 100)
             : null;
 
         // Average ticket per shift logic
@@ -2198,7 +2203,7 @@ function updateSchedulerPivot() {
         return {
             scheduler,
             totalTickets: tickets.length,
-            completedOnSchedule,
+            completedWithinSLA,
             onTimeRate, // numeric for sorting
             onTimeRateDisplay: onTimeRate !== null ? onTimeRate.toFixed(1) + '%' : 'N/A',
             avgTicketsPerShift
@@ -2212,7 +2217,7 @@ function updateSchedulerPivot() {
         [
             'Scheduler',
             'Total Tickets',
-            'Completed On Schedule',
+            'Completed Within SLA',
             'On-Time Completion Rate',
             'Average Ticket per Shift'
         ]
@@ -2220,7 +2225,7 @@ function updateSchedulerPivot() {
         schedulerStats.map(row => [
             row.scheduler,
             row.totalTickets,
-            row.completedOnSchedule,
+            row.completedWithinSLA,
             row.onTimeRateDisplay,
             row.avgTicketsPerShift
         ])
@@ -2235,7 +2240,6 @@ function updateSchedulerPivot() {
 
     document.getElementById('schedulerPivot').innerHTML = scrollContainer;
 }
-        
 
 function updateEngineerPivot() {
     const engineerCounts = groupBy(filteredData, t => t['Primary Resource'] || 'Unassigned');
