@@ -2162,8 +2162,16 @@ const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixe
             document.getElementById('customerPivot').innerHTML = html;
         }
         
-        function updateEngineerPivot() {
+        let showAllEngineers = false; // State variable
+
+function updateEngineerPivot() {
     const engineerCounts = groupBy(filteredData, t => t['Primary Resource'] || 'Unassigned');
+    const engineerEntries = Object.entries(engineerCounts)
+        .sort((a, b) => b[1].length - a[1].length);
+
+    // Only show top 10 if not toggled to show all
+    const rowsToShow = showAllEngineers ? engineerEntries : engineerEntries.slice(0, 10);
+
     const html = createPivotTable([
         [
             'Engineer',
@@ -2173,49 +2181,61 @@ const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixe
             'Average Ticket per Shift'
         ]
     ].concat(
-        Object.entries(engineerCounts)
-            .sort((a, b) => b[1].length - a[1].length)
-            .slice(0, 10)
-            .map(([engineer, tickets]) => {
-                // Completed on schedule
-                const scheduledTickets = tickets.filter(t => t['Scheduled Date']);
-                const completedOnSchedule = scheduledTickets.filter(t => {
-                    const status = (t.Status || t.Satus || '').toString().toLowerCase();
-                    if (!status.includes('complete') && status !== 'closed') return false;
-                    const schedDate = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
-                    const compDate = t['Complete Date'] ? convertExcelDate(t['Complete Date']) : null;
-                    if (!schedDate || !compDate) return false;
-                    return schedDate.toDateString() === compDate.toDateString();
-                }).length;
-                const onTimeRate = scheduledTickets.length > 0
-                    ? ((completedOnSchedule / scheduledTickets.length) * 100).toFixed(1) + '%'
+        rowsToShow.map(([engineer, tickets]) => {
+            // Completed on schedule
+            const scheduledTickets = tickets.filter(t => t['Scheduled Date']);
+            const completedOnSchedule = scheduledTickets.filter(t => {
+                const status = (t.Status || t.Satus || '').toString().toLowerCase();
+                if (!status.includes('complete') && status !== 'closed') return false;
+                const schedDate = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
+                const compDate = t['Complete Date'] ? convertExcelDate(t['Complete Date']) : null;
+                if (!schedDate || !compDate) return false;
+                return schedDate.toDateString() === compDate.toDateString();
+            }).length;
+            const onTimeRate = scheduledTickets.length > 0
+                ? ((completedOnSchedule / scheduledTickets.length) * 100).toFixed(1) + '%'
+                : 'N/A';
+
+            // Average ticket per shift logic
+            const ticketsByDate = {};
+            scheduledTickets.forEach(t => {
+                const d = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
+                if (!d) return;
+                const dateStr = d.toDateString();
+                if (!ticketsByDate[dateStr]) ticketsByDate[dateStr] = 0;
+                ticketsByDate[dateStr]++;
+            });
+            const shiftCounts = Object.values(ticketsByDate);
+            const avgTicketsPerShift =
+                shiftCounts.length > 0
+                    ? (shiftCounts.reduce((a, b) => a + b, 0) / shiftCounts.length).toFixed(2)
                     : 'N/A';
 
-                // Average ticket per shift logic
-                const ticketsByDate = {};
-                scheduledTickets.forEach(t => {
-                    const d = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
-                    if (!d) return;
-                    const dateStr = d.toDateString();
-                    if (!ticketsByDate[dateStr]) ticketsByDate[dateStr] = 0;
-                    ticketsByDate[dateStr]++;
-                });
-                const shiftCounts = Object.values(ticketsByDate);
-                const avgTicketsPerShift =
-                    shiftCounts.length > 0
-                        ? (shiftCounts.reduce((a, b) => a + b, 0) / shiftCounts.length).toFixed(2)
-                        : 'N/A';
-
-                return [
-                    engineer,
-                    tickets.length,
-                    completedOnSchedule,
-                    onTimeRate,
-                    avgTicketsPerShift
-                ];
-            })
+            return [
+                engineer,
+                tickets.length,
+                completedOnSchedule,
+                onTimeRate,
+                avgTicketsPerShift
+            ];
+        })
     ));
-    document.getElementById('engineerPivot').innerHTML = html;
+
+    // Add the "View All" or "Show Top 10" button
+    const toggleButtonLabel = showAllEngineers ? 'Show Top 10' : 'View All';
+    const toggleButton = `<div style="text-align:right;margin:10px 0;">
+        <button id="toggleEngineerView" style="padding:7px 18px; border-radius:7px; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; font-weight:bold; cursor:pointer;">
+            ${toggleButtonLabel}
+        </button>
+    </div>`;
+
+    document.getElementById('engineerPivot').innerHTML = toggleButton + html;
+
+    // Add click handler for the toggle view button
+    document.getElementById('toggleEngineerView').onclick = () => {
+        showAllEngineers = !showAllEngineers;
+        updateEngineerPivot();
+    };
 }
         function updateSchedulerPivot() {
             const schedulerCounts = groupBy(filteredData, t => t['Scheduled By'] || 'Unassigned');
