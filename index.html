@@ -1942,96 +1942,115 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
             showTicketModal(title, tickets);
         }
         
-        function showTicketModal(title, tickets) {
-            document.getElementById('modalTitle').textContent = title;
-            
-            const ticketListHtml = tickets.map(ticket => {
-                let createDateTime = 'N/A';
-                
-                if (ticket['Create Date']) {
-                    try {
-                        const createDate = convertExcelDate(ticket['Create Date']);
-                        if (createDate && !isNaN(createDate.getTime())) {
-                            createDateTime = createDate.toLocaleDateString('en-GB') + ' ' + createDate.toLocaleTimeString('en-GB');
-                        } else {
-                            createDateTime = ticket['Create Date'].toString();
-                        }
-                    } catch (e) {
-                        createDateTime = ticket['Create Date'].toString();
-                    }
+      function showTicketModal(title, tickets) {
+    document.getElementById('modalTitle').textContent = title;
+
+    const ticketListHtml = tickets.map(ticket => {
+        // Format Create Date/Time
+        let createDateTime = 'N/A';
+        if (ticket['Create Date']) {
+            try {
+                const createDate = convertExcelDate(ticket['Create Date']);
+                if (createDate && !isNaN(createDate.getTime())) {
+                    createDateTime = createDate.toLocaleDateString('en-GB') + ' ' + createDate.toLocaleTimeString('en-GB');
+                } else {
+                    createDateTime = ticket['Create Date'].toString();
                 }
-                
-                let createTimeDisplay = '';
-                if (ticket['Create Time']) {
-                    try {
-                        const createTime = convertExcelDate(ticket['Create Time']);
-                        if (createTime && !isNaN(createTime.getTime())) {
-                            createTimeDisplay = ' (Time: ' + createTime.toLocaleTimeString('en-GB') + ')';
-                        } else {
-                            createTimeDisplay = ' (Time: ' + ticket['Create Time'].toString() + ')';
-                        }
-                    } catch (e) {
-                        createTimeDisplay = ' (Time: ' + ticket['Create Time'].toString() + ')';
-                    }
-                }
-                
-                let scheduledDate = 'N/A';
-                if (ticket['Scheduled Date']) {
-                    try {
-                        const schedDate = convertExcelDate(ticket['Scheduled Date']);
-                        if (schedDate && !isNaN(schedDate.getTime())) {
-                            scheduledDate = schedDate.toLocaleDateString('en-GB');
-                        } else {
-                            scheduledDate = ticket['Scheduled Date'].toString();
-                        }
-                    } catch (e) {
-                        scheduledDate = ticket['Scheduled Date'].toString();
-                    }
-                }
-                
-                let scheduledTime = '';
-                if (ticket['Scheduled time']) {
-                    try {
-                        const schedTime = convertExcelDate(ticket['Scheduled time']);
-                        if (schedTime && !isNaN(schedTime.getTime())) {
-                            scheduledTime = ' at ' + schedTime.toLocaleTimeString('en-GB');
-                        } else {
-                            scheduledTime = ' at ' + ticket['Scheduled time'].toString();
-                        }
-                    } catch (e) {
-                        scheduledTime = ' at ' + ticket['Scheduled time'].toString();
-                    }
-                }
-                
-                return `
-                    <div class="ticket-item">
-                        <div class="ticket-number">${ticket['Ticket Number'] || 'N/A'}</div>
-                        <div class="ticket-title">${ticket['Ticket Title'] || 'No title available'}</div>
-                        <div class="ticket-meta">
-                            <strong>Customer:</strong> ${ticket.Customer || 'N/A'} | 
-                            <strong>Priority:</strong> ${ticket.Priority || 'N/A'} | 
-                            <strong>Status:</strong> ${ticket.Status || ticket.Satus || 'N/A'} |
-                            <strong>SLA:</strong> ${ticket['SLA Status'] || 'N/A'}
-                        </div>
-                        <div class="ticket-meta">
-                            <strong>Created:</strong> ${createDateTime}${createTimeDisplay}
-                        </div>
-                        <div class="ticket-meta">
-                            <strong>Scheduled:</strong> ${scheduledDate}${scheduledTime} |
-                            <strong>Resource:</strong> ${ticket['Primary Resource'] || 'N/A'}
-                        </div>
-                        <div class="ticket-meta">
-                            <strong>City:</strong> ${ticket.City || 'N/A'} |
-                            <strong>Region:</strong> ${ticket.Region || 'N/A'} |
-                            <strong>Postcode:</strong> ${ticket.Postcode || 'N/A'}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            document.getElementById('ticketList').innerHTML = ticketListHtml;
-            document.getElementById('ticketModal').style.display = 'flex';
+            } catch (e) {
+                createDateTime = ticket['Create Date'].toString();
+            }
         }
+
+        let createTimeDisplay = '';
+        if (ticket['Create Time']) {
+            try {
+                const createTime = convertExcelDate(ticket['Create Time']);
+                if (createTime && !isNaN(createTime.getTime())) {
+                    createTimeDisplay = ' (Time: ' + createTime.toLocaleTimeString('en-GB') + ')';
+                } else {
+                    createTimeDisplay = ' (Time: ' + ticket['Create Time'].toString() + ')';
+                }
+            } catch (e) {
+                createTimeDisplay = ' (Time: ' + ticket['Create Time'].toString() + ')';
+            }
+        }
+
+        // Format Scheduled Date/Time
+        let scheduledDate = 'N/A';
+        if (ticket['Scheduled Date']) {
+            try {
+                const schedDate = convertExcelDate(ticket['Scheduled Date']);
+                if (schedDate && !isNaN(schedDate.getTime())) {
+                    scheduledDate = schedDate.toLocaleDateString('en-GB');
+                } else {
+                    scheduledDate = ticket['Scheduled Date'].toString();
+                }
+            } catch (e) {
+                scheduledDate = ticket['Scheduled Date'].toString();
+            }
+        }
+
+        let scheduledTime = '';
+        if (ticket['Scheduled time']) {
+            try {
+                const schedTime = convertExcelDate(ticket['Scheduled time']);
+                if (schedTime && !isNaN(schedTime.getTime())) {
+                    scheduledTime = ' at ' + schedTime.toLocaleTimeString('en-GB');
+                } else {
+                    scheduledTime = ' at ' + ticket['Scheduled time'].toString();
+                }
+            } catch (e) {
+                scheduledTime = ' at ' + ticket['Scheduled time'].toString();
+            }
+        }
+
+        // Format Complete Date
+        let completeDate = 'N/A';
+        if (ticket['Complete Date']) {
+            try {
+                const compDate = convertExcelDate(ticket['Complete Date']);
+                if (compDate && !isNaN(compDate.getTime())) {
+                    completeDate = compDate.toLocaleDateString('en-GB');
+                } else {
+                    completeDate = ticket['Complete Date'].toString();
+                }
+            } catch (e) {
+                completeDate = ticket['Complete Date'].toString();
+            }
+        }
+
+        return `
+            <div class="ticket-item">
+                <div class="ticket-number">${ticket['Ticket Number'] || 'N/A'}</div>
+                <div class="ticket-title">${ticket['Ticket Title'] || 'No title available'}</div>
+                <div class="ticket-meta">
+                    <strong>Customer:</strong> ${ticket.Customer || 'N/A'} | 
+                    <strong>Priority:</strong> ${ticket.Priority || 'N/A'} | 
+                    <strong>Status:</strong> ${ticket.Status || ticket.Satus || 'N/A'} |
+                    <strong>SLA:</strong> ${ticket['SLA Status'] || 'N/A'}
+                </div>
+                <div class="ticket-meta">
+                    <strong>Created:</strong> ${createDateTime}${createTimeDisplay}
+                </div>
+                <div class="ticket-meta">
+                    <strong>Scheduled:</strong> ${scheduledDate}${scheduledTime} |
+                    <strong>Resource:</strong> ${ticket['Primary Resource'] || 'N/A'}
+                </div>
+                <div class="ticket-meta">
+                    <strong>Complete Date:</strong> ${completeDate}
+                </div>
+                <div class="ticket-meta">
+                    <strong>City:</strong> ${ticket.City || 'N/A'} |
+                    <strong>Region:</strong> ${ticket.Region || 'N/A'} |
+                    <strong>Postcode:</strong> ${ticket.Postcode || 'N/A'}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    document.getElementById('ticketList').innerHTML = ticketListHtml;
+    document.getElementById('ticketModal').style.display = 'flex';
+}
         
         function convertExcelDate(excelDate) {
             if (typeof excelDate === 'number') {
