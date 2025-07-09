@@ -1813,57 +1813,87 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
     updateSchedulerPivot(); // <--- Make sure this is present
 }
         
-       function updateSLARiskPivot() {
-    const atRiskTickets = filteredData.filter(ticket => ticket['At Risk of Failing SLA'] === "Yes");
+       function updateSLAPivot() {
+    const slaCounts = groupBy(filteredData, t => t['SLA Status'] || 'Unknown');
+    const totalTickets = filteredData.length;
+    const metSLA = (slaCounts['Met SLA'] || []).length + (slaCounts['Within SLA'] || []).length;
+    const missedSLA = (slaCounts['Missed SLA'] || []).length + (slaCounts['Out of SLA'] || []).length;
+    const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixed(1) : '0';
 
-    if (atRiskTickets.length === 0) {
-        document.getElementById('slaRiskPivot').innerHTML = 
-            '<div class="no-data">No tickets currently at risk of failing SLA</div>';
-        return;
-    }
+    const summaryHtml = `
+        <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; text-align: center;">
+                <div>
+                    <div style="font-size: 1.5rem; font-weight: bold;">${totalTickets}</div>
+                    <div style="font-size: 0.9rem;">Total Tickets</div>
+                </div>
+                <div>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #90EE90;">${metSLA}</div>
+                    <div style="font-size: 0.9rem;">Met SLA</div>
+                </div>
+                <div>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #FFB6C1;">${missedSLA}</div>
+                    <div style="font-size: 0.9rem;">Missed SLA</div>
+                </div>
+                <div>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #FFD700;">${slaPerformance}%</div>
+                    <div style="font-size: 0.9rem;">SLA Performance</div>
+                </div>
+            </div>
+        </div>
+    `;
 
-    // Group by SLA Risk Level
-    const riskCategories = {
-        'Urgent Attention Needed': {},
-        'High Risk': {}
-    };
-
-    atRiskTickets.forEach(ticket => {
-        const risk = ticket['SLA Risk Level'] || 'High Risk';
-        const customer = ticket.Customer || 'Unknown Customer';
-        if (!riskCategories[risk][customer]) riskCategories[risk][customer] = [];
-        riskCategories[risk][customer].push(ticket);
+    // Build clickable rows for each SLA status
+    let tableHtml = `<table class="pivot-table"><thead><tr><th>SLA Status</th><th>Count</th><th>Percentage</th></tr></thead><tbody>`;
+    Object.entries(slaCounts).forEach(([sla, tickets], idx) => {
+        tableHtml += `
+            <tr class="sla-row" data-sla="${encodeURIComponent(sla)}" style="cursor:pointer;">
+                <td>${sla}</td>
+                <td>${tickets.length}</td>
+                <td>${((tickets.length / filteredData.length) * 100).toFixed(1)}%</td>
+            </tr>
+        `;
     });
+    tableHtml += `</tbody></table>`;
 
-    const totalAtRisk = atRiskTickets.length;
+    document.getElementById('slaPivot').innerHTML = summaryHtml + tableHtml;
 
-    const tableData = [
-        ['Risk Level', 'Count', 'Percentage', 'Customers']
-    ].concat(
-        Object.entries(riskCategories)
-            .filter(([risk, customers]) => Object.values(customers).flat().length > 0)
-            .map(([risk, customers]) => {
-                const tickets = Object.values(customers).flat();
-                const customerLinks = Object.keys(customers)
-                    .map(customer => `<span class="clickable-customer" onclick="showSLARiskCustomerTickets('${risk}', '${customer.replace(/'/g, "\\'")}')">${customer}</span>`)
-                    .join(', ');
-                return [
-                    risk,
-                    tickets.length,
-                    ((tickets.length / totalAtRisk) * 100).toFixed(1) + '%',
-                    customerLinks
-                ];
-            })
-    );
-
-    // Store for modal use
-    window.slaRiskTicketsByCategoryAndCustomer = riskCategories;
-
-    let html = createPivotTable(tableData);
-
-    document.getElementById('slaRiskPivot').innerHTML = html;
+    // Attach event listeners to each clickable SLA row
+    document.querySelectorAll('#slaPivot .sla-row').forEach(row => {
+        row.addEventListener('click', function() {
+            const sla = decodeURIComponent(this.getAttribute('data-sla'));
+            const tickets = slaCounts[sla] || [];
+            showModalForSLA(sla, tickets);
+        });
+    });
 }
 
+// Show modal with all tickets for that SLA status
+function showModalForSLA(sla, tickets) {
+    let html = `<h2>Tickets for SLA Status: ${sla}</h2>`;
+    if (tickets.length === 0) {
+        html += "<p>No tickets found.</p>";
+    } else {
+        html += `<table class="pivot-table"><thead><tr>`;
+        // Display key columns (customize as needed)
+        const columns = Object.keys(tickets[0]);
+        columns.forEach(col => html += `<th>${col}</th>`);
+        html += `</tr></thead><tbody>`;
+        tickets.forEach(t => {
+            html += `<tr>`;
+            columns.forEach(col => html += `<td>${t[col] || ""}</td>`);
+            html += `</tr>`;
+        });
+        html += `</tbody></table>`;
+    }
+    document.getElementById('modalBody').innerHTML = html;
+    document.getElementById('modal').classList.remove('hidden');
+}
+
+// Hide modal
+function closeModal() {
+    document.getElementById('modal').classList.add('hidden');
+}
         function showSLARiskCustomerTickets(riskLevel, customer) {
     const tickets = (window.slaRiskTicketsByCategoryAndCustomer[riskLevel] && window.slaRiskTicketsByCategoryAndCustomer[riskLevel][customer]) || [];
 
@@ -2771,5 +2801,16 @@ function updateEngineerPivot() {
             return html;
         }
     </script>
+
+
+    <div id="modal" class="hidden" style="
+    position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); 
+    z-index:1000; display:flex; align-items:center; justify-content:center;">
+  <div id="modalContent" style="
+    background:white; border-radius:15px; padding:32px 24px; max-width:700px; width:90%; max-height:85vh; overflow:auto; position:relative;">
+    <button onclick="closeModal()" style="position:absolute; top:10px; right:14px; font-size:1.5rem; background:none; border:none; cursor:pointer;">×</button>
+    <div id="modalBody"></div>
+  </div>
+   </div>
 </body>
 </html>
