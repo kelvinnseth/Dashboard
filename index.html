@@ -320,6 +320,13 @@
             transform: scale(1.01);
             transition: all 0.2s ease;
         }
+
+#regionPivot > div {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 400px;
+  max-width: 100%;
+}
         
         .filters {
             background: rgba(255, 255, 255, 0.9);
@@ -2311,7 +2318,7 @@ document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">
     document.getElementById('priorityPivot').innerHTML = html;
 }
         
-        function updateRegionPivot() {
+       function updateRegionPivot() {
     const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
     const allRegions = Object.keys(regionCounts);
 
@@ -2343,15 +2350,14 @@ document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">
             })
     );
 
-    // Scrollable container for overflow
+    // Add horizontal and vertical scrolling
     const html = `
-      <div style="overflow-x:auto; max-width:100%;">
+      <div style="overflow-x:auto; overflow-y:auto; max-height:400px; max-width:100%;">
         ${createPivotTable(tableData)}
       </div>
     `;
     document.getElementById('regionPivot').innerHTML = html;
 }
-
         
         function updateCustomerPivot() {
             const customerCounts = groupBy(filteredData, t => t.Customer || 'Unknown');
