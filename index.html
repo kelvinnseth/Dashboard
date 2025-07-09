@@ -2031,66 +2031,64 @@ atRiskTickets.forEach(ticket => {
         }
         
         function updateSLAPivot() {
-            const slaCustomerFilter = document.getElementById('slaCustomerFilter').value;
-            
-            let slaData = filteredData;
-            if (slaCustomerFilter) {
-                slaData = filteredData.filter(t => t.Customer === slaCustomerFilter);
-            }
-            
-            if (slaData.length === 0) {
-                document.getElementById('slaPivot').innerHTML = '<div class="no-data">No data available for selected customer</div>';
-                return;
-            }
-            
-            const normalize = v => (v || '').toString().toLowerCase().trim();
-const totalTickets = slaData.length;
-const metSLA = slaData.filter(t => normalize(t['SLA Status']) === 'completed within sla').length;
-const missedSLA = slaData.filter(t => normalize(t['SLA Status']) === 'failed sla').length;
-const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixed(1) : '0';
-            
-            const slaTableData = [
-                ['SLA Status', 'Count', 'Percentage']
-            ].concat(
-                Object.entries(slaCounts)
-                    .sort((a, b) => {
-                        const order = ['Met SLA', 'Within SLA', 'Missed SLA', 'Out of SLA', 'Unknown'];
-                        return order.indexOf(a[0]) - order.indexOf(b[0]);
-                    })
-                    .map(([sla, tickets]) => [
-                        sla,
-                        tickets.length,
-                        ((tickets.length / slaData.length) * 100).toFixed(1) + '%'
-                    ])
-            );
-            
-            const summaryHtml = `
-                <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; text-align: center;">
-                        <div>
-                            <div style="font-size: 1.5rem; font-weight: bold;">${totalTickets}</div>
-                            <div style="font-size: 0.9rem;">Total Tickets</div>
-                        </div>
-                        <div>
-                            <div style="font-size: 1.5rem; font-weight: bold; color: #90EE90;">${metSLA}</div>
-                            <div style="font-size: 0.9rem;">Met SLA</div>
-                        </div>
-                        <div>
-                            <div style="font-size: 1.5rem; font-weight: bold; color: #FFB6C1;">${missedSLA}</div>
-                            <div style="font-size: 0.9rem;">Missed SLA</div>
-                        </div>
-                        <div>
-                            <div style="font-size: 1.5rem; font-weight: bold; color: #FFD700;">${slaPerformance}%</div>
-                            <div style="font-size: 0.9rem;">SLA Performance</div>
-                        </div>
-                    </div>
-                    ${slaCustomerFilter ? `<div style="text-align: center; margin-top: 10px; font-style: italic;">Showing results for: ${slaCustomerFilter}</div>` : ''}
+    const slaCustomerFilter = document.getElementById('slaCustomerFilter').value;
+    let slaData = filteredData;
+    if (slaCustomerFilter) {
+        slaData = filteredData.filter(t => t.Customer === slaCustomerFilter);
+    }
+
+    if (slaData.length === 0) {
+        document.getElementById('slaPivot').innerHTML = '<div class="no-data">No data available for selected customer</div>';
+        return;
+    }
+
+    // --- This is the fixed stats block ---
+    const totalTickets = slaData.length;
+    const metSLA = slaData.filter(t => (t['SLA Status'] || '').trim() === 'Completed Within SLA').length;
+    const missedSLA = slaData.filter(t => (t['SLA Status'] || '').trim() === 'Failed SLA').length;
+    const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixed(1) : '0';
+
+    const summaryHtml = `
+        <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; text-align: center;">
+                <div>
+                    <div style="font-size: 1.5rem; font-weight: bold;">${totalTickets}</div>
+                    <div style="font-size: 0.9rem;">Total Tickets</div>
                 </div>
-            `;
-            
-            const tableHtml = createPivotTable(slaTableData);
-            document.getElementById('slaPivot').innerHTML = summaryHtml + tableHtml;
-        }
+                <div>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #90EE90;">${metSLA}</div>
+                    <div style="font-size: 0.9rem;">Met SLA</div>
+                </div>
+                <div>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #FFB6C1;">${missedSLA}</div>
+                    <div style="font-size: 0.9rem;">Missed SLA</div>
+                </div>
+                <div>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #FFD700;">${slaPerformance}%</div>
+                    <div style="font-size: 0.9rem;">SLA Performance</div>
+                </div>
+            </div>
+            ${slaCustomerFilter ? `<div style="text-align: center; margin-top: 10px; font-style: italic;">Showing results for: ${slaCustomerFilter}</div>` : ''}
+        </div>
+    `;
+
+    // Keep your table rendering as before!
+    const slaCounts = groupBy(slaData, t => t['SLA Status'] || 'Unknown');
+    const slaTableData = [
+        ['SLA Status', 'Count', 'Percentage']
+    ].concat(
+        Object.entries(slaCounts)
+            .sort((a, b) => b[1].length - a[1].length)
+            .map(([sla, tickets]) => [
+                sla,
+                tickets.length,
+                ((tickets.length / slaData.length) * 100).toFixed(1) + '%'
+            ])
+    );
+
+    const tableHtml = createPivotTable(slaTableData);
+    document.getElementById('slaPivot').innerHTML = summaryHtml + tableHtml;
+}
         
         function updatePriorityPivot() {
             const priorityCounts = groupBy(filteredData, t => t.Priority || 'Unknown');
