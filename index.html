@@ -2938,6 +2938,10 @@ function showSLATicketsModal(slaStatus, ticketsSet) {
 function showTicketsForCustomerAndSLA(customer, slaTicketsOnly, slaStatus) {
     window.modalContext = "sla"; // Keep context
 
+    // Store for Back button
+    window._slaTicketsOnly = slaTicketsOnly;
+    window._slaStatus = slaStatus;
+
     // Only tickets for THIS customer AND the selected SLA status (from the already filtered SLA-tickets set!)
     const tickets = slaTicketsOnly.filter(
         t => (t.Customer || 'Unknown') === customer
@@ -2956,12 +2960,42 @@ function showTicketsForCustomerAndSLA(customer, slaTicketsOnly, slaStatus) {
         modalBodyHtml += `<p>No tickets found for this customer and SLA status.</p>`;
     } else {
         tickets.forEach(ticket => {
+            // Created Date & Time
+            let created = "N/A";
+            if (ticket['Create Date']) {
+                const d = convertExcelDate(ticket['Create Date']);
+                created = d ? d.toLocaleDateString('en-GB') : ticket['Create Date'];
+                if (ticket['Create Time']) {
+                    const t = convertExcelDate(ticket['Create Time']);
+                    created += ' ' + (t ? t.toLocaleTimeString('en-GB') : ticket['Create Time']);
+                }
+            }
+            // Completed Date & Time
+            let completed = "N/A";
+            if (ticket['Complete Date']) {
+                const d = convertExcelDate(ticket['Complete Date']);
+                completed = d ? d.toLocaleDateString('en-GB') : ticket['Complete Date'];
+            }
+
+            const primaryResource = ticket['Primary Resource'] || 'N/A';
+            const scheduler = ticket['Scheduled By'] || 'N/A';
+
             modalBodyHtml += `
                 <div class="ticket-item" style="padding:6px 0; border-bottom:1px solid #eee;">
                     <div style="font-weight:bold;">${ticket['Ticket Number'] || 'N/A'} — ${ticket['Ticket Title'] || 'No title'}</div>
                     <div style="font-size:0.9em;">
-                        <b>Priority:</b> ${ticket.Priority || 'N/A'} | 
+                        <b>Priority:</b> ${ticket.Priority || 'N/A'} |
                         <b>Status:</b> ${ticket.Status || ticket.Satus || 'N/A'}
+                    </div>
+                    <div style="font-size:0.9em;">
+                        <b>Created:</b> ${created}
+                    </div>
+                    <div style="font-size:0.9em;">
+                        <b>Completed:</b> ${completed}
+                    </div>
+                    <div style="font-size:0.9em;">
+                        <b>Primary Resource:</b> ${primaryResource} |
+                        <b>Scheduler:</b> ${scheduler}
                     </div>
                 </div>
             `;
@@ -2969,7 +3003,7 @@ function showTicketsForCustomerAndSLA(customer, slaTicketsOnly, slaStatus) {
     }
     modalBodyHtml += `</div>
         <div style="margin-top:20px;text-align:right;">
-            <button onclick="showSLATicketsModal('${slaStatus.replace(/'/g,"\\'")}', slaTicketsOnly)" style="padding:4px 14px;">Back</button>
+            <button onclick="showSLATicketsModal(window._slaStatus, window._slaTicketsOnly)" style="padding:4px 14px;">Back</button>
             <button onclick="closeModal()" style="padding:4px 14px; margin-left:8px;">Close</button>
         </div>
     `;
@@ -2977,7 +3011,6 @@ function showTicketsForCustomerAndSLA(customer, slaTicketsOnly, slaStatus) {
     document.getElementById('modalBody').innerHTML = modalBodyHtml;
     document.getElementById('modal').classList.remove('hidden');
 }
-
 // Always clear modal context when closing
 function closeModal() {
     window.modalContext = null;
