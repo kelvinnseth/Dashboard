@@ -2403,6 +2403,8 @@ function getEngineersOnShiftForDate(tickets, dateStr) {
  * @param {Object} context - (Optional) an object with current filter context (e.g. {Priority: "P2"})
  */
 function showmodal(title, tickets, context = {}) {
+
+ window.modalContext = "global"; // 
     // Store modal context globally for drilldowns
     window.currentModalContext = context;
 
@@ -2537,20 +2539,7 @@ function showmodal(title, tickets, context = {}) {
 
         
 
-    // Clickable scheduler
-    if (e.target.classList.contains('clickable-scheduler')) {
-        const schedulerName = decodeURIComponent(e.target.getAttribute('data-scheduler'));
-        let filtered = filteredData.filter(t => (t['Scheduled By'] || 'N/A') === schedulerName);
-        Object.keys(ctx).forEach(key => {
-            if (key !== 'Scheduled By' && key !== 'ScheduledBy') {
-                filtered = filtered.filter(t =>
-                    (t[key] || t[key.replace(' ', '')] || 'N/A') === ctx[key]
-                );
-            }
-        });
-        showmodal(`${schedulerName} - Scheduled Tickets`, filtered, {...ctx, 'Scheduled By': schedulerName});
-    }
-});
+  
 
 
         
