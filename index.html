@@ -2950,9 +2950,7 @@ function showSLATicketsModal(slaStatus, ticketsSet) {
                 </div>
             `;
         });
-
     modalBodyHtml += `</div>
-      <div style="margin-top:20px;"><em>Click a customer to see ticket details</em></div>
       <div style="margin-top:20px;text-align:right;">
         <button onclick="document.getElementById('modal').classList.add('hidden')" style="padding:4px 14px;">Close</button>
       </div>`;
@@ -2970,9 +2968,9 @@ function showSLATicketsModal(slaStatus, ticketsSet) {
 }
 
 // Step 2: Customer + SLA Status -> Ticket List
-function showTicketsForCustomerAndSLA(customer, ticketsWithThisSLA, slaStatus) {
-    // Only tickets for THIS customer AND this SLA status (from the already filtered set!)
-    const tickets = ticketsWithThisSLA.filter(
+function showTicketsForCustomerAndSLA(customer, slaTicketsOnly, slaStatus) {
+    // Only tickets for THIS customer AND the selected SLA status (from the already filtered SLA-tickets set!)
+    const tickets = slaTicketsOnly.filter(
         t => (t.Customer || 'Unknown') === customer
     );
 
@@ -3002,7 +3000,7 @@ function showTicketsForCustomerAndSLA(customer, ticketsWithThisSLA, slaStatus) {
     }
     modalBodyHtml += `</div>
         <div style="margin-top:20px;text-align:right;">
-            <button onclick="showSLATicketsModal('${slaStatus.replace(/'/g,"\\'")}', ticketsWithThisSLA)" style="padding:4px 14px;">Back</button>
+            <button onclick="showSLATicketsModal('${slaStatus.replace(/'/g,"\\'")}', slaTicketsOnly)" style="padding:4px 14px;">Back</button>
             <button onclick="document.getElementById('modal').classList.add('hidden')" style="padding:4px 14px; margin-left:8px;">Close</button>
         </div>
     `;
@@ -3010,7 +3008,10 @@ function showTicketsForCustomerAndSLA(customer, ticketsWithThisSLA, slaStatus) {
     document.getElementById('modalBody').innerHTML = modalBodyHtml;
     document.getElementById('modal').classList.remove('hidden');
 }
-       function updateRegionPivot() {
+
+
+        
+function updateRegionPivot() {
     const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
     const allRegions = Object.keys(regionCounts);
 
