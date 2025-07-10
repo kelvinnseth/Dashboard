@@ -2245,6 +2245,7 @@ function showEngineeringResourceModal(dateStr) {
                         <th>Engineer</th>
                         <th>Jobs Assigned</th>
                         <th>Jobs Completed</th>
+                        <th>Completion Rate</th>
                         <th>Personal SLA Performance</th>
                     </tr>
                 </thead>
@@ -2253,6 +2254,9 @@ function showEngineeringResourceModal(dateStr) {
         Object.keys(assignedByEngineer).forEach(eng => {
             const assignedTickets = assignedByEngineer[eng] || [];
             const completedTickets = completedByEngineer[eng] || [];
+            const completionRate = assignedTickets.length > 0
+                ? ((completedTickets.length / assignedTickets.length) * 100).toFixed(1) + '%'
+                : 'N/A';
             const metSLA = completedTickets.filter(t => {
                 const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
                 return (
@@ -2261,12 +2265,15 @@ function showEngineeringResourceModal(dateStr) {
                     status === 'met sla'
                 );
             }).length;
-            const perf = completedTickets.length > 0 ? ((metSLA / completedTickets.length) * 100).toFixed(1) + '%' : 'N/A';
+            const perf = completedTickets.length > 0
+                ? ((metSLA / completedTickets.length) * 100).toFixed(1) + '%'
+                : 'N/A';
             modalHtml += `
                 <tr>
                     <td>${eng}</td>
                     <td>${assignedTickets.length}</td>
                     <td>${completedTickets.length}</td>
+                    <td>${completionRate}</td>
                     <td>${perf}</td>
                 </tr>
             `;
@@ -2277,7 +2284,6 @@ function showEngineeringResourceModal(dateStr) {
     document.getElementById('modalBody').innerHTML = modalHtml;
     document.getElementById('modal').classList.remove('hidden');
 }
-
 
 // Utility: Get all unique dates in the data (from Scheduled Date or Complete Date)
 function getAllTicketDates(tickets) {
