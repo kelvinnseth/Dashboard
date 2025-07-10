@@ -1763,7 +1763,7 @@ document.getElementById('dateFilterEnd').addEventListener('change', function(e) 
             });
         }
         
-       function applyFilters() {
+      function applyFilters() {
     filteredData = originalData.filter(ticket => {
         // Customer filter
         const customerMatch =
@@ -1796,25 +1796,25 @@ document.getElementById('dateFilterEnd').addEventListener('change', function(e) 
             activeFilters.primaryResource.length === 0 ||
             activeFilters.primaryResource.includes(ticket['Primary Resource']);
 
-        // Service Call Created Date filter (replaces Scheduled Date logic)
-        // Date range filter for Scheduled Date
-const dateMatch =
-    (!activeFilters.scheduledDateStart && !activeFilters.scheduledDateEnd) ||
-    (
-        ticket['Scheduled Date'] &&
-        (() => {
-            let d = convertExcelDate(ticket['Scheduled Date']);
-            if (!d) return false;
-            let yyyy = d.getFullYear();
-            let mm = String(d.getMonth() + 1).padStart(2, '0');
-            let dd = String(d.getDate()).padStart(2, '0');
-            let dateStr = `${yyyy}-${mm}-${dd}`;
+        // Date range filter for Service Call Created Date
+        const dateMatch =
+            (!activeFilters.scheduledDateStart && !activeFilters.scheduledDateEnd) ||
+            (
+                ticket['Create Date'] &&
+                (() => {
+                    let d = convertExcelDate(ticket['Create Date']);
+                    if (!d) return false;
+                    let yyyy = d.getFullYear();
+                    let mm = String(d.getMonth() + 1).padStart(2, '0');
+                    let dd = String(d.getDate()).padStart(2, '0');
+                    let dateStr = `${yyyy}-${mm}-${dd}`;
 
-            if (activeFilters.scheduledDateStart && dateStr < activeFilters.scheduledDateStart) return false;
-            if (activeFilters.scheduledDateEnd && dateStr > activeFilters.scheduledDateEnd) return false;
-            return true;
-        })()
-    );
+                    if (activeFilters.scheduledDateStart && dateStr < activeFilters.scheduledDateStart) return false;
+                    if (activeFilters.scheduledDateEnd && dateStr > activeFilters.scheduledDateEnd) return false;
+                    return true;
+                })()
+            );
+
         // Only include the ticket if ALL filters match
         return (
             customerMatch &&
@@ -1829,6 +1829,7 @@ const dateMatch =
 
     updateDashboard();
 }
+
         
         function updateDashboard() {
             updateSummaryStats();
