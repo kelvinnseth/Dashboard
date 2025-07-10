@@ -473,6 +473,17 @@
     box-shadow: 0 3px 8px rgba(255, 107, 107, 0.18);
 }
 
+
+.clickable-scheduler {
+    color: #764ba2;
+    cursor: pointer;
+    text-decoration: underline;
+    font-weight: 500;
+}
+.clickable-scheduler:hover {
+    color: #26de81;
+}
+
 @media (max-width: 600px) {
      .filters, .filter-group {
         flex-wrap: wrap;
@@ -1968,6 +1979,12 @@ function showSLARiskCustomerTickets(riskLevel, customer) {
                     }
                 }
 
+                // >>> Add clickable scheduler name <<<
+                const schedulerName = ticket['Scheduled By'] || 'N/A';
+                const schedulerHtml = schedulerName !== 'N/A'
+                    ? `<span class="clickable-scheduler" data-scheduler="${encodeURIComponent(schedulerName)}" data-risk="${riskLevel}">${schedulerName}</span>`
+                    : 'N/A';
+
                 return `
                     <div class="ticket-item">
                         <div class="ticket-number">${ticket['Ticket Number'] || 'N/A'}</div>
@@ -1977,6 +1994,9 @@ function showSLARiskCustomerTickets(riskLevel, customer) {
                             <strong>Priority:</strong> ${ticket.Priority || 'N/A'} | 
                             <strong>Status:</strong> ${ticket.Status || ticket.Satus || 'N/A'} |
                             <strong>SLA:</strong> ${ticket['SLA Status'] || 'N/A'}
+                        </div>
+                        <div class="ticket-meta">
+                            <strong>Scheduled By:</strong> ${schedulerHtml}
                         </div>
                         <div class="ticket-meta">
                             <strong>Created:</strong> ${createDateTime}${createTimeDisplay}
@@ -2001,6 +2021,31 @@ function showSLARiskCustomerTickets(riskLevel, customer) {
     `;
     document.getElementById('modalBody').innerHTML = ticketListHtml;
     document.getElementById('modal').classList.remove('hidden');
+}
+
+        // Event delegation for scheduler clicks in the modal
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('clickable-scheduler')) {
+        const riskLevel = e.target.getAttribute('data-risk');
+        const schedulerName = decodeURIComponent(e.target.getAttribute('data-scheduler'));
+        showSLARiskSchedulerTickets(riskLevel, schedulerName);
+    }
+});
+
+function showSLARiskSchedulerTickets(riskLevel, schedulerName) {
+    // Find all tickets at risk for this riskLevel AND scheduled by this scheduler
+    let tickets = [];
+    if (window.slaRiskTicketsByCategoryAndCustomer && window.slaRiskTicketsByCategoryAndCustomer[riskLevel]) {
+        // Flatten all customers for this riskLevel
+        Object.values(window.slaRiskTicketsByCategoryAndCustomer[riskLevel]).forEach(arr => {
+            tickets = tickets.concat(arr.filter(t => (t['Scheduled By'] || '') === schedulerName));
+        });
+    }
+    if (!tickets.length) {
+        alert('No tickets found at risk for scheduler: ' + schedulerName);
+        return;
+    }
+    showTicketModal(`${schedulerName} (${riskLevel}) - At Risk Tickets`, tickets);
 }
 // Hide modal
 function closeModal() {
