@@ -484,6 +484,18 @@
     color: #26de81;
 }
 
+.clickable-customer {
+    color: #007bff;
+    cursor: pointer;
+    text-decoration: underline;
+    font-weight: 500;
+}
+.clickable-customer:hover, .clickable-customer:focus {
+    color: #0056b3;
+    text-decoration: underline;
+    outline: none;
+}
+
 @media (max-width: 600px) {
      .filters, .filter-group {
         flex-wrap: wrap;
@@ -1869,10 +1881,10 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
         const byCustomer = window.slaRiskTicketsByCategoryAndCustomer[riskLevel];
         Object.entries(byCustomer).sort((a,b)=>b[1].length-a[1].length).forEach(([customer, tickets]) => {
             tableRows.push([
-                riskLevel,
-                `<span class="clickable-customer" data-risk="${riskLevel}" data-customer="${customer.replace(/"/g, '&quot;')}">${customer}</span>`,
-                tickets.length
-            ]);
+    riskLevel,
+    `<a href="#" class="clickable-customer" data-risk="${riskLevel}" data-customer="${customer.replace(/"/g, '&quot;')}" tabindex="0" role="button">${customer}</a>`,
+    tickets.length
+]);
         });
     });
 
