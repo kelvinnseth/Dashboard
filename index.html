@@ -2058,6 +2058,9 @@ function showSLARiskCustomerTickets(riskLevel, customer) {
 document.addEventListener('click', function(e) {
     if (!document.getElementById('modal') || document.getElementById('modal').classList.contains('hidden')) return;
 
+  if (window.modalContext === "sla") return;  // 
+
+
     const ctx = window.currentModalContext || {};
 
     if (e.target.classList.contains('clickable-customer')) {
@@ -2912,6 +2915,8 @@ function getSLAPerformanceByWeek(tickets) {
 // Modal function to show tickets for a given SLA status
 // Step 1: SLA Status -> Customer List
 function showSLATicketsModal(slaStatus, ticketsSet) {
+    window.modalContext = "sla"; // Set unique context for this modal!
+
     // Only tickets with the selected SLA status
     const tickets = (ticketsSet || filteredData).filter(
         t => (t['SLA Status'] || '') === slaStatus
@@ -2952,7 +2957,7 @@ function showSLATicketsModal(slaStatus, ticketsSet) {
         });
     modalBodyHtml += `</div>
       <div style="margin-top:20px;text-align:right;">
-        <button onclick="document.getElementById('modal').classList.add('hidden')" style="padding:4px 14px;">Close</button>
+        <button onclick="closeModal()" style="padding:4px 14px;">Close</button>
       </div>`;
 
     document.getElementById('modalBody').innerHTML = modalBodyHtml;
@@ -2960,7 +2965,8 @@ function showSLATicketsModal(slaStatus, ticketsSet) {
 
     // Customer click drilldown (pass only tickets for this SLA status!)
     document.querySelectorAll('.clickable-customer').forEach(el => {
-        el.onclick = function() {
+        el.onclick = function(event) {
+            event.stopPropagation();
             const customer = decodeURIComponent(this.getAttribute('data-customer'));
             showTicketsForCustomerAndSLA(customer, tickets, slaStatus);
         };
@@ -2969,6 +2975,8 @@ function showSLATicketsModal(slaStatus, ticketsSet) {
 
 // Step 2: Customer + SLA Status -> Ticket List
 function showTicketsForCustomerAndSLA(customer, slaTicketsOnly, slaStatus) {
+    window.modalContext = "sla"; // Keep context
+
     // Only tickets for THIS customer AND the selected SLA status (from the already filtered SLA-tickets set!)
     const tickets = slaTicketsOnly.filter(
         t => (t.Customer || 'Unknown') === customer
@@ -3001,7 +3009,7 @@ function showTicketsForCustomerAndSLA(customer, slaTicketsOnly, slaStatus) {
     modalBodyHtml += `</div>
         <div style="margin-top:20px;text-align:right;">
             <button onclick="showSLATicketsModal('${slaStatus.replace(/'/g,"\\'")}', slaTicketsOnly)" style="padding:4px 14px;">Back</button>
-            <button onclick="document.getElementById('modal').classList.add('hidden')" style="padding:4px 14px; margin-left:8px;">Close</button>
+            <button onclick="closeModal()" style="padding:4px 14px; margin-left:8px;">Close</button>
         </div>
     `;
 
@@ -3009,7 +3017,11 @@ function showTicketsForCustomerAndSLA(customer, slaTicketsOnly, slaStatus) {
     document.getElementById('modal').classList.remove('hidden');
 }
 
-
+// Always clear modal context when closing
+function closeModal() {
+    window.modalContext = null;
+    document.getElementById('modal').classList.add('hidden');
+}
         
 function updateRegionPivot() {
     const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
