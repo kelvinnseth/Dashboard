@@ -498,11 +498,13 @@
 
 @media (max-width: 600px) {
      .filters, .filter-group {
-        flex-wrap: wrap;
-        gap: 6px;
-    }
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-start;
+}
     .filter-item {
-        flex: 1 1 120px;
+        flex: 1 1 160px;
         min-width: 100px;
         max-width: 100%;
     }
@@ -1716,25 +1718,37 @@ document.getElementById('dateFilterEnd').addEventListener('change', function(e) 
             }
         }
         
-        function clearAllFilters() {
+  function clearAllFilters() {
+    // Reset multi-select filters
     Object.keys(activeFilters).forEach(filterType => {
-        activeFilters[filterType] = [];
-        
-        const container = document.getElementById(
-            filterType === 'customer' ? 'customerOptions' :
-            filterType === 'status' ? 'statusOptions' :
-            filterType === 'priority' ? 'priorityOptions' :
-            filterType === 'region' ? 'regionOptions' :
-            filterType === 'scheduledBy' ? 'scheduledByOptions' :
-            'primaryResourceOptions'
-        );
-        
-        if (container) {
-            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(cb => cb.checked = true);
-            updateFilterButtonText(filterType);
+        if (Array.isArray(activeFilters[filterType])) {
+            activeFilters[filterType] = [];
+            const container = document.getElementById(
+                filterType === 'customer' ? 'customerOptions' :
+                filterType === 'status' ? 'statusOptions' :
+                filterType === 'priority' ? 'priorityOptions' :
+                filterType === 'region' ? 'regionOptions' :
+                filterType === 'scheduledBy' ? 'scheduledByOptions' :
+                filterType === 'primaryResource' ? 'primaryResourceOptions' : null
+            );
+            if (container) {
+                const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => cb.checked = true);
+                updateFilterButtonText(filterType);
+            }
         }
     });
+
+    // Reset date range fields
+    activeFilters.scheduledDateStart = '';
+    activeFilters.scheduledDateEnd = '';
+    const startInput = document.getElementById('dateFilterStart');
+    const endInput = document.getElementById('dateFilterEnd');
+    if (startInput) startInput.value = '';
+    if (endInput) endInput.value = '';
+
+    applyFilters();
+}
 
     // Only do this ONCE, after clearing all other filters
     activeFilters.scheduledDateStart = '';
