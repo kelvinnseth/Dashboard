@@ -2153,7 +2153,7 @@ function updateEngineeringResourceCard() {
 
     document.getElementById('engineeringResourceCard').innerHTML = html;
 
-    // Click event for the counts
+    // Click event for the engineer count
     document.getElementById('engineeringResourceCard').onclick = function(e) {
         if (e.target.classList.contains('clickable-count')) {
             const dateStr = e.target.getAttribute('data-date');
@@ -2161,7 +2161,6 @@ function updateEngineeringResourceCard() {
         }
     };
 }
-
 function getLastNDates(n) {
     const dates = [];
     const today = new Date();
@@ -2174,22 +2173,58 @@ function getLastNDates(n) {
     return dates;
 }
 
-        function showEngineeringResourceModal(dateStr) {
-    // Find all unique resources for this date
+       function showEngineeringResourceModal(dateStr) {
+    // Tickets scheduled for the chosen date
     const ticketsForDate = filteredData.filter(t => {
         let dt = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
         return dt && dt.toISOString().slice(0, 10) === dateStr;
     });
-    const resources = [...new Set(ticketsForDate.map(t => t['Primary Resource']).filter(Boolean))];
+    // Group tickets by engineer
+    const byEngineer = {};
+    ticketsForDate.forEach(t => {
+        const eng = t['Primary Resource'] || 'Unassigned';
+        if (!byEngineer[eng]) byEngineer[eng] = [];
+        byEngineer[eng].push(t);
+    });
 
     let modalHtml = `<h2>Engineering Resources for ${dateStr}</h2>`;
-    if (resources.length === 0) {
+    if (Object.keys(byEngineer).length === 0) {
         modalHtml += `<p>No resources scheduled for this date.</p>`;
     } else {
-        modalHtml += `<ul style="margin-left:1em;">${resources.map(r => `<li>${r}</li>`).join('')}</ul>`;
+        modalHtml += `
+            <table class="pivot-table">
+                <thead>
+                    <tr>
+                        <th>Engineer</th>
+                        <th>Jobs Scheduled</th>
+                        <th>Personal SLA Performance</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        Object.entries(byEngineer).forEach(([eng, tickets]) => {
+            // Personal SLA: % of this engineer's jobs that are completed within SLA for this day
+            const metSLA = tickets.filter(t => {
+                const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
+                return (
+                    status === 'completed within sla' ||
+                    status === 'still within sla' ||
+                    status === 'within sla' ||
+                    status === 'met sla'
+                );
+            }).length;
+            const perf = tickets.length > 0 ? ((metSLA / tickets.length) * 100).toFixed(1) + '%' : 'N/A';
+            modalHtml += `
+                <tr>
+                    <td>${eng}</td>
+                    <td>${tickets.length}</td>
+                    <td>${perf}</td>
+                </tr>
+            `;
+        });
+        modalHtml += `</tbody></table>`;
     }
 
-    // Use your existing modal
     document.getElementById('modalBody').innerHTML = modalHtml;
     document.getElementById('modal').classList.remove('hidden');
 }
