@@ -2910,8 +2910,8 @@ function getSLAPerformanceByWeek(tickets) {
 }
 
 // Modal function to show tickets for a given SLA status
+// Step 1: SLA Status -> Customer List
 function showSLATicketsModal(slaStatus, ticketsSet) {
-    // Use the passed-in ticketsSet (filtered to current slaCustomerFilter if needed)
     const tickets = (ticketsSet || filteredData).filter(t => (t['SLA Status'] || '') === slaStatus);
 
     if (tickets.length === 0) {
@@ -2920,25 +2920,86 @@ function showSLATicketsModal(slaStatus, ticketsSet) {
         return;
     }
 
-    let modalBodyHtml = `<h2>Tickets: SLA Status = ${slaStatus} (${tickets.length})</h2>
-        <div class="ticket-list" style="max-height: 400px; overflow-y: auto;">`;
+    // Group tickets by customer
+    const byCustomer = {};
+    tickets.forEach(t => {
+        const cust = t.Customer || 'Unknown';
+        if (!byCustomer[cust]) byCustomer[cust] = [];
+        byCustomer[cust].push(t);
+    });
 
-    tickets.forEach(ticket => {
+    let modalBodyHtml = `<h2>Customers for SLA Status <span style="color:#764ba2;">${slaStatus}</span> (${tickets.length} tickets)</h2>
+        <div class="customer-list" style="max-height:350px;overflow-y:auto;">`;
+
+    Object.entries(byCustomer).sort((a,b) => b[1].length - a[1].length).forEach(([customer, custTickets]) => {
         modalBodyHtml += `
-            <div class="ticket-item" style="padding:6px 0; border-bottom:1px solid #eee;">
-                <div style="font-weight:bold;">${ticket['Ticket Number'] || 'N/A'} — ${ticket['Ticket Title'] || 'No title'}</div>
-                <div style="font-size:0.9em;">
-                    <b>Customer:</b> ${ticket.Customer || 'N/A'} | 
-                    <b>Priority:</b> ${ticket.Priority || 'N/A'} | 
-                    <b>Status:</b> ${ticket.Status || ticket.Satus || 'N/A'}
-                </div>
+            <div class="customer-row" style="margin:8px 0;">
+              <span class="clickable-customer" 
+                    data-customer="${encodeURIComponent(customer)}" 
+                    data-sla-status="${encodeURIComponent(slaStatus)}" 
+                    data-total="${custTickets.length}"
+                    style="cursor:pointer;color:#3366cc;text-decoration:underline;">
+                ${customer}
+              </span>
+              <span style="color:#aaa;font-size:0.95em;">(${custTickets.length})</span>
             </div>
         `;
     });
-    modalBodyHtml += `</div>`;
+
+    modalBodyHtml += `</div>
+      <div style="margin-top:20px;"><em>Click a customer to see ticket details</em></div>`;
+
+    document.getElementById('modalBody').innerHTML = modalBodyHtml;
+    document.getElementById('modal').classList.remove('hidden');
+
+    // Customer click drilldown
+    document.querySelectorAll('.clickable-customer').forEach(el => {
+        el.onclick = function() {
+            const customer = decodeURIComponent(this.getAttribute('data-customer'));
+            const slaStatus = decodeURIComponent(this.getAttribute('data-sla-status'));
+            showTicketsForCustomerAndSLA(customer, slaStatus, tickets);
+        };
+    });
+}
+
+
+        // Step 2: Customer + SLA Status -> Ticket List
+function showTicketsForCustomerAndSLA(customer, slaStatus, ticketsSet) {
+    const tickets = ticketsSet.filter(
+        t => (t.Customer || 'Unknown') === customer && (t['SLA Status'] || '') === slaStatus
+    );
+
+    let modalBodyHtml = `<h2>Tickets for <span style="color:#3366cc;">${customer}</span><br>
+        <span style="font-size:1rem;">SLA Status: <span style="color:#764ba2;">${slaStatus}</span></span> (${tickets.length} tickets)</h2>
+        <div class="ticket-list" style="max-height: 350px; overflow-y: auto;">`;
+
+    if (tickets.length === 0) {
+        modalBodyHtml += `<p>No tickets found for this customer and SLA status.</p>`;
+    } else {
+        tickets.forEach(ticket => {
+            modalBodyHtml += `
+                <div class="ticket-item" style="padding:6px 0; border-bottom:1px solid #eee;">
+                    <div style="font-weight:bold;">${ticket['Ticket Number'] || 'N/A'} — ${ticket['Ticket Title'] || 'No title'}</div>
+                    <div style="font-size:0.9em;">
+                        <b>Priority:</b> ${ticket.Priority || 'N/A'} | 
+                        <b>Status:</b> ${ticket.Status || ticket.Satus || 'N/A'}
+                    </div>
+                </div>
+            `;
+        });
+    }
+    modalBodyHtml += `</div>
+        <div style="margin-top:20px;">
+            <button onclick="document.getElementById('modal').classList.add('hidden')" style="padding:4px 14px;">Close</button>
+            <button onclick="showSLATicketsModal('${slaStatus.replace(/'/g,"\\'")}', filteredData)" style="padding:4px 14px; margin-left:8px;">Back</button>
+        </div>
+    `;
+
     document.getElementById('modalBody').innerHTML = modalBodyHtml;
     document.getElementById('modal').classList.remove('hidden');
 }
+
+        
         
        function updateRegionPivot() {
     const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
