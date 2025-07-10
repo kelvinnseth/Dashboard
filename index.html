@@ -3079,66 +3079,86 @@ function updateSchedulerPivot() {
 
     document.getElementById('schedulerPivot').innerHTML = scrollContainer;
 }
-function updateEngineerPivot() {
-    const engineerCounts = groupBy(filteredData, t => t['Primary Resource'] || 'Unassigned');
-    // Build stats array first
-    const engineerStats = Object.entries(engineerCounts).map(([engineer, tickets]) => {
-        // Completed on schedule
-        const scheduledTickets = tickets.filter(t => t['Scheduled Date']);
-        const completedOnSchedule = scheduledTickets.filter(t => {
-            const status = (t.Status || t.Satus || '').toString().toLowerCase();
-            if (!status.includes('complete') && status !== 'closed') return false;
-            const schedDate = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
-            const compDate = t['Complete Date'] ? convertExcelDate(t['Complete Date']) : null;
-            if (!schedDate || !compDate) return false;
-            return schedDate.toDateString() === compDate.toDateString();
-        }).length;
-        const onTimeRate = scheduledTickets.length > 0
-            ? ((completedOnSchedule / scheduledTickets.length) * 100)
-            : null;
 
-        // Average ticket per shift logic
-        const ticketsByDate = {};
-        scheduledTickets.forEach(t => {
-            const d = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
-            if (!d) return;
-            const dateStr = d.toDateString();
-            if (!ticketsByDate[dateStr]) ticketsByDate[dateStr] = 0;
-            ticketsByDate[dateStr]++;
-        });
-        const shiftCounts = Object.values(ticketsByDate);
-        const avgTicketsPerShift =
-            shiftCounts.length > 0
-                ? (shiftCounts.reduce((a, b) => a + b, 0) / shiftCounts.length).toFixed(2)
-                : 'N/A';
+
+
+/**
+ * Returns an object mapping engineer names to an array of tickets they actually completed on scheduled date.
+ * @param {Array} tickets - Your data (filteredData or originalData)
+ * @returns {Object} { engineerName: [ticket, ...] }
+ */
+function getCompletedJobsByEngineer(tickets) {
+    const byEngineer = {};
+    tickets.forEach(t => {
+        if (!t['Primary Resource'] || !t['Complete Date']) return;
+        let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+        let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
+        if (
+            sched && comp &&
+            sched.toISOString().slice(0, 10) === comp.toISOString().slice(0, 10)
+        ) {
+            const eng = t['Primary Resource'];
+            if (!byEngineer[eng]) byEngineer[eng] = [];
+            byEngineer[eng].push(t);
+        }
+    });
+    return byEngineer;
+}
+
+
+
+function updateEngineerPivot() {
+    // Only consider jobs actually completed by each engineer (on their scheduled date)
+    const engineerCompletedJobs = getCompletedJobsByEngineer(filteredData);
+
+    // Each engineer with at least one completed job
+    const engineerStats = Object.entries(engineerCompletedJobs).map(([engineer, tickets]) => {
+        // SLA performance for this engineer's completed jobs
+        const metSLA = tickets.filter(t => {
+            const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
+            return (
+                status === 'completed within sla' ||
+                status === 'within sla' ||
+                status === 'met sla'
+            );
+        }).length;
+        const slaPerf = tickets.length > 0 ? ((metSLA / tickets.length) * 100).toFixed(1) + '%' : 'N/A';
+
+        // Average tickets per shift (number of days this engineer completed at least one job)
+        const days = new Set(
+            tickets.map(t => {
+                let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+                return sched ? sched.toISOString().slice(0, 10) : null;
+            }).filter(Boolean)
+        ).size;
+        const avgTicketsPerShift = days > 0
+            ? (tickets.length / days).toFixed(2)
+            : 'N/A';
 
         return {
             engineer,
             totalTickets: tickets.length,
-            completedOnSchedule,
-            onTimeRate, // numeric for sorting
-            onTimeRateDisplay: onTimeRate !== null ? onTimeRate.toFixed(1) + '%' : 'N/A',
+            completedOnSchedule: tickets.length,
+            onTimeRate: slaPerf,
             avgTicketsPerShift
         };
     });
 
-    // Sort by On-Time Completion Rate descending
-    engineerStats.sort((a, b) => (b.onTimeRate || 0) - (a.onTimeRate || 0));
+    // Sort by number of completed jobs descending
+    engineerStats.sort((a, b) => b.totalTickets - a.totalTickets);
 
     const htmlTable = createPivotTable([
         [
             'Engineer',
-            'Total Tickets',
-            'Completed On Schedule',
-            'On-Time Completion Rate',
+            'Total Jobs Completed',
+            'SLA Performance',
             'Average Ticket per Shift'
         ]
     ].concat(
         engineerStats.map(row => [
             row.engineer,
             row.totalTickets,
-            row.completedOnSchedule,
-            row.onTimeRateDisplay,
+            row.onTimeRate,
             row.avgTicketsPerShift
         ])
     ));
