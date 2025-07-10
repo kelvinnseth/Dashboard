@@ -2054,31 +2054,40 @@ function showSLARiskCustomerTickets(riskLevel, customer) {
     document.getElementById('modal').classList.remove('hidden');
 }
 
-        // Event delegation for scheduler clicks in the modal
+// Universal event handler for modal context drilldown
 document.addEventListener('click', function(e) {
+    if (!document.getElementById('modal') || document.getElementById('modal').classList.contains('hidden')) return;
+
+    const ctx = window.currentModalContext || {};
+
+    if (e.target.classList.contains('clickable-customer')) {
+        const customerName = decodeURIComponent(e.target.getAttribute('data-customer'));
+        let filtered = filteredData.filter(t => (t.Customer || 'N/A') === customerName);
+        Object.keys(ctx).forEach(key => {
+            if (key !== 'Customer') {
+                filtered = filtered.filter(t =>
+                    (t[key] || t[key.replace(' ', '')] || 'N/A') === ctx[key]
+                );
+            }
+        });
+        showmodal(`${customerName} - Tickets`, filtered, {...ctx, Customer: customerName});
+    }
+
     if (e.target.classList.contains('clickable-scheduler')) {
-        const riskLevel = e.target.getAttribute('data-risk');
         const schedulerName = decodeURIComponent(e.target.getAttribute('data-scheduler'));
-        showSLARiskSchedulerTickets(riskLevel, schedulerName);
+        let filtered = filteredData.filter(t => (t['Scheduled By'] || 'N/A') === schedulerName);
+        Object.keys(ctx).forEach(key => {
+            if (key !== 'Scheduled By' && key !== 'ScheduledBy') {
+                filtered = filtered.filter(t =>
+                    (t[key] || t[key.replace(' ', '')] || 'N/A') === ctx[key]
+                );
+            }
+        });
+        showmodal(`${schedulerName} - Scheduled Tickets`, filtered, {...ctx, 'Scheduled By': schedulerName});
     }
 });
 
-function showSLARiskSchedulerTickets(riskLevel, schedulerName) {
-    // Find all tickets at risk for this riskLevel AND scheduled by this scheduler
-    let tickets = [];
-    if (window.slaRiskTicketsByCategoryAndCustomer && window.slaRiskTicketsByCategoryAndCustomer[riskLevel]) {
-        // Flatten all customers for this riskLevel
-        Object.values(window.slaRiskTicketsByCategoryAndCustomer[riskLevel]).forEach(arr => {
-            tickets = tickets.concat(arr.filter(t => (t['Scheduled By'] || '') === schedulerName));
-        });
-    }
-    if (!tickets.length) {
-        alert('No tickets found at risk for scheduler: ' + schedulerName);
-        return;
-    }
-    showmodal(`${schedulerName} (${riskLevel}) - At Risk Tickets`, tickets);
-}
-// Hide modal
+
 function closeModal() {
     document.getElementById('modal').classList.add('hidden');
 }
