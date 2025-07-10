@@ -860,6 +860,12 @@
         Engineering Resource (Last 5 Days)
     </h3>
     <div id="engineeringResourceCard"></div>
+<div style="text-align:right; margin-top:10px;">
+  <button id="toggleEngResourceChart" style="padding:6px 16px; border-radius:8px; background:#667eea; color:white; border:none; cursor:pointer;">Show Chart</button>
+</div>
+<div id="engineeringResourceChartContainer" style="display:none; margin:16px 0;">
+  <canvas id="engineeringResourceChart" height="260"></canvas>
+</div>
 </div>
 
                 
@@ -2238,13 +2244,11 @@ function getEngineersOnShiftForDate(tickets, dateStr) {
 
     // Modal update function
 function showEngineeringResourceModal(dateStr) {
-    // Tickets assigned that day (Scheduled Date == dateStr)
     const assignedTicketsForDate = filteredData.filter(t => {
         let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
         return sched && sched.toISOString().slice(0,10) === dateStr;
     });
 
-    // Tickets completed on that day (Scheduled Date == Complete Date == dateStr)
     const completedTicketsForDate = filteredData.filter(t => {
         let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
         let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
@@ -2292,7 +2296,6 @@ function showEngineeringResourceModal(dateStr) {
         Object.keys(assignedByEngineer).forEach(eng => {
             const assignedTickets = assignedByEngineer[eng] || [];
             const completedTickets = completedByEngineer[eng] || [];
-            // Count unique postcodes
             const uniquePostcodes = new Set(
                 assignedTickets
                     .map(t => t.Postcode)
@@ -3305,6 +3308,163 @@ function updateEngineerPivot() {
     html += '</table>';
     return html;
 }
+
+
+
+// --- Engineering Resource Chart ---
+let engineeringResourceChart = null;
+
+document.getElementById('toggleEngResourceChart').addEventListener('click', function() {
+    const chartDiv = document.getElementById('engineeringResourceChartContainer');
+    if(chartDiv.style.display === 'none' || chartDiv.style.display === '') {
+        drawEngineeringResourceChart();
+        chartDiv.style.display = 'block';
+        this.textContent = "Hide Chart";
+    } else {
+        chartDiv.style.display = 'none';
+        this.textContent = "Show Chart";
+    }
+});
+
+function drawEngineeringResourceChart() {
+    function getAllTicketDates(tickets) {
+        const dateSet = new Set();
+        tickets.forEach(t => {
+            let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
+            if (comp && !isNaN(comp.getTime())) dateSet.add(comp.toISOString().slice(0, 10));
+        });
+        return Array.from(dateSet).sort((a, b) => b.localeCompare(a));
+    }
+
+    let allDates = getAllTicketDates(filteredData);
+    const recent5Dates = allDates.slice(0, 5).reverse();
+
+    // Prepare data for the chart
+    const labels = recent5Dates;
+    const engineersOnShift = [];
+    const totalAssigned = [];
+    const totalCompleted = [];
+    const slaPerformance = [];
+
+    recent5Dates.forEach(dateStr => {
+        // Engineers on shift
+        const engineers = [
+            ...new Set(
+                filteredData
+                    .filter(t => {
+                        if (!t['Primary Resource'] || !t['Complete Date']) return false;
+                        let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+                        let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
+                        return (
+                            sched && comp &&
+                            sched.toISOString().slice(0, 10) === dateStr &&
+                            comp.toISOString().slice(0, 10) === dateStr
+                        );
+                    })
+                    .map(t => t['Primary Resource'])
+            )
+        ];
+        engineersOnShift.push(engineers.length);
+
+        // Total assigned
+        totalAssigned.push(filteredData.filter(t => {
+            let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+            return sched && sched.toISOString().slice(0, 10) === dateStr;
+        }).length);
+
+        // Total completed
+        const completed = filteredData.filter(t => {
+            let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+            let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
+            return (
+                sched && comp &&
+                sched.toISOString().slice(0,10) === dateStr &&
+                comp.toISOString().slice(0,10) === dateStr
+            );
+        });
+        totalCompleted.push(completed.length);
+
+        // SLA performance
+        const metSLA = completed.filter(t => {
+            const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
+            return (
+                status === 'completed within sla' ||
+                status === 'within sla' ||
+                status === 'met sla'
+            );
+        }).length;
+        const sla = completed.length > 0
+            ? ((metSLA / completed.length) * 100)
+            : null;
+        slaPerformance.push(sla);
+    });
+
+    const ctx = document.getElementById('engineeringResourceChart').getContext('2d');
+    if (engineeringResourceChart) engineeringResourceChart.destroy();
+
+    engineeringResourceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'No. of Engineers On Shift',
+                    data: engineersOnShift,
+                    backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Jobs Assigned',
+                    data: totalAssigned,
+                    backgroundColor: 'rgba(118, 75, 162, 0.6)',
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Jobs Completed',
+                    data: totalCompleted,
+                    backgroundColor: 'rgba(63, 191, 191, 0.6)',
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'SLA Performance (%)',
+                    data: slaPerformance,
+                    type: 'line',
+                    borderColor: '#FFD700',
+                    backgroundColor: 'rgba(255,215,0,0.13)',
+                    fill: false,
+                    yAxisID: 'y1',
+                    pointRadius: 6,
+                    tension: 0.2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'top' },
+                title: { display: true, text: 'Engineering Resource (Last 5 Days)' }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    position: 'left',
+                    title: { display: true, text: 'Count' }
+                },
+                y1: {
+                    beginAtZero: true,
+                    position: 'right',
+                    title: { display: true, text: 'SLA Performance (%)' },
+                    min: 0,
+                    max: 100,
+                    ticks: { callback: value => value + '%' },
+                    grid: { drawOnChartArea: false }
+                }
+            }
+        }
+    });
+}
+
+
     </script>
 
 
@@ -3324,6 +3484,9 @@ window.addEventListener('DOMContentLoaded', function() {
     if (typeof closeModal === 'function') closeModal();
 });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
 
 </body>
 </html>
