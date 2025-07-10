@@ -1863,17 +1863,35 @@ document.getElementById('dateFilterEnd').addEventListener('change', function(e) 
             document.getElementById('activeTickets').textContent = active;
         }
         
-       function updatePivotTables() {
-    updateStatusPivot();
-    updateSLAPivot();
-    updateSLARiskPivot(); // <-- Required!
-    updatePriorityPivot();
-    updateRegionPivot();
-    updateCustomerPivot();
-    updateEngineerPivot();
-    updateSchedulerPivot();
-           updateEngineeringResourceCard();
+     function updatePivotTables() {
+    try { updateStatusPivot(); } catch(e) { console.error("updateStatusPivot", e); }
+    try { updateSLAPivot(); } catch(e) { console.error("updateSLAPivot", e); }
+    try { updateSLARiskPivot(); } catch(e) { console.error("updateSLARiskPivot", e); }
+    try { updatePriorityPivot(); } catch(e) { console.error("updatePriorityPivot", e); }
+    try { updateRegionPivot(); } catch(e) { console.error("updateRegionPivot", e); }
+    try { updateCustomerPivot(); } catch(e) { console.error("updateCustomerPivot", e); }
+    try { updateEngineerPivot(); } catch(e) { console.error("updateEngineerPivot", e); }
+    try { updateSchedulerPivot(); } catch(e) { console.error("updateSchedulerPivot", e); }
+    try { updateEngineeringResourceCard(); } catch(e) { console.error("updateEngineeringResourceCard", e); }
+}
 
+
+
+
+function updatePriorityPivot() {
+    const priorityCounts = groupBy(filteredData, t => t.Priority || 'Unknown');
+    const html = createPivotTable([
+        ['Priority', 'Count', 'Percentage']
+    ].concat(
+        Object.entries(priorityCounts)
+            .sort((a, b) => b[1].length - a[1].length)
+            .map(([priority, tickets]) => [
+                priority,
+                tickets.length,
+                ((tickets.length / filteredData.length) * 100).toFixed(1) + '%'
+            ])
+    ));
+    document.getElementById('priorityPivot').innerHTML = html;
 }
         
    function updateSLARiskPivot() {
