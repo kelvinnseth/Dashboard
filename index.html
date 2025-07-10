@@ -868,11 +868,11 @@
     </div>
 
     <!-- Ticket Details Modal -->
-    <div id="ticketModal" class="ticket-details-modal">
+    <div id="modal" class="ticket-details-modal">
         <div class="ticket-details-content">
             <div class="ticket-details-header">
                 <h3 id="modalTitle">Ticket Details</h3>
-                <button class="close-modal" onclick="closeTicketModal()">×</button>
+                <button class="close-modal" onclick="closemodal()">×</button>
             </div>
             <div id="ticketList" class="ticket-list"></div>
         </div>
@@ -2085,7 +2085,7 @@ function showSLARiskSchedulerTickets(riskLevel, schedulerName) {
         alert('No tickets found at risk for scheduler: ' + schedulerName);
         return;
     }
-    showTicketModal(`${schedulerName} (${riskLevel}) - At Risk Tickets`, tickets);
+    showmodal(`${schedulerName} (${riskLevel}) - At Risk Tickets`, tickets);
 }
 // Hide modal
 function closeModal() {
@@ -2311,14 +2311,14 @@ function getLastNDates(n) {
                 return;
             }
             
-            showTicketModal(title, tickets);
+            showmodal(title, tickets);
         }
         
-      function showTicketModal(title, tickets) {
-    document.getElementById('modalTitle').textContent = title;
-
-    const ticketListHtml = tickets.map(ticket => {
-        // Format Create Date/Time
+     // 1. Universal Modal Show Function
+function showmodal(title, tickets) {
+    // Build HTML for ticket details
+    let ticketListHtml = tickets.map(ticket => {
+        // Format dates and times
         let createDateTime = 'N/A';
         if (ticket['Create Date']) {
             try {
@@ -2332,7 +2332,6 @@ function getLastNDates(n) {
                 createDateTime = ticket['Create Date'].toString();
             }
         }
-
         let createTimeDisplay = '';
         if (ticket['Create Time']) {
             try {
@@ -2346,8 +2345,6 @@ function getLastNDates(n) {
                 createTimeDisplay = ' (Time: ' + ticket['Create Time'].toString() + ')';
             }
         }
-
-        // Format Scheduled Date/Time
         let scheduledDate = 'N/A';
         if (ticket['Scheduled Date']) {
             try {
@@ -2361,7 +2358,6 @@ function getLastNDates(n) {
                 scheduledDate = ticket['Scheduled Date'].toString();
             }
         }
-
         let scheduledTime = '';
         if (ticket['Scheduled time']) {
             try {
@@ -2375,8 +2371,6 @@ function getLastNDates(n) {
                 scheduledTime = ' at ' + ticket['Scheduled time'].toString();
             }
         }
-
-        // Format Complete Date
         let completeDate = 'N/A';
         if (ticket['Complete Date']) {
             try {
@@ -2390,7 +2384,6 @@ function getLastNDates(n) {
                 completeDate = ticket['Complete Date'].toString();
             }
         }
-
         return `
             <div class="ticket-item">
                 <div class="ticket-number">${ticket['Ticket Number'] || 'N/A'}</div>
@@ -2419,9 +2412,17 @@ function getLastNDates(n) {
             </div>
         `;
     }).join('');
+    const modalBodyHtml = `
+        <h2>${title}</h2>
+        <div class="ticket-list">${ticketListHtml}</div>
+    `;
+    document.getElementById('modalBody').innerHTML = modalBodyHtml;
+    document.getElementById('modal').classList.remove('hidden');
+}
 
-    document.getElementById('ticketList').innerHTML = ticketListHtml;
-    document.getElementById('ticketModal').style.display = 'flex';
+// 2. Universal Modal Close Function
+function closeModal() {
+    document.getElementById('modal').classList.add('hidden');
 }
         
         function convertExcelDate(excelDate) {
@@ -2456,16 +2457,14 @@ function getLastNDates(n) {
                 return;
             }
             
-            showTicketModal(`${riskLevel} Tickets (${tickets.length})`, tickets);
+            showmodal(`${riskLevel} Tickets (${tickets.length})`, tickets);
         }
         
-        function closeTicketModal() {
-            document.getElementById('ticketModal').style.display = 'none';
-        }
+      
         
-        document.getElementById('ticketModal').addEventListener('click', function(e) {
+        document.getElementById('modal').addEventListener('click', function(e) {
             if (e.target === this) {
-                closeTicketModal();
+                closemodal();
             }
         });
         
