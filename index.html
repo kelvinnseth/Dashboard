@@ -2095,14 +2095,18 @@ function getLastNDates(n) {
 
 
 
+// Main card update function
 function updateEngineeringResourceCard() {
-    const last5Dates = getLastNDates(5);
+    const allDates = getAllTicketDates(filteredData);
+    const recent5Dates = allDates.slice(0, 5); // Only up to 5, most recent
+
     let html = `
         <table class="pivot-table">
             <thead>
                 <tr>
                     <th>Date</th>
                     <th>NO of ENG On-Shift</th>
+                    <th>Total Jobs Assigned</th>
                     <th>Total Jobs Completed</th>
                     <th>SLA Performance</th>
                 </tr>
@@ -2110,11 +2114,44 @@ function updateEngineeringResourceCard() {
             <tbody>
     `;
 
-    last5Dates.forEach(dateStr => {
-        // Engineers who completed at least one job that day
-        const engineersOnShift = getEngineersOnShiftForDate(filteredData, dateStr);
+    recent5Dates.forEach(dateStr => {
+        // Engineers with at least one job assigned (Scheduled Date == date)
+        const assignedEngineers = [
+            ...new Set(
+                filteredData
+                    .filter(t => {
+                        let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+                        return sched && sched.toISOString().slice(0,10) === dateStr && t['Primary Resource'];
+                    })
+                    .map(t => t['Primary Resource'])
+            )
+        ];
 
-        // All tickets completed on that day (by anyone)
+        // Engineers who completed at least one job that day (Scheduled Date == Complete Date == date)
+        const completedEngineers = [
+            ...new Set(
+                filteredData
+                    .filter(t => {
+                        let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+                        let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
+                        return (
+                            sched && comp &&
+                            sched.toISOString().slice(0,10) === dateStr &&
+                            comp.toISOString().slice(0,10) === dateStr &&
+                            t['Primary Resource']
+                        );
+                    })
+                    .map(t => t['Primary Resource'])
+            )
+        ];
+
+        // Total jobs ASSIGNED that date (Scheduled Date == date)
+        const totalAssigned = filteredData.filter(t => {
+            let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+            return sched && sched.toISOString().slice(0,10) === dateStr;
+        }).length;
+
+        // Total jobs COMPLETED that date (Scheduled Date == Complete Date == date)
         const completedTicketsForDate = filteredData.filter(t => {
             let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
             let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
@@ -2142,8 +2179,9 @@ function updateEngineeringResourceCard() {
             <tr>
                 <td>${dateStr}</td>
                 <td>
-                    <span class="clickable-count" data-date="${dateStr}">${engineersOnShift.length}</span>
+                    <span class="clickable-count" data-date="${dateStr}">${completedEngineers.length}</span>
                 </td>
+                <td>${totalAssigned}</td>
                 <td>${completedTicketsForDate.length}</td>
                 <td>${slaPerformance}</td>
             </tr>
@@ -2163,12 +2201,25 @@ function updateEngineeringResourceCard() {
 }
 
 
-/**
- * Returns an array of engineers who actually completed at least one job on a given date.
- * @param {Array} tickets - The ticket list (filteredData or originalData)
- * @param {string} dateStr - Date as "YYYY-MM-DD"
- * @returns {Array} - Unique list of engineer names
- */
+
+
+// Utility: Get all unique dates in the data (from Scheduled Date or Complete Date)
+function getAllTicketDates(tickets) {
+    const dateSet = new Set();
+    tickets.forEach(t => {
+        let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+        let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
+        if (sched && !isNaN(sched.getTime())) dateSet.add(sched.toISOString().slice(0,10));
+        // Optionally include Complete Date if you want
+        // if (comp && !isNaN(comp.getTime())) dateSet.add(comp.toISOString().slice(0,10));
+    });
+    // Sort descending (most recent first)
+    return Array.from(dateSet).sort((a,b) => b.localeCompare(a));
+}
+
+
+
+        
 function getEngineersOnShiftForDate(tickets, dateStr) {
     return [
         ...new Set(
@@ -2189,10 +2240,16 @@ function getEngineersOnShiftForDate(tickets, dateStr) {
     ];
 }
 
-     function showEngineeringResourceModal(dateStr) {
-    // Tickets completed on this day (completed ON scheduled date)
+    // Modal update function
+function showEngineeringResourceModal(dateStr) {
+    // Tickets assigned that day (Scheduled Date == dateStr)
+    const assignedTicketsForDate = filteredData.filter(t => {
+        let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+        return sched && sched.toISOString().slice(0,10) === dateStr;
+    });
+
+    // Tickets completed on that day (Scheduled Date == Complete Date == dateStr)
     const completedTicketsForDate = filteredData.filter(t => {
-        if (!t['Primary Resource'] || !t['Complete Date']) return false;
         let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
         let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
         return (
@@ -2202,31 +2259,42 @@ function getEngineersOnShiftForDate(tickets, dateStr) {
         );
     });
 
-    // Group by engineer
-    const byEngineer = {};
+    // Group ASSIGNED by engineer
+    const assignedByEngineer = {};
+    assignedTicketsForDate.forEach(t => {
+        const eng = t['Primary Resource'] || 'Unassigned';
+        if (!assignedByEngineer[eng]) assignedByEngineer[eng] = [];
+        assignedByEngineer[eng].push(t);
+    });
+
+    // Group COMPLETED by engineer
+    const completedByEngineer = {};
     completedTicketsForDate.forEach(t => {
         const eng = t['Primary Resource'] || 'Unassigned';
-        if (!byEngineer[eng]) byEngineer[eng] = [];
-        byEngineer[eng].push(t);
+        if (!completedByEngineer[eng]) completedByEngineer[eng] = [];
+        completedByEngineer[eng].push(t);
     });
 
     let modalHtml = `<h2>Engineers On Shift for ${dateStr}</h2>`;
-    if (Object.keys(byEngineer).length === 0) {
-        modalHtml += `<p>No engineers completed jobs for this date.</p>`;
+    if (Object.keys(assignedByEngineer).length === 0) {
+        modalHtml += `<p>No engineers assigned jobs for this date.</p>`;
     } else {
         modalHtml += `
             <table class="pivot-table">
                 <thead>
                     <tr>
                         <th>Engineer</th>
+                        <th>Jobs Assigned</th>
                         <th>Jobs Completed</th>
                         <th>Personal SLA Performance</th>
                     </tr>
                 </thead>
                 <tbody>
         `;
-        Object.entries(byEngineer).forEach(([eng, tickets]) => {
-            const metSLA = tickets.filter(t => {
+        Object.keys(assignedByEngineer).forEach(eng => {
+            const assignedTickets = assignedByEngineer[eng] || [];
+            const completedTickets = completedByEngineer[eng] || [];
+            const metSLA = completedTickets.filter(t => {
                 const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
                 return (
                     status === 'completed within sla' ||
@@ -2234,11 +2302,12 @@ function getEngineersOnShiftForDate(tickets, dateStr) {
                     status === 'met sla'
                 );
             }).length;
-            const perf = tickets.length > 0 ? ((metSLA / tickets.length) * 100).toFixed(1) + '%' : 'N/A';
+            const perf = completedTickets.length > 0 ? ((metSLA / completedTickets.length) * 100).toFixed(1) + '%' : 'N/A';
             modalHtml += `
                 <tr>
                     <td>${eng}</td>
-                    <td>${tickets.length}</td>
+                    <td>${assignedTickets.length}</td>
+                    <td>${completedTickets.length}</td>
                     <td>${perf}</td>
                 </tr>
             `;
@@ -2249,90 +2318,6 @@ function getEngineersOnShiftForDate(tickets, dateStr) {
     document.getElementById('modalBody').innerHTML = modalHtml;
     document.getElementById('modal').classList.remove('hidden');
 }
-        
-        function calculateSLADueDate(ticket) {
-            const createDate = convertExcelDate(ticket['Create Date']);
-            const createTime = convertExcelDate(ticket['Create Time']);
-            const priority = ticket.Priority || '';
-            
-            if (!createDate && !createTime) return null;
-            
-            const startTime = createTime || createDate;
-            
-            if (!startTime || isNaN(startTime.getTime())) return null;
-            
-            const slaHours = {
-                'P1': 4,
-                'P2': 8,
-                'P3': 24,
-                'P4': 48
-            };
-            
-            const hours = slaHours[priority] || 24;
-            
-            const slaDue = new Date(startTime);
-            slaDue.setHours(slaDue.getHours() + hours);
-            
-            return slaDue;
-        }
-        
-        function getAverageHoursUntilDue(tickets) {
-            const now = new Date();
-            let totalHours = 0;
-            let validTickets = 0;
-            
-            tickets.forEach(ticket => {
-                const sladue = calculateSLADueDate(ticket);
-                if (sladue) {
-                    const hoursUntilDue = (sladue - now) / (1000 * 60 * 60);
-                    totalHours += hoursUntilDue;
-                    validTickets++;
-                }
-            });
-            
-            if (validTickets === 0) return 'N/A';
-            
-            const avgHours = totalHours / validTickets;
-            
-            if (avgHours < 0) return 'Overdue';
-            if (avgHours < 1) return '<1 hour';
-            if (avgHours < 24) return Math.round(avgHours) + ' hours';
-            
-            const days = Math.round(avgHours / 24);
-            return days + (days === 1 ? ' day' : ' days');
-        }
-        
-        function makeCountsClickable() {
-            setTimeout(() => {
-                makeTableCountsClickable('statusPivot', 'status');
-                makeTableCountsClickable('priorityPivot', 'priority');
-                makeTableCountsClickable('regionPivot', 'region');
-                makeTableCountsClickable('customerPivot', 'customer');
-                makeTableCountsClickable('engineerPivot', 'engineer');
-                makeTableCountsClickable('schedulerPivot', 'scheduler');
-            }, 100);
-        }
-        
-        function makeTableCountsClickable(tableId, pivotType) {
-            const table = document.querySelector(`#${tableId} table`);
-            if (!table) return;
-            
-            const rows = table.querySelectorAll('tbody tr');
-            rows.forEach((row, index) => {
-                const cells = row.querySelectorAll('td');
-                if (cells.length >= 2) {
-                    const nameCell = cells[0];
-                    const countCell = cells[1];
-                    
-                    if (countCell && !isNaN(parseInt(countCell.textContent))) {
-                        const itemName = nameCell.textContent.trim();
-                        const count = countCell.textContent.trim();
-                        
-                        countCell.innerHTML = `<span class="clickable-count" onclick="showFilteredTickets('${pivotType}', '${itemName.replace(/'/g, '\\\'')}')">${count}</span>`;
-                    }
-                }
-            });
-        }
         
         function showFilteredTickets(pivotType, itemName) {
             let tickets = [];
