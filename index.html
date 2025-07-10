@@ -692,8 +692,12 @@
                     </div>
                     
                     <div class="filter-item">
-    <label for="dateFilter">Scheduled Date</label>
-    <input type="date" id="dateFilter" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e0e0e0;">
+    <label>Scheduled Date Range</label>
+    <div style="display:flex;gap:4px;">
+        <input type="date" id="dateFilterStart" style="width:50%;padding:10px;border-radius:8px;border:1px solid #e0e0e0;">
+        <span style="align-self:center;">to</span>
+        <input type="date" id="dateFilterEnd" style="width:50%;padding:10px;border-radius:8px;border:1px solid #e0e0e0;">
+    </div>
 </div>
                         
                     <div class="filter-item">
@@ -894,7 +898,8 @@
     region: [],
     scheduledBy: [],
     primaryResource: [],
-    scheduledDate: '' // <-- new property
+    scheduledDateStart: '',
+    scheduledDateEnd: '',
 };
 
 console.log("First ticket object:", originalData[0]);
@@ -1569,8 +1574,12 @@ if (uniquePostcodes.length > 0) {
             });
 
             // Add this after your other filter event listeners are set up
-document.getElementById('dateFilter').addEventListener('change', function(e) {
-    activeFilters.scheduledDate = e.target.value;
+document.getElementById('dateFilterStart').addEventListener('change', function(e) {
+    activeFilters.scheduledDateStart = e.target.value;
+    applyFilters();
+});
+document.getElementById('dateFilterEnd').addEventListener('change', function(e) {
+    activeFilters.scheduledDateEnd = e.target.value;
     applyFilters();
 });
             
@@ -1708,25 +1717,32 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
         }
         
         function clearAllFilters() {
-            Object.keys(activeFilters).forEach(filterType => {
-                activeFilters[filterType] = [];
-                
-                const container = document.getElementById(filterType === 'customer' ? 'customerOptions' :
-                                                         filterType === 'status' ? 'statusOptions' :
-                                                         filterType === 'priority' ? 'priorityOptions' :
-                                                         filterType === 'region' ? 'regionOptions' :
-                                                         filterType === 'scheduledBy' ? 'scheduledByOptions' :
-                                                         'primaryResourceOptions');
-                
-                if (container) {
-                    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-                    checkboxes.forEach(cb => cb.checked = true);
-                    updateFilterButtonText(filterType);
-                }
-            });
-            
-            applyFilters();
+    Object.keys(activeFilters).forEach(filterType => {
+        activeFilters[filterType] = [];
+        
+        const container = document.getElementById(
+            filterType === 'customer' ? 'customerOptions' :
+            filterType === 'status' ? 'statusOptions' :
+            filterType === 'priority' ? 'priorityOptions' :
+            filterType === 'region' ? 'regionOptions' :
+            filterType === 'scheduledBy' ? 'scheduledByOptions' :
+            'primaryResourceOptions'
+        );
+        
+        if (container) {
+            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = true);
+            updateFilterButtonText(filterType);
         }
+    });
+
+    // Only do this ONCE, after clearing all other filters
+    activeFilters.scheduledDateStart = '';
+    activeFilters.scheduledDateEnd = '';
+    document.getElementById('dateFilterStart').value = '';
+    document.getElementById('dateFilterEnd').value = '';
+    applyFilters();
+}
         
         function populateSelect(selectId, options) {
             const select = document.getElementById(selectId);
@@ -1773,21 +1789,24 @@ document.getElementById('dateFilter').addEventListener('change', function(e) {
             activeFilters.primaryResource.includes(ticket['Primary Resource']);
 
         // Service Call Created Date filter (replaces Scheduled Date logic)
-        const dateMatch =
-            !activeFilters.scheduledDate ||
-            (
-                ticket['Service Call Created Date'] &&
-                (() => {
-                    let d = convertExcelDate(ticket['Service Call Created Date']);
-                    if (!d) return false;
-                    let yyyy = d.getFullYear();
-                    let mm = String(d.getMonth() + 1).padStart(2, '0');
-                    let dd = String(d.getDate()).padStart(2, '0');
-                    let dateStr = `${yyyy}-${mm}-${dd}`;
-                    return dateStr === activeFilters.scheduledDate;
-                })()
-            );
+        // Date range filter for Scheduled Date
+const dateMatch =
+    (!activeFilters.scheduledDateStart && !activeFilters.scheduledDateEnd) ||
+    (
+        ticket['Scheduled Date'] &&
+        (() => {
+            let d = convertExcelDate(ticket['Scheduled Date']);
+            if (!d) return false;
+            let yyyy = d.getFullYear();
+            let mm = String(d.getMonth() + 1).padStart(2, '0');
+            let dd = String(d.getDate()).padStart(2, '0');
+            let dateStr = `${yyyy}-${mm}-${dd}`;
 
+            if (activeFilters.scheduledDateStart && dateStr < activeFilters.scheduledDateStart) return false;
+            if (activeFilters.scheduledDateEnd && dateStr > activeFilters.scheduledDateEnd) return false;
+            return true;
+        })()
+    );
         // Only include the ticket if ALL filters match
         return (
             customerMatch &&
