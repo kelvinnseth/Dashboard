@@ -2823,7 +2823,7 @@ function getSLAPerformanceByWeek(tickets) {
 }
 
 
-        function updateSLAPivot() {
+   function updateSLAPivot() {
     const slaCustomerFilter = document.getElementById('slaCustomerFilter').value;
     let slaData = filteredData;
     if (slaCustomerFilter) {
@@ -2836,25 +2836,25 @@ function getSLAPerformanceByWeek(tickets) {
     }
 
     // --- This is the fixed stats block ---
-   const totalTickets = slaData.length;
-const metSLA = slaData.filter(t => {
-    const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
-    return (
-        status === 'completed within sla' ||
-        status === 'still within sla' ||
-        status === 'within sla' ||
-        status === 'met sla'
-    );
-}).length;
-const missedSLA = slaData.filter(t => {
-    const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
-    return (
-        status === 'failed sla' ||
-        status === 'missed sla' ||
-        status === 'out of sla'
-    );
-}).length;
-const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixed(1) : '0';
+    const totalTickets = slaData.length;
+    const metSLA = slaData.filter(t => {
+        const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
+        return (
+            status === 'completed within sla' ||
+            status === 'still within sla' ||
+            status === 'within sla' ||
+            status === 'met sla'
+        );
+    }).length;
+    const missedSLA = slaData.filter(t => {
+        const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
+        return (
+            status === 'failed sla' ||
+            status === 'missed sla' ||
+            status === 'out of sla'
+        );
+    }).length;
+    const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixed(1) : '0';
 
     const summaryHtml = `
         <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
@@ -2880,7 +2880,7 @@ const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixe
         </div>
     `;
 
-    // Keep your table rendering as before!
+    // Group by SLA status and build table with clickable status
     const slaCounts = groupBy(slaData, t => t['SLA Status'] || 'Unknown');
     const slaTableData = [
         ['SLA Status', 'Count', 'Percentage']
@@ -2888,34 +2888,56 @@ const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixe
         Object.entries(slaCounts)
             .sort((a, b) => b[1].length - a[1].length)
             .map(([sla, tickets]) => [
-                sla,
+                `<span class="clickable-sla-status" data-sla-status="${encodeURIComponent(sla)}">${sla}</span>`,
                 tickets.length,
                 ((tickets.length / slaData.length) * 100).toFixed(1) + '%'
             ])
     );
 
     const tableHtml = createPivotTable(slaTableData);
+
     document.getElementById('slaPivot').innerHTML = summaryHtml + tableHtml;
-            const slaByWeekHtml = getSLAPerformanceByWeek(filteredData); // or slaData if filtering by customer
-document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">' + slaByWeekHtml + '</div>';
+    const slaByWeekHtml = getSLAPerformanceByWeek(filteredData); // or slaData if filtering by customer
+    document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">' + slaByWeekHtml + '</div>';
+
+    // Add the click handler for SLA Status
+    document.getElementById('slaPivot').onclick = function(e) {
+        if (e.target.classList.contains('clickable-sla-status')) {
+            const slaStatus = decodeURIComponent(e.target.getAttribute('data-sla-status'));
+            showSLATicketsModal(slaStatus, slaData); // pass slaData so filter applies
+        }
+    };
 }
-        
-        function updatePriorityPivot() {
-    const priorityCounts = groupBy(filteredData, t => t.Priority || 'Unknown');
-    const priorityOrder = ['P1', 'P2', 'P3', 'P4', 'Unknown'];
-    const html = createPivotTable([
-        ['Priority', 'Count', 'Percentage']
-    ].concat(
-        priorityOrder
-            .filter(p => priorityCounts[p])
-            .map(priority => [
-                priority,
-                priorityCounts[priority].length,
-                ((priorityCounts[priority].length / filteredData.length) * 100).toFixed(1) + '%'
-            ])
-    ));
-    // FIX: Actually update the DOM
-    document.getElementById('priorityPivot').innerHTML = html;
+
+// Modal function to show tickets for a given SLA status
+function showSLATicketsModal(slaStatus, ticketsSet) {
+    // Use the passed-in ticketsSet (filtered to current slaCustomerFilter if needed)
+    const tickets = (ticketsSet || filteredData).filter(t => (t['SLA Status'] || '') === slaStatus);
+
+    if (tickets.length === 0) {
+        document.getElementById('modalBody').innerHTML = `<p>No tickets found for SLA status: <b>${slaStatus}</b></p>`;
+        document.getElementById('modal').classList.remove('hidden');
+        return;
+    }
+
+    let modalBodyHtml = `<h2>Tickets: SLA Status = ${slaStatus} (${tickets.length})</h2>
+        <div class="ticket-list" style="max-height: 400px; overflow-y: auto;">`;
+
+    tickets.forEach(ticket => {
+        modalBodyHtml += `
+            <div class="ticket-item" style="padding:6px 0; border-bottom:1px solid #eee;">
+                <div style="font-weight:bold;">${ticket['Ticket Number'] || 'N/A'} — ${ticket['Ticket Title'] || 'No title'}</div>
+                <div style="font-size:0.9em;">
+                    <b>Customer:</b> ${ticket.Customer || 'N/A'} | 
+                    <b>Priority:</b> ${ticket.Priority || 'N/A'} | 
+                    <b>Status:</b> ${ticket.Status || ticket.Satus || 'N/A'}
+                </div>
+            </div>
+        `;
+    });
+    modalBodyHtml += `</div>`;
+    document.getElementById('modalBody').innerHTML = modalBodyHtml;
+    document.getElementById('modal').classList.remove('hidden');
 }
         
        function updateRegionPivot() {
