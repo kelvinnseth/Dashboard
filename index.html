@@ -872,7 +872,7 @@
         <div class="ticket-details-content">
             <div class="ticket-details-header">
                 <h3 id="modalTitle">Ticket Details</h3>
-                <button class="close-modal" onclick="closemodal()">×</button>
+                <button class="close-modal" onclick="closeModal()">×</button>
             </div>
             <div id="ticketList" class="ticket-list"></div>
         </div>
@@ -2464,7 +2464,7 @@ function closeModal() {
         
         document.getElementById('modal').addEventListener('click', function(e) {
             if (e.target === this) {
-                closemodal();
+                closeModal();
             }
         });
         
