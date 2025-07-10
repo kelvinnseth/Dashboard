@@ -2910,9 +2910,9 @@ function getSLAPerformanceByWeek(tickets) {
 }
 
 // Modal function to show tickets for a given SLA status
-/// Step 1: SLA Status -> Customer List
+// Step 1: SLA Status -> Customer List
 function showSLATicketsModal(slaStatus, ticketsSet) {
-    // Only use the tickets relevant to the current SLA status
+    // Only tickets with the selected SLA status
     const tickets = (ticketsSet || filteredData).filter(
         t => (t['SLA Status'] || '') === slaStatus
     );
@@ -2960,23 +2960,20 @@ function showSLATicketsModal(slaStatus, ticketsSet) {
     document.getElementById('modalBody').innerHTML = modalBodyHtml;
     document.getElementById('modal').classList.remove('hidden');
 
-    // Customer click drilldown (pass only tickets for this SLA status)
+    // Customer click drilldown (pass only tickets for this SLA status!)
     document.querySelectorAll('.clickable-customer').forEach(el => {
         el.onclick = function() {
             const customer = decodeURIComponent(this.getAttribute('data-customer'));
-            const slaStatus = decodeURIComponent(this.getAttribute('data-sla-status'));
-            // Only pass the tickets relevant to this SLA status!
-            showTicketsForCustomerAndSLA(customer, slaStatus, tickets);
+            showTicketsForCustomerAndSLA(customer, tickets, slaStatus);
         };
     });
 }
 
-
 // Step 2: Customer + SLA Status -> Ticket List
-function showTicketsForCustomerAndSLA(customer, slaStatus, ticketsSet) {
-    // Only use tickets that match both SLA status AND customer
-    const tickets = ticketsSet.filter(
-        t => (t.Customer || 'Unknown') === customer && (t['SLA Status'] || '') === slaStatus
+function showTicketsForCustomerAndSLA(customer, ticketsWithThisSLA, slaStatus) {
+    // Only tickets for THIS customer AND this SLA status (from the already filtered set!)
+    const tickets = ticketsWithThisSLA.filter(
+        t => (t.Customer || 'Unknown') === customer
     );
 
     let modalBodyHtml = `
@@ -3005,14 +3002,14 @@ function showTicketsForCustomerAndSLA(customer, slaStatus, ticketsSet) {
     }
     modalBodyHtml += `</div>
         <div style="margin-top:20px;text-align:right;">
-            <button onclick="showSLATicketsModal('${slaStatus.replace(/'/g,"\\'")}', ticketsSet)" style="padding:4px 14px;">Back</button>
+            <button onclick="showSLATicketsModal('${slaStatus.replace(/'/g,"\\'")}', ticketsWithThisSLA)" style="padding:4px 14px;">Back</button>
             <button onclick="document.getElementById('modal').classList.add('hidden')" style="padding:4px 14px; margin-left:8px;">Close</button>
         </div>
     `;
 
     document.getElementById('modalBody').innerHTML = modalBodyHtml;
     document.getElementById('modal').classList.remove('hidden');
-}        
+}
        function updateRegionPivot() {
     const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
     const allRegions = Object.keys(regionCounts);
