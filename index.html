@@ -2282,6 +2282,7 @@ function showEngineeringResourceModal(dateStr) {
                         <th>Engineer</th>
                         <th>Jobs Assigned</th>
                         <th>Jobs Completed</th>
+                        <th>Locations</th>
                         <th>Completion Rate</th>
                         <th>Personal SLA Performance</th>
                     </tr>
@@ -2291,6 +2292,14 @@ function showEngineeringResourceModal(dateStr) {
         Object.keys(assignedByEngineer).forEach(eng => {
             const assignedTickets = assignedByEngineer[eng] || [];
             const completedTickets = completedByEngineer[eng] || [];
+            // Count unique postcodes
+            const uniquePostcodes = new Set(
+                assignedTickets
+                    .map(t => t.Postcode)
+                    .filter(pc => !!pc && pc.toString().trim() !== '')
+            );
+            const locations = uniquePostcodes.size;
+
             const completionRate = assignedTickets.length > 0
                 ? ((completedTickets.length / assignedTickets.length) * 100).toFixed(1) + '%'
                 : 'N/A';
@@ -2310,6 +2319,7 @@ function showEngineeringResourceModal(dateStr) {
                     <td>${eng}</td>
                     <td>${assignedTickets.length}</td>
                     <td>${completedTickets.length}</td>
+                    <td>${locations}</td>
                     <td>${completionRate}</td>
                     <td>${perf}</td>
                 </tr>
@@ -2321,7 +2331,6 @@ function showEngineeringResourceModal(dateStr) {
     document.getElementById('modalBody').innerHTML = modalHtml;
     document.getElementById('modal').classList.remove('hidden');
 }
-
         
         function showFilteredTickets(pivotType, itemName) {
             let tickets = [];
