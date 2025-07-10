@@ -2100,6 +2100,7 @@ function updateEngineeringResourceCard() {
                 <tr>
                     <th>Date</th>
                     <th>NO of ENG On-Shift</th>
+                    <th>Total Jobs Completed</th>
                     <th>SLA Performance</th>
                 </tr>
             </thead>
@@ -2107,13 +2108,15 @@ function updateEngineeringResourceCard() {
     `;
 
     last5Dates.forEach(dateStr => {
-        // Tickets for this scheduled date
+        // Tickets scheduled for this date
         const ticketsForDate = filteredData.filter(t => {
             let dt = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
             return dt && dt.toISOString().slice(0,10) === dateStr;
         });
-        // Unique primary resources
+
+        // Unique primary resources on shift for this date
         const resources = [...new Set(ticketsForDate.map(t => t['Primary Resource']).filter(Boolean))];
+
         // SLA performance calculation
         const metSLA = ticketsForDate.filter(t => {
             const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
@@ -2126,12 +2129,21 @@ function updateEngineeringResourceCard() {
         }).length;
         const slaPerformance = ticketsForDate.length > 0 ? ((metSLA / ticketsForDate.length) * 100).toFixed(1) + '%' : 'N/A';
 
+        // Total Jobs Completed (scheduled for this date, completed on the same date)
+        const jobsCompleted = ticketsForDate.filter(t => {
+            if (!t['Complete Date']) return false;
+            let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+            let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
+            return sched && comp && sched.toISOString().slice(0,10) === comp.toISOString().slice(0,10);
+        }).length;
+
         html += `
             <tr>
                 <td>${dateStr}</td>
                 <td>
                     <span class="clickable-count" data-date="${dateStr}">${resources.length}</span>
                 </td>
+                <td>${jobsCompleted}</td>
                 <td>${slaPerformance}</td>
             </tr>
         `;
@@ -2149,7 +2161,6 @@ function updateEngineeringResourceCard() {
         }
     };
 }
-
 
 function getLastNDates(n) {
     const dates = [];
