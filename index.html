@@ -2305,8 +2305,7 @@ function getLastNDates(n) {
             showmodal(title, tickets);
         }
         
-     // 1. Universal Modal Show Function
-function showmodal(title, tickets) {
+   function showmodal(title, tickets) {
     // Build HTML for ticket details
     let ticketListHtml = tickets.map(ticket => {
         // Format dates and times
@@ -2375,6 +2374,12 @@ function showmodal(title, tickets) {
                 completeDate = ticket['Complete Date'].toString();
             }
         }
+        // Make Scheduled By always clickable
+        const schedulerName = ticket['Scheduled By'] || 'N/A';
+        const schedulerHtml = schedulerName !== 'N/A'
+            ? `<span class="clickable-scheduler" data-scheduler="${encodeURIComponent(schedulerName)}">${schedulerName}</span>`
+            : 'N/A';
+
         return `
             <div class="ticket-item">
                 <div class="ticket-number">${ticket['Ticket Number'] || 'N/A'}</div>
@@ -2384,6 +2389,9 @@ function showmodal(title, tickets) {
                     <strong>Priority:</strong> ${ticket.Priority || 'N/A'} | 
                     <strong>Status:</strong> ${ticket.Status || ticket.Satus || 'N/A'} |
                     <strong>SLA:</strong> ${ticket['SLA Status'] || 'N/A'}
+                </div>
+                <div class="ticket-meta">
+                    <strong>Scheduled By:</strong> ${schedulerHtml}
                 </div>
                 <div class="ticket-meta">
                     <strong>Created:</strong> ${createDateTime}${createTimeDisplay}
@@ -2411,7 +2419,8 @@ function showmodal(title, tickets) {
     document.getElementById('modal').classList.remove('hidden');
 }
 
-// 2. Universal Modal Close Function
+
+
 function closeModal() {
     document.getElementById('modal').classList.add('hidden');
 }
