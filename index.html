@@ -2054,40 +2054,7 @@ function showSLARiskCustomerTickets(riskLevel, customer) {
     document.getElementById('modal').classList.remove('hidden');
 }
 
-// Universal event handler for modal context drilldown
-document.addEventListener('click', function(e) {
-    if (!document.getElementById('modal') || document.getElementById('modal').classList.contains('hidden')) return;
 
-    // NO: if (window.modalContext === "sla") return;
-
-    const ctx = window.currentModalContext || {};
-
-    if (e.target.classList.contains('clickable-customer')) {
-        const customerName = decodeURIComponent(e.target.getAttribute('data-customer'));
-        let filtered = filteredData.filter(t => (t.Customer || 'N/A') === customerName);
-        Object.keys(ctx).forEach(key => {
-            if (key !== 'Customer') {
-                filtered = filtered.filter(t =>
-                    (t[key] || t[key.replace(' ', '')] || 'N/A') === ctx[key]
-                );
-            }
-        });
-        showmodal(`${customerName} - Tickets`, filtered, {...ctx, Customer: customerName});
-    }
-
-    if (e.target.classList.contains('clickable-scheduler')) {
-        const schedulerName = decodeURIComponent(e.target.getAttribute('data-scheduler'));
-        let filtered = filteredData.filter(t => (t['Scheduled By'] || 'N/A') === schedulerName);
-        Object.keys(ctx).forEach(key => {
-            if (key !== 'Scheduled By' && key !== 'ScheduledBy') {
-                filtered = filtered.filter(t =>
-                    (t[key] || t[key.replace(' ', '')] || 'N/A') === ctx[key]
-                );
-            }
-        });
-        showmodal(`${schedulerName} - Scheduled Tickets`, filtered, {...ctx, 'Scheduled By': schedulerName});
-    }
-});
   
 
 function getLastNDates(n) {
