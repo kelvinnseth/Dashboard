@@ -1750,13 +1750,7 @@ document.getElementById('dateFilterEnd').addEventListener('change', function(e) 
     applyFilters();
 }
 
-    // Only do this ONCE, after clearing all other filters
-    activeFilters.scheduledDateStart = '';
-    activeFilters.scheduledDateEnd = '';
-    document.getElementById('dateFilterStart').value = '';
-    document.getElementById('dateFilterEnd').value = '';
-    applyFilters();
-}
+
         
         function populateSelect(selectId, options) {
             const select = document.getElementById(selectId);
