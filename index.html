@@ -2092,75 +2092,71 @@ function closeModal() {
     document.getElementById('modal').classList.add('hidden');
 }
        
-function updateEngineeringResourceCard() {
-    const last5Dates = getLastNDates(5);
-    let html = `
-        <table class="pivot-table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>NO of ENG On-Shift</th>
-                    <th>Total Jobs Completed</th>
-                    <th>SLA Performance</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-
-    last5Dates.forEach(dateStr => {
-        // Tickets scheduled for this date
-        const ticketsForDate = filteredData.filter(t => {
-            let dt = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
-            return dt && dt.toISOString().slice(0,10) === dateStr;
-        });
-
-        // Unique primary resources on shift for this date
-        const resources = [...new Set(ticketsForDate.map(t => t['Primary Resource']).filter(Boolean))];
-
-        // SLA performance calculation
-        const metSLA = ticketsForDate.filter(t => {
-            const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
-            return (
-                status === 'completed within sla' ||
-                status === 'still within sla' ||
-                status === 'within sla' ||
-                status === 'met sla'
-            );
-        }).length;
-        const slaPerformance = ticketsForDate.length > 0 ? ((metSLA / ticketsForDate.length) * 100).toFixed(1) + '%' : 'N/A';
-
-        // Total Jobs Completed (scheduled for this date, completed on the same date)
-        const jobsCompleted = ticketsForDate.filter(t => {
-            if (!t['Complete Date']) return false;
-            let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
-            let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
-            return sched && comp && sched.toISOString().slice(0,10) === comp.toISOString().slice(0,10);
-        }).length;
-
-        html += `
-            <tr>
-                <td>${dateStr}</td>
-                <td>
-                    <span class="clickable-count" data-date="${dateStr}">${resources.length}</span>
-                </td>
-                <td>${jobsCompleted}</td>
-                <td>${slaPerformance}</td>
-            </tr>
-        `;
+function showEngineeringResourceModal(dateStr) {
+    // Tickets scheduled for the chosen date
+    const ticketsForDate = filteredData.filter(t => {
+        let dt = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+        return dt && dt.toISOString().slice(0, 10) === dateStr;
+    });
+    // Group tickets by engineer
+    const byEngineer = {};
+    ticketsForDate.forEach(t => {
+        const eng = t['Primary Resource'] || 'Unassigned';
+        if (!byEngineer[eng]) byEngineer[eng] = [];
+        byEngineer[eng].push(t);
     });
 
-    html += `</tbody></table>`;
+    let modalHtml = `<h2>Engineering Resources for ${dateStr}</h2>`;
+    if (Object.keys(byEngineer).length === 0) {
+        modalHtml += `<p>No resources scheduled for this date.</p>`;
+    } else {
+        modalHtml += `
+            <table class="pivot-table">
+                <thead>
+                    <tr>
+                        <th>Engineer</th>
+                        <th>Jobs Scheduled</th>
+                        <th>Total Jobs Completed</th>
+                        <th>Personal SLA Performance</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        Object.entries(byEngineer).forEach(([eng, tickets]) => {
+            // Personal SLA: % of this engineer's jobs that are completed within SLA for this day
+            const metSLA = tickets.filter(t => {
+                const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
+                return (
+                    status === 'completed within sla' ||
+                    status === 'still within sla' ||
+                    status === 'within sla' ||
+                    status === 'met sla'
+                );
+            }).length;
+            const perf = tickets.length > 0 ? ((metSLA / tickets.length) * 100).toFixed(1) + '%' : 'N/A';
+            // Total jobs completed (scheduled and completed on the same day)
+            const jobsCompleted = tickets.filter(t => {
+                if (!t['Complete Date']) return false;
+                let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+                let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
+                return sched && comp && sched.toISOString().slice(0,10) === comp.toISOString().slice(0,10);
+            }).length;
+            modalHtml += `
+                <tr>
+                    <td>${eng}</td>
+                    <td>${tickets.length}</td>
+                    <td>${jobsCompleted}</td>
+                    <td>${perf}</td>
+                </tr>
+            `;
+        });
+        modalHtml += `</tbody></table>`;
+    }
 
-    document.getElementById('engineeringResourceCard').innerHTML = html;
-
-    // Click event for the engineer count
-    document.getElementById('engineeringResourceCard').onclick = function(e) {
-        if (e.target.classList.contains('clickable-count')) {
-            const dateStr = e.target.getAttribute('data-date');
-            showEngineeringResourceModal(dateStr);
-        }
-    };
+    document.getElementById('modalBody').innerHTML = modalHtml;
+    document.getElementById('modal').classList.remove('hidden');
 }
+
 function getLastNDates(n) {
     const dates = [];
     const today = new Date();
