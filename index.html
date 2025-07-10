@@ -2058,8 +2058,7 @@ function showSLARiskCustomerTickets(riskLevel, customer) {
 document.addEventListener('click', function(e) {
     if (!document.getElementById('modal') || document.getElementById('modal').classList.contains('hidden')) return;
 
-  if (window.modalContext === "sla") return;  // 
-
+    // NO: if (window.modalContext === "sla") return;
 
     const ctx = window.currentModalContext || {};
 
