@@ -2910,9 +2910,12 @@ function getSLAPerformanceByWeek(tickets) {
 }
 
 // Modal function to show tickets for a given SLA status
-// Step 1: SLA Status -> Customer List
+/// Step 1: SLA Status -> Customer List
 function showSLATicketsModal(slaStatus, ticketsSet) {
-    const tickets = (ticketsSet || filteredData).filter(t => (t['SLA Status'] || '') === slaStatus);
+    // Only use the tickets relevant to the current SLA status
+    const tickets = (ticketsSet || filteredData).filter(
+        t => (t['SLA Status'] || '') === slaStatus
+    );
 
     if (tickets.length === 0) {
         document.getElementById('modalBody').innerHTML = `<p>No tickets found for SLA status: <b>${slaStatus}</b></p>`;
@@ -2928,50 +2931,62 @@ function showSLATicketsModal(slaStatus, ticketsSet) {
         byCustomer[cust].push(t);
     });
 
-    let modalBodyHtml = `<h2>Customers for SLA Status <span style="color:#764ba2;">${slaStatus}</span> (${tickets.length} tickets)</h2>
-        <div class="customer-list" style="max-height:350px;overflow-y:auto;">`;
-
-    Object.entries(byCustomer).sort((a,b) => b[1].length - a[1].length).forEach(([customer, custTickets]) => {
-        modalBodyHtml += `
-            <div class="customer-row" style="margin:8px 0;">
-              <span class="clickable-customer" 
-                    data-customer="${encodeURIComponent(customer)}" 
-                    data-sla-status="${encodeURIComponent(slaStatus)}" 
-                    data-total="${custTickets.length}"
-                    style="cursor:pointer;color:#3366cc;text-decoration:underline;">
-                ${customer}
-              </span>
-              <span style="color:#aaa;font-size:0.95em;">(${custTickets.length})</span>
-            </div>
-        `;
-    });
+    let modalBodyHtml = `
+        <h2>Customers for SLA Status <span style="color:#764ba2;">${slaStatus}</span> (${tickets.length} tickets)</h2>
+        <div class="customer-list" style="max-height:350px;overflow-y:auto;">
+    `;
+    Object.entries(byCustomer)
+        .sort((a,b) => b[1].length - a[1].length)
+        .forEach(([customer, custTickets]) => {
+            modalBodyHtml += `
+                <div class="customer-row" style="margin:8px 0;">
+                  <span class="clickable-customer" 
+                        data-customer="${encodeURIComponent(customer)}" 
+                        data-sla-status="${encodeURIComponent(slaStatus)}" 
+                        style="cursor:pointer;color:#3366cc;text-decoration:underline;">
+                    ${customer}
+                  </span>
+                  <span style="color:#aaa;font-size:0.95em;">(${custTickets.length})</span>
+                </div>
+            `;
+        });
 
     modalBodyHtml += `</div>
-      <div style="margin-top:20px;"><em>Click a customer to see ticket details</em></div>`;
+      <div style="margin-top:20px;"><em>Click a customer to see ticket details</em></div>
+      <div style="margin-top:20px;text-align:right;">
+        <button onclick="document.getElementById('modal').classList.add('hidden')" style="padding:4px 14px;">Close</button>
+      </div>`;
 
     document.getElementById('modalBody').innerHTML = modalBodyHtml;
     document.getElementById('modal').classList.remove('hidden');
 
-    // Customer click drilldown
+    // Customer click drilldown (pass only tickets for this SLA status)
     document.querySelectorAll('.clickable-customer').forEach(el => {
         el.onclick = function() {
             const customer = decodeURIComponent(this.getAttribute('data-customer'));
             const slaStatus = decodeURIComponent(this.getAttribute('data-sla-status'));
+            // Only pass the tickets relevant to this SLA status!
             showTicketsForCustomerAndSLA(customer, slaStatus, tickets);
         };
     });
 }
 
 
-        // Step 2: Customer + SLA Status -> Ticket List
+// Step 2: Customer + SLA Status -> Ticket List
 function showTicketsForCustomerAndSLA(customer, slaStatus, ticketsSet) {
+    // Only use tickets that match both SLA status AND customer
     const tickets = ticketsSet.filter(
         t => (t.Customer || 'Unknown') === customer && (t['SLA Status'] || '') === slaStatus
     );
 
-    let modalBodyHtml = `<h2>Tickets for <span style="color:#3366cc;">${customer}</span><br>
-        <span style="font-size:1rem;">SLA Status: <span style="color:#764ba2;">${slaStatus}</span></span> (${tickets.length} tickets)</h2>
-        <div class="ticket-list" style="max-height: 350px; overflow-y: auto;">`;
+    let modalBodyHtml = `
+      <h2>
+        Tickets for <span style="color:#3366cc;">${customer}</span><br>
+        <span style="font-size:1rem;">SLA Status: <span style="color:#764ba2;">${slaStatus}</span></span>
+        (${tickets.length} tickets)
+      </h2>
+      <div class="ticket-list" style="max-height: 350px; overflow-y: auto;">
+    `;
 
     if (tickets.length === 0) {
         modalBodyHtml += `<p>No tickets found for this customer and SLA status.</p>`;
@@ -2989,18 +3004,15 @@ function showTicketsForCustomerAndSLA(customer, slaStatus, ticketsSet) {
         });
     }
     modalBodyHtml += `</div>
-        <div style="margin-top:20px;">
-            <button onclick="document.getElementById('modal').classList.add('hidden')" style="padding:4px 14px;">Close</button>
-            <button onclick="showSLATicketsModal('${slaStatus.replace(/'/g,"\\'")}', filteredData)" style="padding:4px 14px; margin-left:8px;">Back</button>
+        <div style="margin-top:20px;text-align:right;">
+            <button onclick="showSLATicketsModal('${slaStatus.replace(/'/g,"\\'")}', ticketsSet)" style="padding:4px 14px;">Back</button>
+            <button onclick="document.getElementById('modal').classList.add('hidden')" style="padding:4px 14px; margin-left:8px;">Close</button>
         </div>
     `;
 
     document.getElementById('modalBody').innerHTML = modalBodyHtml;
     document.getElementById('modal').classList.remove('hidden');
-}
-
-        
-        
+}        
        function updateRegionPivot() {
     const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
     const allRegions = Object.keys(regionCounts);
