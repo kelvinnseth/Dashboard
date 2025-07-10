@@ -1878,21 +1878,7 @@ document.getElementById('dateFilterEnd').addEventListener('change', function(e) 
 
 
 
-function updatePriorityPivot() {
-    const priorityCounts = groupBy(filteredData, t => t.Priority || 'Unknown');
-    const html = createPivotTable([
-        ['Priority', 'Count', 'Percentage']
-    ].concat(
-        Object.entries(priorityCounts)
-            .sort((a, b) => b[1].length - a[1].length)
-            .map(([priority, tickets]) => [
-                priority,
-                tickets.length,
-                ((tickets.length / filteredData.length) * 100).toFixed(1) + '%'
-            ])
-    ));
-    document.getElementById('priorityPivot').innerHTML = html;
-}
+
         
    function updateSLARiskPivot() {
     // Group tickets by SLA Risk and then by Customer
@@ -1939,6 +1925,26 @@ function updatePriorityPivot() {
         }
     };
 }
+
+
+
+        function updatePriorityPivot() {
+    const priorityCounts = groupBy(filteredData, t => t.Priority || 'Unknown');
+    const html = createPivotTable([
+        ['Priority', 'Count', 'Percentage']
+    ].concat(
+        Object.entries(priorityCounts)
+            .sort((a, b) => b[1].length - a[1].length)
+            .map(([priority, tickets]) => [
+                priority,
+                tickets.length,
+                ((tickets.length / filteredData.length) * 100).toFixed(1) + '%'
+            ])
+    ));
+    document.getElementById('priorityPivot').innerHTML = html;
+}
+
+        
 
 function showSLARiskCustomerTickets(riskLevel, customer) {
     const tickets = (window.slaRiskTicketsByCategoryAndCustomer[riskLevel] && window.slaRiskTicketsByCategoryAndCustomer[riskLevel][customer]) || [];
