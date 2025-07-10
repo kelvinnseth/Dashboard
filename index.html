@@ -2108,10 +2108,6 @@ function getLastNDates(n) {
 
 
 function updateEngineeringResourceCard() {
-    if (!filteredData || !Array.isArray(filteredData)) {
-        document.getElementById('engineeringResourceCard').innerHTML = '<div class="no-data">No data</div>';
-        return;
-    }
     const last5Dates = getLastNDates(5);
     let html = `
         <table class="pivot-table">
@@ -2127,44 +2123,47 @@ function updateEngineeringResourceCard() {
     `;
 
     last5Dates.forEach(dateStr => {
-        const ticketsForDate = filteredData.filter(t => {
-            let dt = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
-            return dt && dt.toISOString().slice(0,10) === dateStr;
+        // Engineers who completed at least one job that day
+        const engineersOnShift = getEngineersOnShiftForDate(filteredData, dateStr);
+
+        // All tickets completed on that day (by anyone)
+        const completedTicketsForDate = filteredData.filter(t => {
+            let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+            let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
+            return (
+                sched && comp &&
+                sched.toISOString().slice(0,10) === dateStr &&
+                comp.toISOString().slice(0,10) === dateStr
+            );
         });
 
-        const resources = [...new Set(ticketsForDate.map(t => t['Primary Resource']).filter(Boolean))];
-
-        const metSLA = ticketsForDate.filter(t => {
+        // SLA performance for completed jobs
+        const metSLA = completedTicketsForDate.filter(t => {
             const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
             return (
                 status === 'completed within sla' ||
-                status === 'still within sla' ||
                 status === 'within sla' ||
                 status === 'met sla'
             );
         }).length;
-        const slaPerformance = ticketsForDate.length > 0 ? ((metSLA / ticketsForDate.length) * 100).toFixed(1) + '%' : 'N/A';
-
-        const jobsCompleted = ticketsForDate.filter(t => {
-            if (!t['Complete Date']) return false;
-            let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
-            let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
-            return sched && comp && sched.toISOString().slice(0,10) === comp.toISOString().slice(0,10);
-        }).length;
+        const slaPerformance = completedTicketsForDate.length > 0
+            ? ((metSLA / completedTicketsForDate.length) * 100).toFixed(1) + '%'
+            : 'N/A';
 
         html += `
             <tr>
                 <td>${dateStr}</td>
                 <td>
-                    <span class="clickable-count" data-date="${dateStr}">${resources.length}</span>
+                    <span class="clickable-count" data-date="${dateStr}">${engineersOnShift.length}</span>
                 </td>
-                <td>${jobsCompleted}</td>
+                <td>${completedTicketsForDate.length}</td>
                 <td>${slaPerformance}</td>
             </tr>
         `;
     });
 
     html += `</tbody></table>`;
+
     document.getElementById('engineeringResourceCard').innerHTML = html;
 
     document.getElementById('engineeringResourceCard').onclick = function(e) {
@@ -2175,129 +2174,83 @@ function updateEngineeringResourceCard() {
     };
 }
 
-function showEngineeringResourceModal(dateStr) {
-    // Defensive: check filteredData
-    if (!filteredData || !Array.isArray(filteredData)) {
-        document.getElementById('modalBody').innerHTML = `<div class="no-data">No data found.</div>`;
-        document.getElementById('modal').classList.remove('hidden');
-        return;
-    }
-    // Tickets scheduled for the chosen date
-    const ticketsForDate = filteredData.filter(t => {
-        let dt = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
-        return dt && dt.toISOString().slice(0, 10) === dateStr;
-    });
-    // Group tickets by engineer
-    const byEngineer = {};
-    ticketsForDate.forEach(t => {
-        const eng = t['Primary Resource'] || 'Unassigned';
-        if (!byEngineer[eng]) byEngineer[eng] = [];
-        byEngineer[eng].push(t);
-    });
 
-    let modalHtml = `<h2>Engineering Resources for ${dateStr}</h2>`;
-    if (Object.keys(byEngineer).length === 0) {
-        modalHtml += `<p>No resources scheduled for this date.</p>`;
-    } else {
-        modalHtml += `
-            <table class="pivot-table">
-                <thead>
-                    <tr>
-                        <th>Engineer</th>
-                        <th>Jobs Scheduled</th>
-                        <th>Total Jobs Completed</th>
-                        <th>Personal SLA Performance</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-        Object.entries(byEngineer).forEach(([eng, tickets]) => {
-            const metSLA = tickets.filter(t => {
-                const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
-                return (
-                    status === 'completed within sla' ||
-                    status === 'still within sla' ||
-                    status === 'within sla' ||
-                    status === 'met sla'
-                );
-            }).length;
-            const perf = tickets.length > 0 ? ((metSLA / tickets.length) * 100).toFixed(1) + '%' : 'N/A';
-            const jobsCompleted = tickets.filter(t => {
-                if (!t['Complete Date']) return false;
-                let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
-                let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
-                return sched && comp && sched.toISOString().slice(0,10) === comp.toISOString().slice(0,10);
-            }).length;
-            modalHtml += `
-                <tr>
-                    <td>${eng}</td>
-                    <td>${tickets.length}</td>
-                    <td>${jobsCompleted}</td>
-                    <td>${perf}</td>
-                </tr>
-            `;
-        });
-        modalHtml += `</tbody></table>`;
-    }
-
-    document.getElementById('modalBody').innerHTML = modalHtml;
-    document.getElementById('modal').classList.remove('hidden');
+/**
+ * Returns an array of engineers who actually completed at least one job on a given date.
+ * @param {Array} tickets - The ticket list (filteredData or originalData)
+ * @param {string} dateStr - Date as "YYYY-MM-DD"
+ * @returns {Array} - Unique list of engineer names
+ */
+function getEngineersOnShiftForDate(tickets, dateStr) {
+    return [
+        ...new Set(
+            tickets
+                .filter(t => {
+                    if (!t['Primary Resource'] || !t['Complete Date']) return false;
+                    let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+                    let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
+                    // Completed jobs for that day (Completed on the scheduled date)
+                    return (
+                        sched && comp &&
+                        sched.toISOString().slice(0,10) === dateStr &&
+                        comp.toISOString().slice(0,10) === dateStr
+                    );
+                })
+                .map(t => t['Primary Resource'])
+        )
+    ];
 }
 
-      function showEngineeringResourceModal(dateStr) {
-    // Tickets scheduled for the chosen date
-    const ticketsForDate = filteredData.filter(t => {
-        let dt = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
-        return dt && dt.toISOString().slice(0, 10) === dateStr;
+     function showEngineeringResourceModal(dateStr) {
+    // Tickets completed on this day (completed ON scheduled date)
+    const completedTicketsForDate = filteredData.filter(t => {
+        if (!t['Primary Resource'] || !t['Complete Date']) return false;
+        let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+        let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
+        return (
+            sched && comp &&
+            sched.toISOString().slice(0,10) === dateStr &&
+            comp.toISOString().slice(0,10) === dateStr
+        );
     });
-    // Group tickets by engineer
+
+    // Group by engineer
     const byEngineer = {};
-    ticketsForDate.forEach(t => {
+    completedTicketsForDate.forEach(t => {
         const eng = t['Primary Resource'] || 'Unassigned';
         if (!byEngineer[eng]) byEngineer[eng] = [];
         byEngineer[eng].push(t);
     });
 
-    let modalHtml = `<h2>Engineering Resources for ${dateStr}</h2>`;
+    let modalHtml = `<h2>Engineers On Shift for ${dateStr}</h2>`;
     if (Object.keys(byEngineer).length === 0) {
-        modalHtml += `<p>No resources scheduled for this date.</p>`;
+        modalHtml += `<p>No engineers completed jobs for this date.</p>`;
     } else {
         modalHtml += `
             <table class="pivot-table">
                 <thead>
                     <tr>
                         <th>Engineer</th>
-                        <th>Jobs Scheduled</th>
-                        <th>Total Jobs Completed</th>
+                        <th>Jobs Completed</th>
                         <th>Personal SLA Performance</th>
                     </tr>
                 </thead>
                 <tbody>
         `;
         Object.entries(byEngineer).forEach(([eng, tickets]) => {
-            // Personal SLA: % of this engineer's jobs that are completed within SLA for this day
             const metSLA = tickets.filter(t => {
                 const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
                 return (
                     status === 'completed within sla' ||
-                    status === 'still within sla' ||
                     status === 'within sla' ||
                     status === 'met sla'
                 );
             }).length;
             const perf = tickets.length > 0 ? ((metSLA / tickets.length) * 100).toFixed(1) + '%' : 'N/A';
-            // Total jobs completed (scheduled and completed on the same day)
-            const jobsCompleted = tickets.filter(t => {
-                if (!t['Complete Date']) return false;
-                let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
-                let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
-                return sched && comp && sched.toISOString().slice(0,10) === comp.toISOString().slice(0,10);
-            }).length;
             modalHtml += `
                 <tr>
                     <td>${eng}</td>
                     <td>${tickets.length}</td>
-                    <td>${jobsCompleted}</td>
                     <td>${perf}</td>
                 </tr>
             `;
