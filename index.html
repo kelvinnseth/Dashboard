@@ -2305,10 +2305,31 @@ function getLastNDates(n) {
             showmodal(title, tickets);
         }
         
-   function showmodal(title, tickets) {
-    // Build HTML for ticket details
+   /**
+ * Show the universal ticket modal, with context-aware clickable customer and scheduler.
+ * @param {string} title - The modal title
+ * @param {Array} tickets - The tickets to display
+ * @param {Object} context - (Optional) an object with current filter context (e.g. {Priority: "P2"})
+ */
+function showmodal(title, tickets, context = {}) {
+    // Store modal context globally for drilldowns
+    window.currentModalContext = context;
+
     let ticketListHtml = tickets.map(ticket => {
-        // Format dates and times
+        // --- Format fields and make clickable customer/scheduler ---
+        // Customer clickable
+        const customerName = ticket.Customer || 'N/A';
+        const customerHtml = customerName !== 'N/A'
+            ? `<span class="clickable-customer" data-customer="${encodeURIComponent(customerName)}">${customerName}</span>`
+            : 'N/A';
+
+        // Scheduler clickable
+        const schedulerName = ticket['Scheduled By'] || 'N/A';
+        const schedulerHtml = schedulerName !== 'N/A'
+            ? `<span class="clickable-scheduler" data-scheduler="${encodeURIComponent(schedulerName)}">${schedulerName}</span>`
+            : 'N/A';
+
+        // Dates
         let createDateTime = 'N/A';
         if (ticket['Create Date']) {
             try {
@@ -2374,18 +2395,14 @@ function getLastNDates(n) {
                 completeDate = ticket['Complete Date'].toString();
             }
         }
-        // Make Scheduled By always clickable
-        const schedulerName = ticket['Scheduled By'] || 'N/A';
-        const schedulerHtml = schedulerName !== 'N/A'
-            ? `<span class="clickable-scheduler" data-scheduler="${encodeURIComponent(schedulerName)}">${schedulerName}</span>`
-            : 'N/A';
 
+        // --- Render ticket ---
         return `
             <div class="ticket-item">
                 <div class="ticket-number">${ticket['Ticket Number'] || 'N/A'}</div>
                 <div class="ticket-title">${ticket['Ticket Title'] || 'No title available'}</div>
                 <div class="ticket-meta">
-                    <strong>Customer:</strong> ${ticket.Customer || 'N/A'} | 
+                    <strong>Customer:</strong> ${customerHtml} | 
                     <strong>Priority:</strong> ${ticket.Priority || 'N/A'} | 
                     <strong>Status:</strong> ${ticket.Status || ticket.Satus || 'N/A'} |
                     <strong>SLA:</strong> ${ticket['SLA Status'] || 'N/A'}
@@ -2419,7 +2436,47 @@ function getLastNDates(n) {
     document.getElementById('modal').classList.remove('hidden');
 }
 
+// --- Event delegation for modal drilldown (customer/scheduler) ---
+document.addEventListener('click', function(e) {
+    // Only handle if modal is open
+    if (!document.getElementById('modal') || document.getElementById('modal').classList.contains('hidden')) return;
 
+    // Get the last context used in the modal, or {}
+    const ctx = window.currentModalContext || {};
+
+    // Clickable customer
+    if (e.target.classList.contains('clickable-customer')) {
+        const customerName = decodeURIComponent(e.target.getAttribute('data-customer'));
+        // Filter tickets by this customer plus context
+        let filtered = filteredData.filter(t => (t.Customer || 'N/A') === customerName);
+        Object.keys(ctx).forEach(key => {
+            if (key !== 'Customer') {
+                // Support both key and key without space (e.g. Scheduled By vs ScheduledBy)
+                filtered = filtered.filter(t =>
+                    (t[key] || t[key.replace(' ', '')] || 'N/A') === ctx[key]
+                );
+            }
+        });
+        showmodal(`${customerName} - Tickets`, filtered, {...ctx, Customer: customerName});
+    }
+
+    // Clickable scheduler
+    if (e.target.classList.contains('clickable-scheduler')) {
+        const schedulerName = decodeURIComponent(e.target.getAttribute('data-scheduler'));
+        let filtered = filteredData.filter(t => (t['Scheduled By'] || 'N/A') === schedulerName);
+        Object.keys(ctx).forEach(key => {
+            if (key !== 'Scheduled By' && key !== 'ScheduledBy') {
+                filtered = filtered.filter(t =>
+                    (t[key] || t[key.replace(' ', '')] || 'N/A') === ctx[key]
+                );
+            }
+        });
+        showmodal(`${schedulerName} - Scheduled Tickets`, filtered, {...ctx, 'Scheduled By': schedulerName});
+    }
+});
+
+
+        
 
 function closeModal() {
     document.getElementById('modal').classList.add('hidden');
