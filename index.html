@@ -2527,29 +2527,15 @@ function showmodal(title, tickets, context = {}) {
     document.getElementById('modal').classList.remove('hidden');
 }
 
-// --- Event delegation for modal drilldown (customer/scheduler) ---
-document.addEventListener('click', function(e) {
-    // Only handle if modal is open
-    if (!document.getElementById('modal') || document.getElementById('modal').classList.contains('hidden')) return;
 
-    // Get the last context used in the modal, or {}
-    const ctx = window.currentModalContext || {};
 
-    // Clickable customer
-    if (e.target.classList.contains('clickable-customer')) {
-        const customerName = decodeURIComponent(e.target.getAttribute('data-customer'));
-        // Filter tickets by this customer plus context
-        let filtered = filteredData.filter(t => (t.Customer || 'N/A') === customerName);
-        Object.keys(ctx).forEach(key => {
-            if (key !== 'Customer') {
-                // Support both key and key without space (e.g. Scheduled By vs ScheduledBy)
-                filtered = filtered.filter(t =>
-                    (t[key] || t[key.replace(' ', '')] || 'N/A') === ctx[key]
-                );
-            }
-        });
-        showmodal(`${customerName} - Tickets`, filtered, {...ctx, Customer: customerName});
-    }
+
+
+
+
+
+
+        
 
     // Clickable scheduler
     if (e.target.classList.contains('clickable-scheduler')) {
