@@ -841,7 +841,7 @@
 
                         <button id="engineerPerfReportBtn" style="
     margin-left:16px;
-    background:linear-gradient(90deg,#667eea,#764ba2);
+    background:linear-gradient(90deg,#00A0C6,#43e97b);
     color:white;
     border:none;
     border-radius:6px;
@@ -3723,6 +3723,207 @@ function drawEngineeringResourceChart() {
 }
 
 
+// Button event
+document.getElementById('engineerPerfReportBtn').addEventListener('click', function() {
+    showEngineerSelectModal();
+});
+
+function showEngineerSelectModal() {
+    const engineers = [...new Set(filteredData.map(t => t['Primary Resource'])
+        .filter(e => e && e.trim().toLowerCase() !== 'unassigned' && e.trim() !== ''))].sort();
+
+    let html = `<button onclick="renderEngineerPerformanceReport('ALL')" style="
+        background:#00A0C6; color:white; border:none; border-radius:6px; padding:8px 18px; margin-bottom:16px; font-weight:600; cursor:pointer;">
+        All Engineers (Full Report)
+    </button><br>`;
+    engineers.forEach(engineer => {
+        html += `<button onclick="renderEngineerPerformanceReport('${engineer.replace(/'/g, "\\'")}')" style="
+            background:#43e97b; color:white; border:none; border-radius:6px; padding:8px 18px; margin:4px 0; font-weight:500; cursor:pointer;">
+            ${engineer}
+        </button><br>`;
+    });
+    document.getElementById('engineerSelectList').innerHTML = html;
+    document.getElementById('engineerReportSelectionModal').classList.remove('hidden');
+}
+function closeEngineerSelectModal() {
+    document.getElementById('engineerReportSelectionModal').classList.add('hidden');
+}
+
+// Show report in modal
+function renderEngineerPerformanceReport(engineer) {
+    closeEngineerSelectModal();
+    // Generate report HTML
+    let html = getEngineerPerformanceReportHTML(engineer);
+
+    // Display in modal
+    document.getElementById('engineerReportModalBody').innerHTML = html;
+    document.getElementById('engineerReportModal').classList.remove('hidden');
+}
+
+// Close modal
+function closeEngineerReportModal() {
+    document.getElementById('engineerReportModal').classList.add('hidden');
+}
+
+// Download button
+function downloadEngineerPerformanceReport(engineer) {
+    let html = getEngineerPerformanceReportHTML(engineer, true);
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = engineer === 'ALL' ? 'KFP_Engineer_Performance_Report.html' : `KFP_${engineer}_Performance_Report.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+// Main report HTML generator (uses repo logo file)
+function getEngineerPerformanceReportHTML(engineer, forDownload=false) {
+    const allEngineers = [...new Set(filteredData.map(t => t['Primary Resource'])
+        .filter(e => e && e.trim().toLowerCase() !== 'unassigned' && e.trim() !== ''))].sort();
+
+    // Use logo file relative path
+    let logoSrc = "kfp_logo.png";
+    let logoStyle = "height:70px; margin-bottom:16px;";
+    if (forDownload) {
+        // If you want to inline as base64 for download, convert your logo to base64 and use that here instead
+    }
+
+    let reportSections = "";
+    let engineersToReport = engineer === 'ALL' ? allEngineers : [engineer];
+
+    engineersToReport.forEach(eng => {
+        // Jobs assigned and completed
+        const assigned = filteredData.filter(t => t['Primary Resource'] && t['Primary Resource'].trim() === eng);
+        const completed = assigned.filter(t => t['Complete Date'] && t['Scheduled Date'] &&
+            convertExcelDate(t['Complete Date']).toISOString().slice(0,10) === convertExcelDate(t['Scheduled Date']).toISOString().slice(0,10));
+        // Completion rate
+        const completionRate = assigned.length > 0 ? ((completed.length / assigned.length) * 100).toFixed(1) + '%' : 'N/A';
+        // Locations per shift
+        const days = [...new Set(completed.map(t => convertExcelDate(t['Scheduled Date']).toISOString().slice(0,10)))];
+        const avgLocationsPerShift = days.length > 0 ?
+            (completed.map(t => t.Postcode).filter(pc => pc).length / days.length).toFixed(2) : 'N/A';
+        // SLA performance
+        const metSLA = completed.filter(t => {
+            const status = (t['SLA Status'] || '').toLowerCase();
+            return status.includes('completed within sla') || status.includes('within sla') || status.includes('met sla');
+        }).length;
+        const slaPerf = completed.length > 0 ? ((metSLA / completed.length) * 100).toFixed(1) + '%' : 'N/A';
+        // Avg tickets per shift
+        const avgTicketsPerShift = days.length > 0 ? (completed.length / days.length).toFixed(2) : 'N/A';
+        // Customer breakdown
+        const customerCounts = {};
+        assigned.forEach(t => {
+            if (!customerCounts[t.Customer]) customerCounts[t.Customer] = 0;
+            customerCounts[t.Customer]++;
+        });
+        // Region breakdown
+        const regionCounts = {};
+        assigned.forEach(t => {
+            if (!regionCounts[t.Region]) regionCounts[t.Region] = 0;
+            regionCounts[t.Region]++;
+        });
+        // Priority breakdown
+        const priorityCounts = {};
+        assigned.forEach(t => {
+            if (!priorityCounts[t.Priority]) priorityCounts[t.Priority] = 0;
+            priorityCounts[t.Priority]++;
+        });
+
+        // Jobs per day
+        const jobsPerDay = {};
+        assigned.forEach(t => {
+            let sched = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']).toISOString().slice(0,10) : '';
+            if (!jobsPerDay[sched]) jobsPerDay[sched] = 0;
+            jobsPerDay[sched]++;
+        });
+
+        // Section HTML
+        reportSections += `
+        <div style="margin-bottom:44px; padding-bottom:18px; border-bottom:2px solid #e4eaf3;">
+            <h2 style="color:#00A0C6; margin-bottom:0;">${eng}</h2>
+            <div style="display:flex; gap:48px; margin-bottom:18px; flex-wrap:wrap;">
+                <div>
+                    <div style="font-size:1.2em; color:#43e97b; font-weight:700;">${completed.length}</div>
+                    <div style="font-size:0.98em;">Total Jobs Completed</div>
+                </div>
+                <div>
+                    <div style="font-size:1.2em; color:#00A0C6; font-weight:700;">${completionRate}</div>
+                    <div style="font-size:0.98em;">Completion Rate</div>
+                </div>
+                <div>
+                    <div style="font-size:1.2em; color:#4fa7e3; font-weight:700;">${avgLocationsPerShift}</div>
+                    <div style="font-size:0.98em;">Avg Locations per Shift</div>
+                </div>
+                <div>
+                    <div style="font-size:1.2em; color:#26de81; font-weight:700;">${slaPerf}</div>
+                    <div style="font-size:0.98em;">SLA Performance</div>
+                </div>
+                <div>
+                    <div style="font-size:1.2em; color:#FFD700; font-weight:700;">${avgTicketsPerShift}</div>
+                    <div style="font-size:0.98em;">Avg Tickets per Shift</div>
+                </div>
+            </div>
+            <div style="margin-bottom:10px; font-weight:bold; color:#00A0C6;">Breakdown by Customer</div>
+            <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
+                <thead style="background:#f4f8fc;">
+                    <tr><th>Customer</th><th>Jobs</th></tr>
+                </thead>
+                <tbody>
+                ${Object.entries(customerCounts).map(([c, n]) => `<tr><td>${c}</td><td>${n}</td></tr>`).join('')}
+                </tbody>
+            </table>
+            <div style="margin-bottom:10px; font-weight:bold; color:#00A0C6;">Days on Shift</div>
+            <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
+                <thead style="background:#f4f8fc;">
+                    <tr><th>Date</th><th>Jobs</th></tr>
+                </thead>
+                <tbody>
+                ${Object.entries(jobsPerDay).map(([d, n]) => `<tr><td>${d}</td><td>${n}</td></tr>`).join('')}
+                </tbody>
+            </table>
+            <div style="margin-bottom:10px; font-weight:bold; color:#00A0C6;">Breakdown by Region</div>
+            <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
+                <thead style="background:#f4f8fc;">
+                    <tr><th>Region</th><th>Jobs</th></tr>
+                </thead>
+                <tbody>
+                ${Object.entries(regionCounts).map(([r, n]) => `<tr><td>${r}</td><td>${n}</td></tr>`).join('')}
+                </tbody>
+            </table>
+            <div style="margin-bottom:10px; font-weight:bold; color:#00A0C6;">Breakdown by Priority</div>
+            <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
+                <thead style="background:#f4f8fc;">
+                    <tr><th>Priority</th><th>Jobs</th></tr>
+                </thead>
+                <tbody>
+                ${Object.entries(priorityCounts).map(([p, n]) => `<tr><td>${p}</td><td>${n}</td></tr>`).join('')}
+                </tbody>
+            </table>
+        </div>
+        `;
+    });
+
+    // Final HTML
+    return `
+    <div style="background:linear-gradient(90deg,#00A0C6,#43e97b); color:white; padding:32px 0 24px 0; text-align:center; border-radius:16px 16px 0 0; position:relative;">
+        <img src="${logoSrc}" style="${logoStyle}" alt="KFP Logo"/>
+        <h1 style="font-size:2.2em; font-weight:700; margin-bottom:4px;">KFP Total IT Solutions</h1>
+        <div style="font-size:1.05em; margin-top:6px;">Engineer Performance Report</div>
+        <div style="font-size:0.92em; margin-top:6px;">Generated: ${new Date().toLocaleString()}</div>
+        <button onclick="downloadEngineerPerformanceReport('${engineer}')" style="
+            position:absolute; right:28px; top:24px; padding:8px 22px; border-radius:8px; background:#fff; color:#00A0C6; border:none; font-weight:700; box-shadow:0 2px 6px rgba(0,160,198,0.15); cursor:pointer;">
+            Download as HTML
+        </button>
+    </div>
+    <div style="max-width:880px; margin:0 auto; background:white; border-radius:0 0 16px 16px; box-shadow:0 8px 32px rgba(0,0,0,0.06); padding:32px;">
+        ${reportSections}
+    </div>
+    `;
+}
+
     </script>
 
 
@@ -3737,13 +3938,25 @@ function drawEngineeringResourceChart() {
   </div>
 </div>
 
+<div id="engineerReportModal" class="hidden" style="
+    position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1001; display:flex; align-items:center; justify-content:center;">
+  <div style="
+    background:white; border-radius:16px; max-width:920px; width:90vw; max-height:85vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.10); position:relative; padding:0;">
+    <button onclick="closeEngineerReportModal()" style="
+      position:absolute; top:10px; right:18px; font-size:2rem; background:none; border:none; color:#00A0C6; cursor:pointer; z-index:2;">×</button>
+    <div id="engineerReportModalBody" style="padding:0;"></div>
+  </div>
+</div>
+
+
+    
 <div id="engineerReportSelectionModal" class="hidden" style="
     position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.55); 
-    z-index:1001; align-items:center; justify-content:center; display:flex;">
+    z-index:1003; align-items:center; justify-content:center; display:flex;">
   <div style="background:white; border-radius:16px; padding:40px 32px; max-width:420px; width:88%;">
-    <h2 style="color:#667eea; font-size:1.35rem;">Select Engineer</h2>
+    <h2 style="color:#00A0C6; font-size:1.35rem;">Select Engineer</h2>
     <div id="engineerSelectList" style="margin:16px 0 24px 0;"></div>
-    <button onclick="closeEngineerSelectModal()" style="padding:6px 20px; border-radius:8px; background:#764ba2; color:white; border:none; cursor:pointer;">Cancel</button>
+    <button onclick="closeEngineerSelectModal()" style="padding:6px 20px; border-radius:8px; background:#00A0C6; color:white; border:none; cursor:pointer;">Cancel</button>
   </div>
 </div>
 
