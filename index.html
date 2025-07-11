@@ -2383,80 +2383,37 @@ function renderEngineerPerformanceReport(engineer) {
         });
 
         // Section HTML
-        reportSections += `
-        <div style="margin-bottom:44px; padding-bottom:18px; border-bottom:2px solid #e4eaf3;">
-            <h2 style="color:#667eea; margin-bottom:0;">
-  <span class="clickable-engineer" data-engineer="${eng.replace(/"/g, '&quot;')}">${eng}</span>
-</h2>
-            <div style="display:flex; gap:48px; margin-bottom:18px;">
-                <div>
-                    <div style="font-size:1.2em; color:#764ba2; font-weight:700;">${completed.length}</div>
-                    <div style="font-size:0.98em;">Total Jobs Completed</div>
-                </div>
-                <div>
-                    <div style="font-size:1.2em; color:#667eea; font-weight:700;">${completionRate}</div>
-                    <div style="font-size:0.98em;">Completion Rate</div>
-                </div>
-                <div>
-                    <div style="font-size:1.2em; color:#4fa7e3; font-weight:700;">${avgLocationsPerShift}</div>
-                    <div style="font-size:0.98em;">Avg Locations per Shift</div>
-                </div>
-                <div>
-                    <div style="font-size:1.2em; color:#26de81; font-weight:700;">${slaPerf}</div>
-                    <div style="font-size:0.98em;">SLA Performance</div>
-                </div>
-                <div>
-                    <div style="font-size:1.2em; color:#FFD700; font-weight:700;">${avgTicketsPerShift}</div>
-                    <div style="font-size:0.98em;">Avg Tickets per Shift</div>
-                </div>
-            </div>
-            <div style="margin-bottom:10px; font-weight:bold; color:#667eea;">Breakdown by Customer</div>
-            <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
-                <thead style="background:#f4f8fc;">
-                    <tr><th>Customer</th><th>Jobs</th></tr>
-                </thead>
-                <tbody>
-                ${Object.entries(customerCounts).map(([c, n]) => `<tr><td>${c}</td><td>${n}</td></tr>`).join('')}
-                </tbody>
-            </table>
-            <div style="margin-bottom:10px; font-weight:bold; color:#667eea;">Days on Shift</div>
-            <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
-                <thead style="background:#f4f8fc;">
-                    <tr><th>Date</th><th>Jobs</th></tr>
-                </thead>
-                <tbody>
-                // Calculate total days
-const completedDates = [
+       const completedDates = [
   ...new Set(completed.map(t => {
     let schedDate = convertExcelDate(t['Scheduled Date']);
     return schedDate ? schedDate.toISOString().slice(0,10) : null;
   }).filter(Boolean))
 ];
 const totalDaysOnShift = completedDates.length;
-
-// Show before table
-daysOnShiftHtml = `<div style="margin-bottom:10px; font-weight:bold; color:#667eea;">
+const daysOnShiftHtml = `<div style="margin-bottom:10px; font-weight:bold; color:#667eea;">
   Total Days on Shift: ${totalDaysOnShift}
 </div>`;
-
-// When listing jobs per day:
-Object.entries(jobsPerDay).map(([d, n]) => {
+const jobsPerDayRows = Object.entries(jobsPerDay).map(([d, n]) => {
   const dayAbbr = d
     ? ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(d).getDay()]
     : "";
   return `<tr><td>${dayAbbr} ${d}</td><td>${n}</td></tr>`;
-}).join('')
-                </tbody>
-            </table>
-            <div style="margin-bottom:10px; font-weight:bold; color:#667eea;">Breakdown by Region</div>
-            <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
-                <thead style="background:#f4f8fc;">
-                    <tr><th>Region</th><th>Jobs</th></tr>
-                </thead>
-                <tbody>
-                ${Object.entries(regionCounts).map(([r, n]) => `<tr><td>${r}</td><td>${n}</td></tr>`).join('')}
-                </tbody>
-            </table>
+}).join('');
+
+reportSections += `
+  <div style="margin-bottom:10px; font-weight:bold; color:#667eea;">Days on Shift</div>
+  ${daysOnShiftHtml}
+  <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
+    <thead style="background:#f4f8fc;">
+      <tr><th>Date</th><th>Jobs</th></tr>
+    </thead>
+    <tbody>
+      ${jobsPerDayRows}
+    </tbody>
+  </table>
+`;
+
+        
             <div style="margin-bottom:10px; font-weight:bold; color:#667eea;">Breakdown by Priority</div>
             <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
                 <thead style="background:#f4f8fc;">
