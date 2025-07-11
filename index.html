@@ -2385,7 +2385,9 @@ function renderEngineerPerformanceReport(engineer) {
         // Section HTML
         reportSections += `
         <div style="margin-bottom:44px; padding-bottom:18px; border-bottom:2px solid #e4eaf3;">
-            <h2 style="color:#667eea; margin-bottom:0;">${eng}</h2>
+            <h2 style="color:#667eea; margin-bottom:0;">
+  <span class="clickable-engineer" data-engineer="${eng.replace(/"/g, '&quot;')}">${eng}</span>
+</h2>
             <div style="display:flex; gap:48px; margin-bottom:18px;">
                 <div>
                     <div style="font-size:1.2em; color:#764ba2; font-weight:700;">${completed.length}</div>
@@ -2423,7 +2425,27 @@ function renderEngineerPerformanceReport(engineer) {
                     <tr><th>Date</th><th>Jobs</th></tr>
                 </thead>
                 <tbody>
-                ${Object.entries(jobsPerDay).map(([d, n]) => `<tr><td>${d}</td><td>${n}</td></tr>`).join('')}
+                // Calculate total days
+const completedDates = [
+  ...new Set(completed.map(t => {
+    let schedDate = convertExcelDate(t['Scheduled Date']);
+    return schedDate ? schedDate.toISOString().slice(0,10) : null;
+  }).filter(Boolean))
+];
+const totalDaysOnShift = completedDates.length;
+
+// Show before table
+daysOnShiftHtml = `<div style="margin-bottom:10px; font-weight:bold; color:#667eea;">
+  Total Days on Shift: ${totalDaysOnShift}
+</div>`;
+
+// When listing jobs per day:
+Object.entries(jobsPerDay).map(([d, n]) => {
+  const dayAbbr = d
+    ? ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(d).getDay()]
+    : "";
+  return `<tr><td>${dayAbbr} ${d}</td><td>${n}</td></tr>`;
+}).join('')
                 </tbody>
             </table>
             <div style="margin-bottom:10px; font-weight:bold; color:#667eea;">Breakdown by Region</div>
@@ -3613,6 +3635,49 @@ document.getElementById('toggleEngResourceChart').addEventListener('click', func
     }
 });
 
+
+// 1. Attach click handlers AFTER you show the report in the dashboard/modal
+function attachEngineerClickHandlers() {
+  document.querySelectorAll('.clickable-engineer').forEach(el => {
+    el.onclick = function() {
+      const engineerName = this.getAttribute('data-engineer');
+      showEngineerReportPreviewModal(engineerName);
+    };
+  });
+}
+
+// 2. Show the modal with the engineer report preview
+function showEngineerReportPreviewModal(engineerName) {
+  let reportHtml = renderEngineerPerformanceReport(engineerName); // Generates the report as HTML
+  // Extract the inner content between <body>...</body> if needed
+  let bodyStart = reportHtml.indexOf('<body>');
+  let bodyEnd = reportHtml.indexOf('</body>');
+  let previewHtml = reportHtml.slice(bodyStart + 6, bodyEnd);
+  document.getElementById('engineerReportPreviewBody').innerHTML = previewHtml;
+  document.getElementById('engineerReportPreviewModal').classList.remove('hidden');
+
+  // Re-attach click handlers for nested engineer names in preview
+  attachEngineerClickHandlers();
+
+  // Download button
+  document.getElementById('downloadEngineerReportBtn').onclick = function() {
+    const blob = new Blob([reportHtml], {type: "text/html"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `KFP_${engineerName}_Performance_Report.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  };
+}
+
+// 3. Close modal function
+function closeEngineerReportPreviewModal() {
+  document.getElementById('engineerReportPreviewModal').classList.add('hidden');
+}
+
 function drawEngineeringResourceChart() {
     function getAllTicketDates(tickets) {
         const dateSet = new Set();
@@ -3791,6 +3856,27 @@ function drawEngineeringResourceChart() {
   <div id="engineerSelectList" style="margin:16px 0 24px 0; max-height:420px; overflow-y:auto;"></div>
   <button onclick="closeEngineerSelectModal()" style="padding:6px 20px; border-radius:8px; background:#764ba2; color:white; border:none; cursor:pointer;">Cancel</button>
 </div>
+</div>
+
+
+<div id="engineerReportPreviewModal" class="hidden" style="
+  position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); 
+  z-index:1002; align-items:center; justify-content:center; display:flex;">
+  <div style="
+    background:white; 
+    border-radius:15px; 
+    padding:32px 24px; 
+    max-width:700px; 
+    width:90%;
+    max-height:85vh; 
+    overflow-y:auto; 
+    position:relative;">
+    <button onclick="closeEngineerReportPreviewModal()" style="position:absolute; top:10px; right:14px; font-size:1.5rem; background:none; border:none; cursor:pointer;">×</button>
+    <div id="engineerReportPreviewBody"></div>
+    <div style="text-align:right; margin-top:16px;">
+      <button id="downloadEngineerReportBtn" style="padding:8px 20px; border-radius:8px; background:#667eea; color:white; border:none; cursor:pointer;">Download Report</button>
+    </div>
+  </div>
 </div>
 
     <script>
