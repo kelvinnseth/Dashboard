@@ -2297,7 +2297,9 @@ function showEngineeringResourceModal(dateStr) {
                 <thead>
                     <tr>
                         <th>Engineer</th>
+                        <th>Jobs Assigned</th>
                         <th>Jobs Completed</th>
+                        <th>Completion Rate (%)</th>
                         <th>Locations</th>
                         <th>SLA Performance</th>
                     </tr>
@@ -2306,6 +2308,10 @@ function showEngineeringResourceModal(dateStr) {
         `;
         completedEngineers.forEach(eng => {
             const completedTickets = completedByEngineer[eng];
+            const assignedTickets = assignedByEngineer[eng] || [];
+            const jobsAssigned = assignedTickets.length;
+            const jobsCompleted = completedTickets.length;
+            const completionRate = jobsAssigned > 0 ? ((jobsCompleted / jobsAssigned) * 100).toFixed(1) : '0.0';
             const uniquePostcodes = new Set(
                 completedTickets.map(t => t.Postcode).filter(pc => !!pc && pc.toString().trim() !== '')
             );
@@ -2323,7 +2329,9 @@ function showEngineeringResourceModal(dateStr) {
             modalHtml += `
                 <tr>
                     <td>${eng}</td>
-                    <td>${completedTickets.length}</td>
+                    <td>${jobsAssigned}</td>
+                    <td>${jobsCompleted}</td>
+                    <td>${completionRate}</td>
                     <td>${uniquePostcodes.size}</td>
                     <td>${perf}</td>
                 </tr>
@@ -2342,7 +2350,7 @@ function showEngineeringResourceModal(dateStr) {
                 <thead>
                     <tr>
                         <th>Engineer</th>
-                        <th>Jobs Scheduled</th>
+                        <th>Jobs Assigned</th>
                         <th>Locations</th>
                     </tr>
                 </thead>
@@ -2350,13 +2358,14 @@ function showEngineeringResourceModal(dateStr) {
         `;
         assignedOnlyEngineers.forEach(eng => {
             const assignedTickets = assignedByEngineer[eng];
+            const jobsAssigned = assignedTickets.length;
             const uniquePostcodes = new Set(
                 assignedTickets.map(t => t.Postcode).filter(pc => !!pc && pc.toString().trim() !== '')
             );
             modalHtml += `
                 <tr>
                     <td>${eng}</td>
-                    <td>${assignedTickets.length}</td>
+                    <td>${jobsAssigned}</td>
                     <td>${uniquePostcodes.size}</td>
                 </tr>
             `;
@@ -3514,6 +3523,8 @@ function drawEngineeringResourceChart() {
 
 
 
+<!-- ...existing HTML above... -->
+
 <div id="modal" class="hidden" style="
     position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); 
     z-index:1000; align-items:center; justify-content:center;">
@@ -3524,6 +3535,7 @@ function drawEngineeringResourceChart() {
   </div>
 </div>
 
+    
     <script>
 window.addEventListener('DOMContentLoaded', function() {
     if (typeof closeModal === 'function') closeModal();
