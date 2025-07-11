@@ -3765,11 +3765,20 @@ function drawEngineeringResourceChart() {
 <div id="engineerReportSelectionModal" class="hidden" style="
     position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.55); 
     z-index:1001; align-items:center; justify-content:center; display:flex;">
-  <div style="background:white; border-radius:16px; padding:40px 32px; max-width:420px; width:88%;">
-    <h2 style="color:#667eea; font-size:1.35rem;">Select Engineer</h2>
-    <div id="engineerSelectList" style="margin:16px 0 24px 0;"></div>
-    <button onclick="closeEngineerSelectModal()" style="padding:6px 20px; border-radius:8px; background:#764ba2; color:white; border:none; cursor:pointer;">Cancel</button>
-  </div>
+ <div style="
+    background:white;
+    border-radius:15px;
+    padding:32px 24px;
+    max-width:700px;
+    width:90%;
+    max-height:85vh;
+    overflow-y:auto;
+    position:relative;
+    box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+  <h2 style="color:#667eea; font-size:1.35rem;">Select Engineer</h2>
+  <div id="engineerSelectList" style="margin:16px 0 24px 0; max-height:420px; overflow-y:auto;"></div>
+  <button onclick="closeEngineerSelectModal()" style="padding:6px 20px; border-radius:8px; background:#764ba2; color:white; border:none; cursor:pointer;">Cancel</button>
+</div>
 </div>
 
     <script>
