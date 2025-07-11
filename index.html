@@ -2307,7 +2307,13 @@ function showEngineeringResourceModal(dateStr) {
                 <tbody>
         `;
 completedEngineers.forEach(eng => {
-    const completedTickets = completedByEngineer[eng];
+    // Remove duplicate tickets based on Ticket Number
+const seenTicketNumbers = new Set();
+const completedTickets = completedByEngineer[eng].filter(t => {
+    if (seenTicketNumbers.has(t['Ticket Number'])) return false;
+    seenTicketNumbers.add(t['Ticket Number']);
+    return true;
+});
     const assignedTickets = assignedByEngineer[eng] || [];
     const jobsAssigned = assignedTickets.length;
     const jobsCompleted = completedTickets.length;
