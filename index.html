@@ -637,6 +637,12 @@
     </style>
 </head>
 <body>
+
+
+// In your return HTML:
+<img src="KFP_logo.png" class="report-logo" alt="KFP Logo"/>
+
+    
     <div class="container">
         <div class="header">
             <h1>Break-Fix Ticket Dashboard</h1>
@@ -2302,7 +2308,7 @@ function renderEngineerPerformanceReport(engineer) {
     const allEngineers = [...new Set(filteredData.map(t => t['Primary Resource'])
         .filter(e => e && e.trim().toLowerCase() !== 'unassigned' && e.trim() !== ''))].sort();
 
-    <img src="KFP_logo.png" class="report-logo" alt="KFP Logo" style="height:70px; margin-bottom:16px;"/>
+
 
     let reportSections = "";
     let engineersToReport = engineer === 'ALL' ? allEngineers : [engineer];
