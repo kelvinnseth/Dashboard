@@ -2943,7 +2943,7 @@ function showTicketsForCustomerAndSLA(customer, slaTicketsOnly, slaStatus) {
     window._slaTicketsOnly = slaTicketsOnly;
     window._slaStatus = slaStatus;
 
-    // Only tickets for THIS customer AND the selected SLA status (from the already filtered SLA-tickets set!)
+    // Only tickets for THIS customer AND the selected SLA status
     const tickets = slaTicketsOnly.filter(
         t => (t.Customer || 'Unknown') === customer
     );
@@ -2971,6 +2971,16 @@ function showTicketsForCustomerAndSLA(customer, slaTicketsOnly, slaStatus) {
                     created += ' ' + (t ? t.toLocaleTimeString('en-GB') : ticket['Create Time']);
                 }
             }
+            // Scheduled Date & Time
+            let scheduled = "N/A";
+            if (ticket['Scheduled Date']) {
+                const sd = convertExcelDate(ticket['Scheduled Date']);
+                scheduled = sd ? sd.toLocaleDateString('en-GB') : ticket['Scheduled Date'];
+                if (ticket['Scheduled time']) {
+                    const st = convertExcelDate(ticket['Scheduled time']);
+                    scheduled += ' ' + (st ? st.toLocaleTimeString('en-GB') : ticket['Scheduled time']);
+                }
+            }
             // Completed Date & Time
             let completed = "N/A";
             if (ticket['Complete Date']) {
@@ -2990,6 +3000,9 @@ function showTicketsForCustomerAndSLA(customer, slaTicketsOnly, slaStatus) {
                     </div>
                     <div style="font-size:0.9em;">
                         <b>Created:</b> ${created}
+                    </div>
+                    <div style="font-size:0.9em;">
+                        <b>Scheduled:</b> ${scheduled}
                     </div>
                     <div style="font-size:0.9em;">
                         <b>Completed:</b> ${completed}
@@ -3012,6 +3025,8 @@ function showTicketsForCustomerAndSLA(customer, slaTicketsOnly, slaStatus) {
     document.getElementById('modalBody').innerHTML = modalBodyHtml;
     document.getElementById('modal').classList.remove('hidden');
 }
+
+        
 // Always clear modal context when closing
 function closeModal() {
     window.modalContext = null;
