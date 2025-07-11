@@ -634,43 +634,14 @@
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(38, 222, 129, 0.4);
         }
-
-
-
-    <style>
-  .report-logo {
-    height: 70px;
-    width: auto;
-    display: block;
-    margin: 0 auto 16px auto;
-    max-width: 180px;
-  }
-
-
-
-.dashboard-logo {
-  height: 26px;  /* Make it smaller */
-  width: auto;
-  margin-bottom: 12px;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-}
-</style>
     </style>
 </head>
 <body>
-
-
-
-
-    
     <div class="container">
-       <div class="header">
-    <img src="KFP_logo.png" class="dashboard-logo" alt="KFP Logo" />
-    <h1>Break-Fix Ticket Insight Dashboard</h1>
-    <p>Upload your Excel file to view interactive Insight</p>
-</div>
+        <div class="header">
+            <h1>Break-Fix Ticket Dashboard</h1>
+            <p>Upload your Excel file to view interactive pivot table analysis</p>
+        </div>
         
         <div class="upload-section">
             <div class="file-upload">
@@ -867,18 +838,6 @@
                             <button class="active" onclick="toggleView('engineer', 'table')">Table</button>
                             <button onclick="toggleView('engineer', 'chart')">Chart</button>
                         </div>
-
-                        <button id="engineerPerfReportBtn" style="
-    margin-left:16px;
-    background:linear-gradient(90deg,#667eea,#764ba2);
-    color:white;
-    border:none;
-    border-radius:6px;
-    padding:6px 18px;
-    font-weight:600;
-    cursor:pointer;
-    font-size:0.95rem;
-">Full Performance Report</button>
                     </h3>
                     <div id="engineerPivot"></div>
                     <canvas id="engineerChart" class="chart-container"></canvas>
@@ -2281,225 +2240,6 @@ function getEngineersOnShiftForDate(tickets, dateStr) {
     ];
 }
 
-
-// 1. Engineer Performance Report Button Event
-document.getElementById('engineerPerfReportBtn').addEventListener('click', function() {
-    showEngineerSelectModal();
-});
-
-// 2. Show engineer selection modal (with "All Engineers" option)
-function showEngineerSelectModal() {
-    const engineers = [...new Set(filteredData.map(t => t['Primary Resource'])
-        .filter(e => e && e.trim().toLowerCase() !== 'unassigned' && e.trim() !== ''))].sort();
-
-    let html = `<button onclick="generateEngineerPerformanceReport('ALL')" style="
-        background:#667eea; color:white; border:none; border-radius:6px; padding:8px 18px; margin-bottom:16px; font-weight:600; cursor:pointer;">
-        All Engineers (Full Report)
-    </button><br>`;
-    engineers.forEach(engineer => {
-        html += `<button onclick="generateEngineerPerformanceReport('${engineer.replace(/'/g, "\\'")}')" style="
-            background:#4fa7e3; color:white; border:none; border-radius:6px; padding:8px 18px; margin:4px 0; font-weight:500; cursor:pointer;">
-            ${engineer}
-        </button><br>`;
-    });
-    document.getElementById('engineerSelectList').innerHTML = html;
-    document.getElementById('engineerReportSelectionModal').classList.remove('hidden');
-}
-function closeEngineerSelectModal() {
-    document.getElementById('engineerReportSelectionModal').classList.add('hidden');
-}
-
-// 3. Generate and download performance report
-function generateEngineerPerformanceReport(engineer) {
-    closeEngineerSelectModal();
-    let html = renderEngineerPerformanceReport(engineer);
-    // Download as HTML
-    const blob = new Blob([html], {type: "text/html"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = engineer === 'ALL' ? 'KFP_Engineer_Performance_Report.html' : `KFP_${engineer}_Performance_Report.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
-}
-
-// 4. Main report renderer (returns HTML string)
-function renderEngineerPerformanceReport(engineer) {
-    // Helper: Get all relevant engineers
-    const allEngineers = [...new Set(filteredData.map(t => t['Primary Resource'])
-        .filter(e => e && e.trim().toLowerCase() !== 'unassigned' && e.trim() !== ''))].sort();
-
-    let reportSections = "";
-    let engineersToReport = engineer === 'ALL' ? allEngineers : [engineer];
-
-    engineersToReport.forEach(eng => {
-        // Jobs assigned and completed
-        const assigned = filteredData.filter(t => t['Primary Resource'] && t['Primary Resource'].trim() === eng);
-        const completed = assigned.filter(t => t['Complete Date'] && t['Scheduled Date'] &&
-            convertExcelDate(t['Complete Date']).toISOString().slice(0,10) === convertExcelDate(t['Scheduled Date']).toISOString().slice(0,10));
-        // Completion rate
-        const completionRate = assigned.length > 0 ? ((completed.length / assigned.length) * 100).toFixed(1) + '%' : 'N/A';
-        // Locations per shift
-        const days = [...new Set(completed.map(t => convertExcelDate(t['Scheduled Date']).toISOString().slice(0,10)))];
-        const avgLocationsPerShift = days.length > 0 ?
-            (completed.map(t => t.Postcode).filter(pc => pc).length / days.length).toFixed(2) : 'N/A';
-        // SLA performance
-        const metSLA = completed.filter(t => {
-            const status = (t['SLA Status'] || '').toLowerCase();
-            return status.includes('completed within sla') || status.includes('within sla') || status.includes('met sla');
-        }).length;
-        const slaPerf = completed.length > 0 ? ((metSLA / completed.length) * 100).toFixed(1) + '%' : 'N/A';
-        // Avg tickets per shift
-        const avgTicketsPerShift = days.length > 0 ? (completed.length / days.length).toFixed(2) : 'N/A';
-        // Customer breakdown
-        const customerCounts = {};
-        assigned.forEach(t => {
-            if (!customerCounts[t.Customer]) customerCounts[t.Customer] = 0;
-            customerCounts[t.Customer]++;
-        });
-        // Region breakdown
-        const regionCounts = {};
-        assigned.forEach(t => {
-            if (!regionCounts[t.Region]) regionCounts[t.Region] = 0;
-            regionCounts[t.Region]++;
-        });
-        // Priority breakdown
-        const priorityCounts = {};
-        assigned.forEach(t => {
-            if (!priorityCounts[t.Priority]) priorityCounts[t.Priority] = 0;
-            priorityCounts[t.Priority]++;
-        });
-
-        // Jobs per day
-        const jobsPerDay = {};
-        assigned.forEach(t => {
-            let sched = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']).toISOString().slice(0,10) : '';
-            if (!jobsPerDay[sched]) jobsPerDay[sched] = 0;
-            jobsPerDay[sched]++;
-        });
-
-        // Days on shift calculations
-        const completedDates = [
-            ...new Set(completed.map(t => {
-                let schedDate = convertExcelDate(t['Scheduled Date']);
-                return schedDate ? schedDate.toISOString().slice(0,10) : null;
-            }).filter(Boolean))
-        ];
-        const totalDaysOnShift = completedDates.length;
-        const daysOnShiftHtml = `<div style="margin-bottom:10px; font-weight:bold; color:#667eea;">
-          Total Days on Shift: ${totalDaysOnShift}
-        </div>`;
-        const jobsPerDayRows = Object.entries(jobsPerDay).map(([d, n]) => {
-            const dayAbbr = d
-                ? ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(d).getDay()]
-                : "";
-            return `<tr><td>${dayAbbr} ${d}</td><td>${n}</td></tr>`;
-        }).join('');
-
-        reportSections += `
-        <div style="margin-bottom:44px; padding-bottom:18px; border-bottom:2px solid #e4eaf3;">
-            <h2 style="color:#667eea; margin-bottom:0;">
-              <span class="clickable-engineer" data-engineer="${eng.replace(/"/g, '&quot;')}">${eng}</span>
-            </h2>
-            <div style="display:flex; gap:48px; margin-bottom:18px;">
-                <div>
-                    <div style="font-size:1.2em; color:#764ba2; font-weight:700;">${completed.length}</div>
-                    <div style="font-size:0.98em;">Total Jobs Completed</div>
-                </div>
-                <div>
-                    <div style="font-size:1.2em; color:#667eea; font-weight:700;">${completionRate}</div>
-                    <div style="font-size:0.98em;">Completion Rate</div>
-                </div>
-                <div>
-                    <div style="font-size:1.2em; color:#4fa7e3; font-weight:700;">${avgLocationsPerShift}</div>
-                    <div style="font-size:0.98em;">Avg Locations per Shift</div>
-                </div>
-                <div>
-                    <div style="font-size:1.2em; color:#26de81; font-weight:700;">${slaPerf}</div>
-                    <div style="font-size:0.98em;">SLA Performance</div>
-                </div>
-                <div>
-                    <div style="font-size:1.2em; color:#FFD700; font-weight:700;">${avgTicketsPerShift}</div>
-                    <div style="font-size:0.98em;">Avg Tickets per Shift</div>
-                </div>
-            </div>
-            <div style="margin-bottom:10px; font-weight:bold; color:#667eea;">Breakdown by Customer</div>
-            <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
-                <thead style="background:#f4f8fc;">
-                    <tr><th>Customer</th><th>Jobs</th></tr>
-                </thead>
-                <tbody>
-                ${Object.entries(customerCounts).map(([c, n]) => `<tr><td>${c}</td><td>${n}</td></tr>`).join('')}
-                </tbody>
-            </table>
-            <div style="margin-bottom:10px; font-weight:bold; color:#667eea;">Days on Shift</div>
-            ${daysOnShiftHtml}
-            <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
-                <thead style="background:#f4f8fc;">
-                    <tr><th>Date</th><th>Jobs</th></tr>
-                </thead>
-                <tbody>
-                ${jobsPerDayRows}
-                </tbody>
-            </table>
-            <div style="margin-bottom:10px; font-weight:bold; color:#667eea;">Breakdown by Region</div>
-            <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
-                <thead style="background:#f4f8fc;">
-                    <tr><th>Region</th><th>Jobs</th></tr>
-                </thead>
-                <tbody>
-                ${Object.entries(regionCounts).map(([r, n]) => `<tr><td>${r}</td><td>${n}</td></tr>`).join('')}
-                </tbody>
-            </table>
-            <div style="margin-bottom:10px; font-weight:bold; color:#667eea;">Breakdown by Priority</div>
-            <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
-                <thead style="background:#f4f8fc;">
-                    <tr><th>Priority</th><th>Jobs</th></tr>
-                </thead>
-                <tbody>
-                ${Object.entries(priorityCounts).map(([p, n]) => `<tr><td>${p}</td><td>${n}</td></tr>`).join('')}
-                </tbody>
-            </table>
-        </div>
-        `;
-    });
-
-    // Final HTML
-    return `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>KFP Engineer Performance Report</title>
-    <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8fbff; color: #222; margin:0; }
-        .report-header { background:linear-gradient(90deg,#667eea,#764ba2); color:white; padding:32px 0 24px 0; text-align:center;}
-        .report-logo { height:70px; margin-bottom:16px;}
-        h1 { font-size:2.2em; font-weight:700; margin-bottom:4px; }
-        h2 { margin-top:32px; font-size:1.3em; font-weight:600; }
-        table { border:1px solid #e4eaf3; border-radius:8px; background:white; }
-        th, td { padding:7px 16px; border-bottom:1px solid #e4eaf3; text-align:left; }
-        th { color:#667eea; background:#f4f8fc; font-weight:600; }
-        @media (max-width:700px){ th,td{padding:6px 6px;} }
-    </style>
-</head>
-<body>
-    <div class="report-header">
-        <img src="KFP_logo.png" class="report-logo" alt="KFP Logo"/>
-        <h1>KFP Total IT Solutions</h1>
-        <div style="font-size:1.05em; margin-top:6px;">Engineer Performance Report</div>
-        <div style="font-size:0.92em; margin-top:6px;">Generated: ${new Date().toLocaleString()}</div>
-    </div>
-    <div style="max-width:880px; margin:32px auto 0 auto; background:white; border-radius:16px; box-shadow:0 8px 32px rgba(0,0,0,0.06); padding:32px;">
-        ${reportSections}
-    </div>
-</body>
-</html>
-    `;
-}
-
     // Modal update function
 function showEngineeringResourceModal(dateStr) {
     // Engineers who completed at least one job (on scheduled date)
@@ -3631,49 +3371,6 @@ document.getElementById('toggleEngResourceChart').addEventListener('click', func
     }
 });
 
-
-// 1. Attach click handlers AFTER you show the report in the dashboard/modal
-function attachEngineerClickHandlers() {
-  document.querySelectorAll('.clickable-engineer').forEach(el => {
-    el.onclick = function() {
-      const engineerName = this.getAttribute('data-engineer');
-      showEngineerReportPreviewModal(engineerName);
-    };
-  });
-}
-
-// 2. Show the modal with the engineer report preview
-function showEngineerReportPreviewModal(engineerName) {
-  let reportHtml = renderEngineerPerformanceReport(engineerName); // Generates the report as HTML
-  // Extract the inner content between <body>...</body> if needed
-  let bodyStart = reportHtml.indexOf('<body>');
-  let bodyEnd = reportHtml.indexOf('</body>');
-  let previewHtml = reportHtml.slice(bodyStart + 6, bodyEnd);
-  document.getElementById('engineerReportPreviewBody').innerHTML = previewHtml;
-  document.getElementById('engineerReportPreviewModal').classList.remove('hidden');
-
-  // Re-attach click handlers for nested engineer names in preview
-  attachEngineerClickHandlers();
-
-  // Download button
-  document.getElementById('downloadEngineerReportBtn').onclick = function() {
-    const blob = new Blob([reportHtml], {type: "text/html"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `KFP_${engineerName}_Performance_Report.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
-  };
-}
-
-// 3. Close modal function
-function closeEngineerReportPreviewModal() {
-  document.getElementById('engineerReportPreviewModal').classList.add('hidden');
-}
-
 function drawEngineeringResourceChart() {
     function getAllTicketDates(tickets) {
         const dateSet = new Set();
@@ -3820,58 +3517,10 @@ function drawEngineeringResourceChart() {
 <div id="modal" class="hidden" style="
     position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); 
     z-index:1000; align-items:center; justify-content:center;">
- <div id="modalContent" style="
-    background:white; 
-    border-radius:15px; 
-    padding:32px 24px; 
-    max-width:700px; 
-    width:90%; 
-    max-height:85vh; 
-    overflow-y:auto; 
-    position:relative;">
-</div>
+  <div id="modalContent" style="
+    background:white; border-radius:15px; padding:32px 24px; max-width:700px; width:90%; max-height:85vh; overflow:auto; position:relative;">
     <button onclick="closeModal()" style="position:absolute; top:10px; right:14px; font-size:1.5rem; background:none; border:none; cursor:pointer;">×</button>
     <div id="modalBody"></div>
-  </div>
-</div>
-
-<div id="engineerReportSelectionModal" class="hidden" style="
-    position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.55); 
-    z-index:1001; align-items:center; justify-content:center; display:flex;">
- <div style="
-    background:white;
-    border-radius:15px;
-    padding:32px 24px;
-    max-width:700px;
-    width:90%;
-    max-height:85vh;
-    overflow-y:auto;
-    position:relative;
-    box-shadow:0 8px 32px rgba(0,0,0,0.18);">
-  <h2 style="color:#667eea; font-size:1.35rem;">Select Engineer</h2>
-  <div id="engineerSelectList" style="margin:16px 0 24px 0; max-height:420px; overflow-y:auto;"></div>
-  <button onclick="closeEngineerSelectModal()" style="padding:6px 20px; border-radius:8px; background:#764ba2; color:white; border:none; cursor:pointer;">Cancel</button>
-</div>
-</div>
-
-
-<div id="engineerReportPreviewModal" class="hidden" style="
-  position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); 
-  z-index:1002; align-items:center; justify-content:center; display:flex;">
-  <div style="
-    background:white; 
-    border-radius:15px; 
-    padding:32px 24px; 
-    max-width:700px; 
-    width:90%;
-    max-height:85vh; 
-    overflow-y:auto; 
-    position:relative;">
-    <button onclick="closeEngineerReportPreviewModal()" style="position:absolute; top:10px; right:14px; font-size:1.5rem; background:none; border:none; cursor:pointer;">×</button>
-    <div id="engineerReportPreviewBody"></div>
-    <div style="text-align:right; margin-top:16px;">
-      <button id="downloadEngineerReportBtn" style="padding:8px 20px; border-radius:8px; background:#667eea; color:white; border:none; cursor:pointer;">Download Report</button>
-    </div>
   </div>
 </div>
 
