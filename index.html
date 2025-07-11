@@ -2137,7 +2137,7 @@ function updateEngineeringResourceCard() {
             ...new Set(
                 filteredData
                     .filter(t => {
-                        if (!t['Primary Resource'] || !t['Complete Date']) return false;
+                        if (!t['Primary Resource'] || t['Primary Resource'] === "Unassigned" || !t['Complete Date']) return false;
                         let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
                         let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
                         return (
@@ -2204,7 +2204,6 @@ function updateEngineeringResourceCard() {
         }
     };
 }
-
 // Modal function for engineering resource card
 
 
