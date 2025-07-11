@@ -2306,75 +2306,72 @@ function showEngineeringResourceModal(dateStr) {
                 </thead>
                 <tbody>
         `;
-        completedEngineers.forEach(eng => {
-            const completedTickets = completedByEngineer[eng];
-            const assignedTickets = assignedByEngineer[eng] || [];
-            const jobsAssigned = assignedTickets.length;
-            const jobsCompleted = completedTickets.length;
-            const completionRate = jobsAssigned > 0 ? ((jobsCompleted / jobsAssigned) * 100).toFixed(1) : '0.0';
-            const uniquePostcodes = new Set(
-                completedTickets.map(t => t.Postcode).filter(pc => !!pc && pc.toString().trim() !== '')
-            );
-            const metSLA = completedTickets.filter(t => {
-                const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
-                return (
-                    status === 'completed within sla' ||
-                    status === 'within sla' ||
-                    status === 'met sla'
-                );
-            }).length;
-            const perf = completedTickets.length > 0
-                ? ((metSLA / completedTickets.length) * 100).toFixed(1) + '%'
-                : 'N/A';
-            modalHtml += `
-                <tr>
-                    <td>${eng}</td>
-                    <td>${jobsAssigned}</td>
-                    <td>${jobsCompleted}</td>
-                    <td>${completionRate}</td>
-                    <td>${uniquePostcodes.size}</td>
-                    <td>${perf}</td>
-                </tr>
-            `;
-        });
-        modalHtml += `</tbody></table>`;
-    }
+completedEngineers.forEach(eng => {
+    const completedTickets = completedByEngineer[eng];
+    const assignedTickets = assignedByEngineer[eng] || [];
+    const jobsAssigned = assignedTickets.length;
+    const jobsCompleted = completedTickets.length;
+    const completionRate = jobsAssigned > 0 ? ((jobsCompleted / jobsAssigned) * 100).toFixed(1) : '0.0';
+    const uniquePostcodes = new Set(
+        completedTickets.map(t => t.Postcode).filter(pc => !!pc && pc.toString().trim() !== '')
+    );
+    const metSLA = completedTickets.filter(t => {
+        const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
+        return (
+            status === 'completed within sla' ||
+            status === 'within sla' ||
+            status === 'met sla'
+        );
+    }).length;
+    const perf = completedTickets.length > 0
+        ? ((metSLA / completedTickets.length) * 100).toFixed(1) + '%'
+        : 'N/A';
 
-    // Section 2: Assigned Only Engineers
-    modalHtml += `<div style="font-weight:bold; margin:18px 0 6px 0;">Engineers with a job scheduled But off-Shift (${assignedOnlyEngineers.length})</div>`;
-    if (assignedOnlyEngineers.length === 0) {
-        modalHtml += `<p style="color:#764ba2;">No engineers have only scheduled jobs on this date.</p>`;
-    } else {
-        modalHtml += `
-            <table class="pivot-table">
-                <thead>
-                    <tr>
-                        <th>Engineer</th>
-                        <th>Jobs Assigned</th>
-                        <th>Locations</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-        assignedOnlyEngineers.forEach(eng => {
-            const assignedTickets = assignedByEngineer[eng];
-            const jobsAssigned = assignedTickets.length;
-            const uniquePostcodes = new Set(
-                assignedTickets.map(t => t.Postcode).filter(pc => !!pc && pc.toString().trim() !== '')
-            );
-            modalHtml += `
-                <tr>
-                    <td>${eng}</td>
-                    <td>${jobsAssigned}</td>
-                    <td>${uniquePostcodes.size}</td>
-                </tr>
-            `;
-        });
+    // Make jobsCompleted clickable, showing a list of ticket numbers
+    const ticketLinks = completedTickets.map(t =>
+        `<a href="#" class="modal-ticket-link" data-ticket="${t['Ticket Number']}">${t['Ticket Number']}</a>`
+    ).join(', ');
+
+    modalHtml += `
+        <tr>
+            <td>${eng}</td>
+            <td>${jobsAssigned}</td>
+            <td>
+                <span class="modal-completed-count" data-engineer="${eng}" data-date="${dateStr}">${jobsCompleted}</span>
+                <br>
+                ${ticketLinks}
+            </td>
+            <td>${completionRate}</td>
+            <td>${uniquePostcodes.size}</td>
+            <td>${perf}</td>
+        </tr>
+    `;
+});
         modalHtml += `</tbody></table>`;
     }
 
     document.getElementById('modalBody').innerHTML = modalHtml;
     document.getElementById('modal').classList.remove('hidden');
+
+document.getElementById('modalBody').innerHTML = modalHtml;
+document.getElementById('modal').classList.remove('hidden');
+
+// After rendering the modal, attach click handlers for ticket links:
+setTimeout(() => {
+    document.querySelectorAll('.modal-ticket-link').forEach(link => {
+        link.onclick = function(e) {
+            e.preventDefault();
+            const ticketNum = this.getAttribute('data-ticket');
+            // Find the ticket details from filteredData
+            const ticket = filteredData.find(t => t['Ticket Number'] == ticketNum);
+            if (ticket) {
+                showmodal(`Ticket Details: ${ticketNum}`, [ticket]);
+            } else {
+                alert('Ticket not found.');
+            }
+        };
+    });
+}, 50);
 }
         
         
