@@ -2241,78 +2241,74 @@ function getEngineersOnShiftForDate(tickets, dateStr) {
 }
 
     // Modal update function
-// Replace your existing showEngineeringResourceModal function with this version!
 function showEngineeringResourceModal(dateStr) {
-    // Find assigned tickets for this date
-    const assignedTicketsForDate = filteredData.filter(t => {
-        let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
-        return sched && sched.toISOString().slice(0, 10) === dateStr;
-    });
+    // Engineers who completed at least one job (on scheduled date)
+    const completedEngineersSet = new Set();
+    const completedByEngineer = {};
 
-    // Group assigned tickets by engineer, excluding "Unassigned" and blanks
-    const assignedByEngineer = {};
-    assignedTicketsForDate.forEach(t => {
-        const eng = t['Primary Resource'] && t['Primary Resource'].trim() !== 'Unassigned' && t['Primary Resource'].trim() !== '' 
+    filteredData.forEach(t => {
+        const eng = t['Primary Resource'] && t['Primary Resource'].trim() !== "Unassigned" && t['Primary Resource'].trim() !== "" 
             ? t['Primary Resource'].trim() 
             : null;
-        if (eng) {
-            if (!assignedByEngineer[eng]) assignedByEngineer[eng] = [];
-            assignedByEngineer[eng].push(t);
-        }
-    });
-
-    // Get completed tickets for this date, grouped by engineer
-    const completedTicketsForDate = filteredData.filter(t => {
+        if (!eng) return;
         let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
         let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
-        return sched && comp &&
+        if (
+            sched && comp &&
             sched.toISOString().slice(0, 10) === dateStr &&
-            comp.toISOString().slice(0, 10) === dateStr;
-    });
-
-    const completedByEngineer = {};
-    completedTicketsForDate.forEach(t => {
-        const eng = t['Primary Resource'] && t['Primary Resource'].trim() !== 'Unassigned' && t['Primary Resource'].trim() !== ''
-            ? t['Primary Resource'].trim()
-            : null;
-        if (eng) {
+            comp.toISOString().slice(0, 10) === dateStr
+        ) {
+            completedEngineersSet.add(eng);
             if (!completedByEngineer[eng]) completedByEngineer[eng] = [];
             completedByEngineer[eng].push(t);
         }
     });
 
-    // Modal HTML
-    const engineerNames = Object.keys(assignedByEngineer);
-    let modalHtml = `<h2>Engineers On Shift for ${dateStr}</h2>
-                     <div style="font-weight:bold; margin-bottom:10px;">Total Engineers: ${engineerNames.length}</div>`;
-    if (engineerNames.length === 0) {
-        modalHtml += `<p>No engineers assigned jobs for this date.</p>`;
+    // Engineers with a job scheduled (excluding those who completed)
+    const assignedEngineersSet = new Set();
+    const assignedByEngineer = {};
+
+    filteredData.forEach(t => {
+        const eng = t['Primary Resource'] && t['Primary Resource'].trim() !== "Unassigned" && t['Primary Resource'].trim() !== "" 
+            ? t['Primary Resource'].trim() 
+            : null;
+        if (!eng) return;
+        let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+        if (sched && sched.toISOString().slice(0, 10) === dateStr) {
+            assignedEngineersSet.add(eng);
+            if (!assignedByEngineer[eng]) assignedByEngineer[eng] = [];
+            assignedByEngineer[eng].push(t);
+        }
+    });
+
+    // Figure out assigned-only engineers (not in completed)
+    const assignedOnlyEngineers = Array.from(assignedEngineersSet).filter(eng => !completedEngineersSet.has(eng));
+
+    let modalHtml = `<h2>Engineering Resource for ${dateStr}</h2>`;
+
+    // Section 1: Completed Engineers
+    const completedEngineers = Array.from(completedEngineersSet);
+    modalHtml += `<div style="font-weight:bold; margin:10px 0 6px 0;">Engineers who completed a job (${completedEngineers.length})</div>`;
+    if (completedEngineers.length === 0) {
+        modalHtml += `<p style="color:#764ba2;">No engineers completed a job on this date.</p>`;
     } else {
         modalHtml += `
             <table class="pivot-table">
                 <thead>
                     <tr>
                         <th>Engineer</th>
-                        <th>Jobs Assigned</th>
                         <th>Jobs Completed</th>
                         <th>Locations</th>
-                        <th>Completion Rate</th>
-                        <th>Personal SLA Performance</th>
+                        <th>SLA Performance</th>
                     </tr>
                 </thead>
                 <tbody>
         `;
-        engineerNames.forEach(eng => {
-            const assignedTickets = assignedByEngineer[eng] || [];
-            const completedTickets = completedByEngineer[eng] || [];
+        completedEngineers.forEach(eng => {
+            const completedTickets = completedByEngineer[eng];
             const uniquePostcodes = new Set(
-                assignedTickets.map(t => t.Postcode).filter(pc => !!pc && pc.toString().trim() !== '')
+                completedTickets.map(t => t.Postcode).filter(pc => !!pc && pc.toString().trim() !== '')
             );
-            const locations = uniquePostcodes.size;
-
-            const completionRate = assignedTickets.length > 0
-                ? ((completedTickets.length / assignedTickets.length) * 100).toFixed(1) + '%'
-                : 'N/A';
             const metSLA = completedTickets.filter(t => {
                 const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
                 return (
@@ -2327,11 +2323,41 @@ function showEngineeringResourceModal(dateStr) {
             modalHtml += `
                 <tr>
                     <td>${eng}</td>
-                    <td>${assignedTickets.length}</td>
                     <td>${completedTickets.length}</td>
-                    <td>${locations}</td>
-                    <td>${completionRate}</td>
+                    <td>${uniquePostcodes.size}</td>
                     <td>${perf}</td>
+                </tr>
+            `;
+        });
+        modalHtml += `</tbody></table>`;
+    }
+
+    // Section 2: Assigned Only Engineers
+    modalHtml += `<div style="font-weight:bold; margin:18px 0 6px 0;">Engineers with a job scheduled (${assignedOnlyEngineers.length})</div>`;
+    if (assignedOnlyEngineers.length === 0) {
+        modalHtml += `<p style="color:#764ba2;">No engineers have only scheduled jobs on this date.</p>`;
+    } else {
+        modalHtml += `
+            <table class="pivot-table">
+                <thead>
+                    <tr>
+                        <th>Engineer</th>
+                        <th>Jobs Scheduled</th>
+                        <th>Locations</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        assignedOnlyEngineers.forEach(eng => {
+            const assignedTickets = assignedByEngineer[eng];
+            const uniquePostcodes = new Set(
+                assignedTickets.map(t => t.Postcode).filter(pc => !!pc && pc.toString().trim() !== '')
+            );
+            modalHtml += `
+                <tr>
+                    <td>${eng}</td>
+                    <td>${assignedTickets.length}</td>
+                    <td>${uniquePostcodes.size}</td>
                 </tr>
             `;
         });
@@ -2341,6 +2367,7 @@ function showEngineeringResourceModal(dateStr) {
     document.getElementById('modalBody').innerHTML = modalHtml;
     document.getElementById('modal').classList.remove('hidden');
 }
+        
         
         function showFilteredTickets(pivotType, itemName) {
             let tickets = [];
