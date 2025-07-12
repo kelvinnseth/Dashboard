@@ -2106,15 +2106,16 @@ function getDatesFromStartOfMonthToToday() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Get year/month
     const year = today.getFullYear();
     const month = today.getMonth();
+    const day = today.getDate();
 
-    // Start at today, go backward until not in current month
-    for (let d = new Date(today); d.getMonth() === month && d.getFullYear() === year; d.setDate(d.getDate() - 1)) {
-        dates.push(d.toISOString().slice(0, 10));
+    // Loop from today down to 1
+    for (let d = day; d >= 1; d--) {
+        const dateObj = new Date(year, month, d);
+        dates.push(dateObj.toISOString().slice(0, 10));
     }
-    return dates; // newest to oldest
+    return dates; // newest to oldest!
 }
 
 console.log("Dates for Engineering Resource Table:", getDatesFromStartOfMonthToToday());
