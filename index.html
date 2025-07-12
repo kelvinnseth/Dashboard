@@ -2113,7 +2113,6 @@ function getDatesFromStartOfMonthToToday() {
     return dates; // Newest to oldest
 }
 
-
 // Returns the day of the week (e.g. "Sat") for a given YYYY-MM-DD string
 function getDayOfWeek(dateStr) {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -2122,7 +2121,6 @@ function getDayOfWeek(dateStr) {
 }
 
 function updateEngineeringResourceCard() {
-    // Get all unique dates for the card, newest first
     const allDates = getDatesFromStartOfMonthToToday();
 
     let html = `
@@ -2146,12 +2144,13 @@ function updateEngineeringResourceCard() {
             let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
             return sched && sched.toISOString().slice(0, 10) === dateStr;
         });
-        const seenAssigned = new Set();
-        const uniqueAssignedTickets = assignedTicketsForDate.filter(t => {
-            if (seenAssigned.has(t['Ticket Number'])) return false;
-            seenAssigned.add(t['Ticket Number']);
-            return true;
+
+        // Deduplicate assigned tickets by Ticket Number
+        const assignedMap = {};
+        assignedTicketsForDate.forEach(t => {
+            assignedMap[t['Ticket Number']] = t;
         });
+        const uniqueAssignedTickets = Object.values(assignedMap);
 
         // --- Engineers scheduled (from unique assigned tickets) ---
         const engineersOnShift = [
@@ -2172,12 +2171,13 @@ function updateEngineeringResourceCard() {
                 comp.toISOString().slice(0, 10) === dateStr
             );
         });
-        const seenCompleted = new Set();
-        const uniqueCompletedTickets = completedTicketsForDate.filter(t => {
-            if (seenCompleted.has(t['Ticket Number'])) return false;
-            seenCompleted.add(t['Ticket Number']);
-            return true;
+
+        // Deduplicate completed tickets by Ticket Number
+        const completedMap = {};
+        completedTicketsForDate.forEach(t => {
+            completedMap[t['Ticket Number']] = t;
         });
+        const uniqueCompletedTickets = Object.values(completedMap);
 
         // --- SLA performance ---
         const metSLA = uniqueCompletedTickets.filter(t => {
@@ -2219,7 +2219,6 @@ function updateEngineeringResourceCard() {
         }
     };
 }
-
         
 
 
