@@ -2103,7 +2103,26 @@ function getLastNDates(n) {
 
 // Main card update function
 function updateEngineeringResourceCard() {
-    // Get all dates from 1st of month to today
+    // Helper: Get dates from 1st of the month up to today, newest first
+    function getDatesFromStartOfMonthToToday() {
+        const dates = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const first = new Date(today.getFullYear(), today.getMonth(), 1);
+        for (let d = new Date(first); d <= today; d.setDate(d.getDate() + 1)) {
+            dates.push(d.toISOString().slice(0, 10));
+        }
+        return dates.reverse(); // newest to oldest
+    }
+
+    // Helper: Day of week
+    function getDayOfWeek(dateStr) {
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const d = new Date(dateStr);
+        return days[d.getDay()];
+    }
+
+    // Get all dates to show in the table
     const allDates = getDatesFromStartOfMonthToToday();
 
     let html = `
@@ -2205,6 +2224,14 @@ function updateEngineeringResourceCard() {
         }
     };
 }
+        
+
+function getDayOfWeek(dateStr) {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const d = new Date(dateStr);
+    return days[d.getDay()];
+}
+
 
 function getDatesFromStartOfMonthToToday() {
     const dates = [];
@@ -2218,26 +2245,8 @@ function getDatesFromStartOfMonthToToday() {
     return dates.reverse();
 }
 
+
         
-
-function getDayOfWeek(dateStr) {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const d = new Date(dateStr);
-    return days[d.getDay()];
-}
-
-
-// Add these helpers above or below the function
-function getDatesFromStartOfMonthToToday() {
-    const dates = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const first = new Date(today.getFullYear(), today.getMonth(), 1);
-    for (let d = new Date(first); d <= today; d.setDate(d.getDate() + 1)) {
-        dates.push(d.toISOString().slice(0, 10));
-    }
-    return dates;
-}
 function getDayOfWeek(dateStr) {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const d = new Date(dateStr);
