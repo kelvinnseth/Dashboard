@@ -2099,30 +2099,30 @@ function getLastNDates(n) {
     return dates;
 }
 
+// Returns an array of date strings (YYYY-MM-DD) from the 1st of this month to today, newest first
+function getDatesFromStartOfMonthToToday() {
+    const dates = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const first = new Date(today.getFullYear(), today.getMonth(), 1);
+    let d = new Date(today); // Start from today
+    while (d >= first) {
+        dates.push(d.toISOString().slice(0, 10));
+        d.setDate(d.getDate() - 1);
+    }
+    return dates; // Newest to oldest
+}
 
 
-// Main card update function
+// Returns the day of the week (e.g. "Sat") for a given YYYY-MM-DD string
+function getDayOfWeek(dateStr) {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const d = new Date(dateStr);
+    return days[d.getDay()];
+}
+
 function updateEngineeringResourceCard() {
-    // Helper: Get dates from 1st of the month up to today, newest first
-    function getDatesFromStartOfMonthToToday() {
-        const dates = [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const first = new Date(today.getFullYear(), today.getMonth(), 1);
-        for (let d = new Date(first); d <= today; d.setDate(d.getDate() + 1)) {
-            dates.push(d.toISOString().slice(0, 10));
-        }
-        return dates.reverse(); // newest to oldest
-    }
-
-    // Helper: Day of week
-    function getDayOfWeek(dateStr) {
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const d = new Date(dateStr);
-        return days[d.getDay()];
-    }
-
-    // Get all dates to show in the table
+    // Get all unique dates for the card, newest first
     const allDates = getDatesFromStartOfMonthToToday();
 
     let html = `
@@ -2141,20 +2141,7 @@ function updateEngineeringResourceCard() {
     `;
 
     allDates.forEach(dateStr => {
-        // Engineers scheduled (no completion required)
-        const engineersOnShift = [
-            ...new Set(
-                filteredData
-                    .filter(t => {
-                        let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
-                        return sched && sched.toISOString().slice(0, 10) === dateStr &&
-                            t['Primary Resource'] && t['Primary Resource'].trim() !== "Unassigned" && t['Primary Resource'].trim() !== "";
-                    })
-                    .map(t => t['Primary Resource'].trim())
-            )
-        ];
-
-        // Jobs assigned (deduplicate by Ticket Number)
+        // --- Unique tickets assigned ---
         const assignedTicketsForDate = filteredData.filter(t => {
             let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
             return sched && sched.toISOString().slice(0, 10) === dateStr;
@@ -2165,9 +2152,17 @@ function updateEngineeringResourceCard() {
             seenAssigned.add(t['Ticket Number']);
             return true;
         });
-        const totalAssigned = uniqueAssignedTickets.length;
 
-        // Jobs completed (deduplicate by Ticket Number)
+        // --- Engineers scheduled (from unique assigned tickets) ---
+        const engineersOnShift = [
+            ...new Set(
+                uniqueAssignedTickets
+                    .filter(t => t['Primary Resource'] && t['Primary Resource'].trim() !== "Unassigned" && t['Primary Resource'].trim() !== "")
+                    .map(t => t['Primary Resource'].trim())
+            )
+        ];
+
+        // --- Unique tickets completed ---
         const completedTicketsForDate = filteredData.filter(t => {
             let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
             let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
@@ -2184,7 +2179,7 @@ function updateEngineeringResourceCard() {
             return true;
         });
 
-        // SLA performance for completed jobs
+        // --- SLA performance ---
         const metSLA = uniqueCompletedTickets.filter(t => {
             const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
             return (
@@ -2197,7 +2192,7 @@ function updateEngineeringResourceCard() {
             ? ((metSLA / uniqueCompletedTickets.length) * 100).toFixed(1) + '%'
             : 'N/A';
 
-        // Add day of week
+        // --- Day of week ---
         const dayOfWeek = getDayOfWeek(dateStr);
 
         html += `
@@ -2206,7 +2201,7 @@ function updateEngineeringResourceCard() {
                 <td>
                     <span class="clickable-count" data-date="${dateStr}">${engineersOnShift.length}</span>
                 </td>
-                <td>${totalAssigned}</td>
+                <td>${uniqueAssignedTickets.length}</td>
                 <td>${uniqueCompletedTickets.length}</td>
                 <td>${slaPerformance}</td>
             </tr>
@@ -2224,34 +2219,10 @@ function updateEngineeringResourceCard() {
         }
     };
 }
-        
-
-function getDayOfWeek(dateStr) {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const d = new Date(dateStr);
-    return days[d.getDay()];
-}
-
-
-function getDatesFromStartOfMonthToToday() {
-    const dates = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const first = new Date(today.getFullYear(), today.getMonth(), 1);
-    for (let d = new Date(first); d <= today; d.setDate(d.getDate() + 1)) {
-        dates.push(d.toISOString().slice(0, 10));
-    }
-    // Sort newest to oldest
-    return dates.reverse();
-}
-
 
         
-function getDayOfWeek(dateStr) {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const d = new Date(dateStr);
-    return days[d.getDay()];
-}
+
+
 // Utility: Get all unique dates in the data (from Scheduled Date or Complete Date)
 function getAllTicketDates(tickets) {
     const dateSet = new Set();
