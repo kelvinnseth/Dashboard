@@ -2145,6 +2145,7 @@ function deduplicateTicketsByDate(tickets, dateStr, dateField) {
 
 function updateEngineeringResourceCard() {
     const allDates = getDatesFromStartOfMonthToToday(); // All days, newest to oldest
+console.log("Engineering Resource Card Dates:", allDates);
 
     let html = `
       <div style="max-height:420px;overflow-y:auto;border-radius:12px;border:1px solid #ececec;">
@@ -2161,7 +2162,10 @@ function updateEngineeringResourceCard() {
             <tbody>
     `;
 
+
     allDates.forEach(dateStr => {
+
+ console.log("Rendering table row for date:", dateStr); // <--- ADD THIS LINE
         // Unique assigned on this date
         const uniqueAssignedTickets = deduplicateTicketsByDate(filteredData, dateStr, 'Scheduled Date');
 
