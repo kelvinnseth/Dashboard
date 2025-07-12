@@ -2099,26 +2099,44 @@ function getLastNDates(n) {
     return dates;
 }
 
-// Returns an array of date strings (YYYY-MM-DD) from the 1st of this month to today, newest first
+        
+
 function getDatesFromStartOfMonthToToday() {
     const dates = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const first = new Date(today.getFullYear(), today.getMonth(), 1);
-    let d = new Date(today); // Start from today
-    while (d >= first) {
+    let d = new Date(first); // start from the first day
+    while (d <= today) {
         dates.push(d.toISOString().slice(0, 10));
-        d.setDate(d.getDate() - 1);
+        d.setDate(d.getDate() + 1);
     }
-    return dates; // Newest to oldest
+    return dates.reverse(); // newest to oldest
 }
-
+        
 // Returns the day of the week (e.g. "Sat") for a given YYYY-MM-DD string
 function getDayOfWeek(dateStr) {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const d = new Date(dateStr);
     return days[d.getDay()];
 }
+
+
+
+
+
+function deduplicateTicketsByDate(tickets, dateStr, dateField) {
+    const map = {};
+    tickets.forEach(t => {
+        let date = t[dateField] instanceof Date ? t[dateField] : convertExcelDate(t[dateField]);
+        if (date && date.toISOString().slice(0, 10) === dateStr) {
+            map[t['Ticket Number']] = t;
+        }
+    });
+    return Object.values(map);
+}
+
+        
 
 function updateEngineeringResourceCard() {
     const allDates = getDatesFromStartOfMonthToToday();
@@ -2139,20 +2157,10 @@ function updateEngineeringResourceCard() {
     `;
 
     allDates.forEach(dateStr => {
-        // --- Unique tickets assigned ---
-        const assignedTicketsForDate = filteredData.filter(t => {
-            let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
-            return sched && sched.toISOString().slice(0, 10) === dateStr;
-        });
+        // Unique assigned on this date
+        const uniqueAssignedTickets = deduplicateTicketsByDate(filteredData, dateStr, 'Scheduled Date');
 
-        // Deduplicate assigned tickets by Ticket Number
-        const assignedMap = {};
-        assignedTicketsForDate.forEach(t => {
-            assignedMap[t['Ticket Number']] = t;
-        });
-        const uniqueAssignedTickets = Object.values(assignedMap);
-
-        // --- Engineers scheduled (from unique assigned tickets) ---
+        // Engineers scheduled (from unique assigned tickets)
         const engineersOnShift = [
             ...new Set(
                 uniqueAssignedTickets
@@ -2161,8 +2169,8 @@ function updateEngineeringResourceCard() {
             )
         ];
 
-        // --- Unique tickets completed ---
-        const completedTicketsForDate = filteredData.filter(t => {
+        // Unique completed on this date (must match scheduled and completed date)
+        const uniqueCompletedTickets = filteredData.filter(t => {
             let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
             let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
             return (
@@ -2170,17 +2178,14 @@ function updateEngineeringResourceCard() {
                 sched.toISOString().slice(0, 10) === dateStr &&
                 comp.toISOString().slice(0, 10) === dateStr
             );
-        });
+        }).reduce((acc, t) => {
+            acc[t['Ticket Number']] = t;
+            return acc;
+        }, {});
+        const completedTicketsArr = Object.values(uniqueCompletedTickets);
 
-        // Deduplicate completed tickets by Ticket Number
-        const completedMap = {};
-        completedTicketsForDate.forEach(t => {
-            completedMap[t['Ticket Number']] = t;
-        });
-        const uniqueCompletedTickets = Object.values(completedMap);
-
-        // --- SLA performance ---
-        const metSLA = uniqueCompletedTickets.filter(t => {
+        // SLA performance
+        const metSLA = completedTicketsArr.filter(t => {
             const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
             return (
                 status === 'completed within sla' ||
@@ -2188,11 +2193,11 @@ function updateEngineeringResourceCard() {
                 status === 'met sla'
             );
         }).length;
-        const slaPerformance = uniqueCompletedTickets.length > 0
-            ? ((metSLA / uniqueCompletedTickets.length) * 100).toFixed(1) + '%'
+        const slaPerformance = completedTicketsArr.length > 0
+            ? ((metSLA / completedTicketsArr.length) * 100).toFixed(1) + '%'
             : 'N/A';
 
-        // --- Day of week ---
+        // Day of week
         const dayOfWeek = getDayOfWeek(dateStr);
 
         html += `
@@ -2202,7 +2207,7 @@ function updateEngineeringResourceCard() {
                     <span class="clickable-count" data-date="${dateStr}">${engineersOnShift.length}</span>
                 </td>
                 <td>${uniqueAssignedTickets.length}</td>
-                <td>${uniqueCompletedTickets.length}</td>
+                <td>${completedTicketsArr.length}</td>
                 <td>${slaPerformance}</td>
             </tr>
         `;
@@ -2219,7 +2224,6 @@ function updateEngineeringResourceCard() {
         }
     };
 }
-        
 
 
 // Utility: Get all unique dates in the data (from Scheduled Date or Complete Date)
