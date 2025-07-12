@@ -2146,7 +2146,7 @@ function deduplicateTicketsByDate(tickets, dateStr, dateField) {
 
 function updateEngineeringResourceCard() {
     const allDates = getDatesFromStartOfMonthToToday(); // All days, newest to oldest
-    console.log("Engineering Resource Card Dates:", allDates);
+    const todayDateStr = allDates[0]; // Assuming the first is today
 
     let html = `
       <div style="max-height:420px;overflow-y:auto;border-radius:12px;border:1px solid #ececec;">
@@ -2164,22 +2164,31 @@ function updateEngineeringResourceCard() {
     `;
 
     allDates.forEach(dateStr => {
-        console.log("Rendering table row for date:", dateStr);
-
-        // --- NEW LOGIC for engineersOnShift ---
-        // Only count engineers with at least one "Service" job on this date
-        const serviceTickets = filteredData.filter(t =>
-            t['Scheduled Date'] &&
-            formatDate(t['Scheduled Date']) === dateStr &&
-            t['Primary Resource'] &&
-            t['Primary Resource'].trim() !== "Unassigned" &&
-            t['Primary Resource'].trim() !== "" &&
-            t['Service Call Status'] &&
-            t['Service Call Status'].trim().toLowerCase() === "service"
-        );
-        const engineersOnShift = [
-            ...new Set(serviceTickets.map(t => t['Primary Resource'].trim()))
-        ];
+        // Logic for NO OF ENG SCHEDULED
+        let engineersOnShift;
+        if (dateStr === todayDateStr) {
+            // Today's logic: Engineers who have at least one "Service" job
+            const serviceTickets = filteredData.filter(t =>
+                t['Scheduled Date'] &&
+                formatDate(t['Scheduled Date']) === dateStr &&
+                t['Primary Resource'] &&
+                t['Primary Resource'].trim() !== "Unassigned" &&
+                t['Primary Resource'].trim() !== "" &&
+                t['Service Call Status'] &&
+                t['Service Call Status'].trim().toLowerCase() === "service"
+            );
+            engineersOnShift = [...new Set(serviceTickets.map(t => t['Primary Resource'].trim()))];
+        } else {
+            // Previous days: Engineers who had at least one completed job
+            const completedTickets = filteredData.filter(t =>
+                t['Complete Date'] &&
+                formatDate(t['Complete Date']) === dateStr &&
+                t['Primary Resource'] &&
+                t['Primary Resource'].trim() !== "Unassigned" &&
+                t['Primary Resource'].trim() !== ""
+            );
+            engineersOnShift = [...new Set(completedTickets.map(t => t['Primary Resource'].trim()))];
+        }
 
         // Unique assigned tickets on this date (for reference)
         const uniqueAssignedTickets = deduplicateTicketsByDate(filteredData, dateStr, 'Scheduled Date');
@@ -2240,7 +2249,7 @@ function updateEngineeringResourceCard() {
     };
 }
 
-// Utility: format various date types to YYYY-MM-DD string
+// Utility for date formatting
 function formatDate(dateVal) {
     if (!dateVal) return '';
     if (dateVal instanceof Date) {
@@ -2249,7 +2258,6 @@ function formatDate(dateVal) {
     // If it's an Excel date integer or string, convert it
     return convertExcelDate(dateVal).toISOString().slice(0, 10);
 }
-
         
 // Utility: Get all unique dates in the data (from Scheduled Date or Complete Date)
 function getAllTicketDates(tickets) {
