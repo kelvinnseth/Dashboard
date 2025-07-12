@@ -2107,8 +2107,8 @@ function updateEngineeringResourceCard() {
     function getAllTicketDates(tickets) {
         const dateSet = new Set();
         tickets.forEach(t => {
-            let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
-            if (comp && !isNaN(comp.getTime())) dateSet.add(comp.toISOString().slice(0, 10));
+            let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+            if (sched && !isNaN(sched.getTime())) dateSet.add(sched.toISOString().slice(0, 10));
         });
         return Array.from(dateSet).sort((a, b) => b.localeCompare(a));
     }
@@ -2121,7 +2121,7 @@ function updateEngineeringResourceCard() {
             <thead>
                 <tr>
                     <th>Date</th>
-                    <th>NO OF ENG ON-SHIFT</th>
+                    <th>NO OF ENG SCHEDULED</th>
                     <th>TOTAL JOBS ASSIGNED</th>
                     <th>TOTAL JOBS COMPLETED</th>
                     <th>SLA PERFORMANCE</th>
@@ -2131,31 +2131,33 @@ function updateEngineeringResourceCard() {
     `;
 
     recent5Dates.forEach(dateStr => {
-        // Engineers who completed at least one job on that date (excluding "Unassigned")
+        // Engineers scheduled (no completion required)
         const engineersOnShift = [
             ...new Set(
                 filteredData
                     .filter(t => {
-                        if (!t['Primary Resource'] || t['Primary Resource'].trim() === "Unassigned" || t['Primary Resource'].trim() === "") return false;
                         let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
-                        let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
-                        return (
-                            sched && comp &&
-                            sched.toISOString().slice(0, 10) === dateStr &&
-                            comp.toISOString().slice(0, 10) === dateStr
-                        );
+                        return sched && sched.toISOString().slice(0, 10) === dateStr &&
+                            t['Primary Resource'] && t['Primary Resource'].trim() !== "Unassigned" && t['Primary Resource'].trim() !== "";
                     })
                     .map(t => t['Primary Resource'].trim())
             )
         ];
 
-        // Total jobs ASSIGNED for this date (Scheduled Date == dateStr)
-        const totalAssigned = filteredData.filter(t => {
+        // Total jobs ASSIGNED for this date (Scheduled Date == dateStr), deduplicated
+        const assignedTicketsForDate = filteredData.filter(t => {
             let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
             return sched && sched.toISOString().slice(0, 10) === dateStr;
-        }).length;
+        });
+        const seenAssigned = new Set();
+        const uniqueAssignedTickets = assignedTicketsForDate.filter(t => {
+            if (seenAssigned.has(t['Ticket Number'])) return false;
+            seenAssigned.add(t['Ticket Number']);
+            return true;
+        });
+        const totalAssigned = uniqueAssignedTickets.length;
 
-        // All tickets completed on that day (Completed on scheduled date)
+        // Jobs completed (Scheduled Date == dateStr AND Completed Date == dateStr), deduplicated
         const completedTicketsForDate = filteredData.filter(t => {
             let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
             let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
@@ -2165,9 +2167,15 @@ function updateEngineeringResourceCard() {
                 comp.toISOString().slice(0, 10) === dateStr
             );
         });
+        const seenCompleted = new Set();
+        const uniqueCompletedTickets = completedTicketsForDate.filter(t => {
+            if (seenCompleted.has(t['Ticket Number'])) return false;
+            seenCompleted.add(t['Ticket Number']);
+            return true;
+        });
 
         // SLA performance for completed jobs
-        const metSLA = completedTicketsForDate.filter(t => {
+        const metSLA = uniqueCompletedTickets.filter(t => {
             const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
             return (
                 status === 'completed within sla' ||
@@ -2175,8 +2183,8 @@ function updateEngineeringResourceCard() {
                 status === 'met sla'
             );
         }).length;
-        const slaPerformance = completedTicketsForDate.length > 0
-            ? ((metSLA / completedTicketsForDate.length) * 100).toFixed(1) + '%'
+        const slaPerformance = uniqueCompletedTickets.length > 0
+            ? ((metSLA / uniqueCompletedTickets.length) * 100).toFixed(1) + '%'
             : 'N/A';
 
         html += `
@@ -2186,7 +2194,7 @@ function updateEngineeringResourceCard() {
                     <span class="clickable-count" data-date="${dateStr}">${engineersOnShift.length}</span>
                 </td>
                 <td>${totalAssigned}</td>
-                <td>${completedTicketsForDate.length}</td>
+                <td>${uniqueCompletedTickets.length}</td>
                 <td>${slaPerformance}</td>
             </tr>
         `;
@@ -2203,8 +2211,6 @@ function updateEngineeringResourceCard() {
         }
     };
 }
-// Modal function for engineering resource card
-
 
 // Utility: Get all unique dates in the data (from Scheduled Date or Complete Date)
 function getAllTicketDates(tickets) {
