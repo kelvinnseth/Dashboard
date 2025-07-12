@@ -2104,17 +2104,17 @@ function getLastNDates(n) {
 function getDatesFromStartOfMonthToToday() {
     const dates = [];
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const year = today.getFullYear();
     const month = today.getMonth();
     const day = today.getDate();
 
-    console.log("Today is:", today.toISOString());
+    console.log("Today is:", today.toString());
     console.log("Day value is:", day);
 
     for (let d = day; d >= 1; d--) {
         const dateObj = new Date(year, month, d);
-        dates.push(dateObj.toISOString().slice(0, 10));
+        // Use toLocaleDateString with 'en-CA' for YYYY-MM-DD format
+        dates.push(dateObj.toLocaleDateString('en-CA'));
     }
     return dates; // newest to oldest!
 }
