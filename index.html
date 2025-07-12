@@ -2105,19 +2105,19 @@ function getDatesFromStartOfMonthToToday() {
     const dates = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     const year = today.getFullYear();
     const month = today.getMonth();
     const day = today.getDate();
 
-    // Loop from today down to 1
+    console.log("Today is:", today.toISOString());
+    console.log("Day value is:", day);
+
     for (let d = day; d >= 1; d--) {
         const dateObj = new Date(year, month, d);
         dates.push(dateObj.toISOString().slice(0, 10));
     }
     return dates; // newest to oldest!
 }
-
 console.log("Dates for Engineering Resource Table:", getDatesFromStartOfMonthToToday());
         
 // Returns the day of the week (e.g. "Sat") for a given YYYY-MM-DD string
