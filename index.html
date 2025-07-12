@@ -2214,8 +2214,11 @@ function getDatesFromStartOfMonthToToday() {
     for (let d = new Date(first); d <= today; d.setDate(d.getDate() + 1)) {
         dates.push(d.toISOString().slice(0, 10));
     }
-    return dates;
+    // Sort newest to oldest
+    return dates.reverse();
 }
+
+        
 
 function getDayOfWeek(dateStr) {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
