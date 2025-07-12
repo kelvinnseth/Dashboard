@@ -2146,7 +2146,7 @@ function deduplicateTicketsByDate(tickets, dateStr, dateField) {
 
 function updateEngineeringResourceCard() {
     const allDates = getDatesFromStartOfMonthToToday(); // All days, newest to oldest
-console.log("Engineering Resource Card Dates:", allDates);
+    console.log("Engineering Resource Card Dates:", allDates);
 
     let html = `
       <div style="max-height:420px;overflow-y:auto;border-radius:12px;border:1px solid #ececec;">
@@ -2163,23 +2163,28 @@ console.log("Engineering Resource Card Dates:", allDates);
             <tbody>
     `;
 
-
     allDates.forEach(dateStr => {
+        console.log("Rendering table row for date:", dateStr);
 
- console.log("Rendering table row for date:", dateStr); // <--- ADD THIS LINE
-        // Unique assigned on this date
-        const uniqueAssignedTickets = deduplicateTicketsByDate(filteredData, dateStr, 'Scheduled Date');
-
-        // Engineers scheduled (from unique assigned tickets)
+        // --- NEW LOGIC for engineersOnShift ---
+        // Only count engineers with at least one "Service" job on this date
+        const serviceTickets = filteredData.filter(t =>
+            t['Scheduled Date'] &&
+            formatDate(t['Scheduled Date']) === dateStr &&
+            t['Primary Resource'] &&
+            t['Primary Resource'].trim() !== "Unassigned" &&
+            t['Primary Resource'].trim() !== "" &&
+            t['Service Call Status'] &&
+            t['Service Call Status'].trim().toLowerCase() === "service"
+        );
         const engineersOnShift = [
-            ...new Set(
-                uniqueAssignedTickets
-                    .filter(t => t['Primary Resource'] && t['Primary Resource'].trim() !== "Unassigned" && t['Primary Resource'].trim() !== "")
-                    .map(t => t['Primary Resource'].trim())
-            )
+            ...new Set(serviceTickets.map(t => t['Primary Resource'].trim()))
         ];
 
-        // Unique completed on this date (must match scheduled and completed date)
+        // Unique assigned tickets on this date (for reference)
+        const uniqueAssignedTickets = deduplicateTicketsByDate(filteredData, dateStr, 'Scheduled Date');
+
+        // Unique completed tickets on this date (must match scheduled and completed date)
         const uniqueCompletedTickets = filteredData.filter(t => {
             let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
             let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
@@ -2233,6 +2238,16 @@ console.log("Engineering Resource Card Dates:", allDates);
             showEngineeringResourceModal(dateStr);
         }
     };
+}
+
+// Utility: format various date types to YYYY-MM-DD string
+function formatDate(dateVal) {
+    if (!dateVal) return '';
+    if (dateVal instanceof Date) {
+        return dateVal.toISOString().slice(0, 10);
+    }
+    // If it's an Excel date integer or string, convert it
+    return convertExcelDate(dateVal).toISOString().slice(0, 10);
 }
 
         
