@@ -3522,10 +3522,8 @@ function getCompletedJobsByEngineer(tickets) {
 
 
 function updateEngineerPivot() {
-    // Get jobs actually completed by each engineer (on scheduled date)
     const engineerCompletedJobs = getCompletedJobsByEngineer(filteredData);
 
-    // Build stats for all engineers
     let engineerStats = Object.entries(engineerCompletedJobs).map(([engineer, completedTickets]) => {
         // Find all assigned tickets for this engineer (by scheduled date)
         const assignedTickets = filteredData.filter(
@@ -3545,6 +3543,7 @@ function updateEngineerPivot() {
         // For each shift, calculate completion rate and location count
         let totalCompletionRate = 0;
         let totalLocations = 0;
+        let jobsCompletedTotal = 0;
         let numShifts = Object.keys(ticketsByDay).length;
 
         Object.entries(ticketsByDay).forEach(([day, tickets]) => {
@@ -3561,6 +3560,8 @@ function updateEngineerPivot() {
                 );
             }).length;
 
+            jobsCompletedTotal += jobsCompleted;
+
             // Completion Rate for this shift
             totalCompletionRate += (jobsAssigned > 0 ? (jobsCompleted / jobsAssigned) : 0);
 
@@ -3568,6 +3569,9 @@ function updateEngineerPivot() {
             const uniquePostcodes = new Set(tickets.map(t => t.Postcode).filter(pc => pc && pc !== ''));
             totalLocations += uniquePostcodes.size;
         });
+
+        // Average jobs completed per shift
+        const avgJobsCompletedPerShift = numShifts > 0 ? (jobsCompletedTotal / numShifts) : 0;
 
         // Average completion rate (%)
         const avgCompletionRate = numShifts > 0 ? ((totalCompletionRate / numShifts) * 100).toFixed(1) : '0.0';
@@ -3591,19 +3595,20 @@ function updateEngineerPivot() {
             slaPerf,
             avgCompletionRate: avgCompletionRate + '%',
             avgLocationsPerShift,
+            avgJobsCompletedPerShift
         };
-    });
+    })
+    // FILTER: Only show engineers with avg >= 2 jobs completed per shift
+    .filter(row => row.avgJobsCompletedPerShift >= 2);
 
     // Sort by completion rate descending
     engineerStats.sort((a, b) => parseFloat(b.avgCompletionRate) - parseFloat(a.avgCompletionRate));
 
-    // Leaderboard: assign rank number
     engineerStats = engineerStats.map((row, i) => ({
         ...row,
         leaderboard: `#${i + 1}`
     }));
 
-    // Generate table
     const htmlTable = createPivotTable([
         [
             'Leaderboard',
@@ -3624,7 +3629,6 @@ function updateEngineerPivot() {
         ])
     ));
 
-    // Scrollable container
     const scrollContainer = `
       <div style="max-height:400px;overflow-y:auto;border-radius:8px;border:1px solid #e1e1e1;">
         ${htmlTable}
@@ -3633,6 +3637,8 @@ function updateEngineerPivot() {
 
     document.getElementById('engineerPivot').innerHTML = scrollContainer;
 }
+
+
         
         function groupBy(array, keyFunc) {
             return array.reduce((groups, item) => {
