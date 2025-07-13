@@ -2545,9 +2545,12 @@ function closeModal() {
 function createChart(pivotType, canvas) {
     const ctx = canvas.getContext('2d');
 
-    // Destroy existing chart if any (prevents overlap)
-    if (window.regionChartInstance && pivotType === 'region') {
+    // Destroy any previous chart for this card
+    if (pivotType === 'region' && window.regionChartInstance) {
         window.regionChartInstance.destroy();
+    }
+    if (pivotType === 'scheduler' && window.schedulerChartInstance) {
+        window.schedulerChartInstance.destroy();
     }
 
     let data, labels, title;
@@ -2571,12 +2574,10 @@ function createChart(pivotType, canvas) {
             break;
 
         case 'region':
-            // --- Prepare region chart data ---
+            // --- Professional Region Chart ---
             const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
-            // Sort regions by ticket count descending
             const sortedRegions = Object.entries(regionCounts)
                 .map(([region, tickets]) => {
-                    // Calculate SLA performance for each region
                     const metSLA = tickets.filter(t => {
                         const status = String(t['SLA Status'] || '').toLowerCase().trim();
                         return (
@@ -2633,6 +2634,86 @@ function createChart(pivotType, canvas) {
                     scales: {
                         x: {
                             title: { display: true, text: 'Region' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Ticket Count' },
+                            grid: { color: '#eee' }
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            position: 'right',
+                            title: { display: true, text: 'SLA Performance (%)' },
+                            min: 0,
+                            max: 100,
+                            ticks: { callback: value => value + '%' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+            break;
+
+        case 'scheduler':
+            // --- Professional Scheduler Chart ---
+            const schedulerCounts = groupBy(filteredData, t => t['Scheduled By'] || 'Unassigned');
+            const sortedSchedulers = Object.entries(schedulerCounts)
+                .map(([scheduler, tickets]) => {
+                    const metSLA = tickets.filter(t => {
+                        const status = String(t['SLA Status'] || '').toLowerCase().trim();
+                        return (
+                            status === 'completed within sla' ||
+                            status === 'within sla' ||
+                            status === 'met sla'
+                        );
+                    }).length;
+                    return {
+                        scheduler,
+                        count: tickets.length,
+                        slaPerf: tickets.length > 0 ? (metSLA / tickets.length * 100).toFixed(1) : null
+                    };
+                })
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10); // Top 10 schedulers
+
+            const schedulerLabels = sortedSchedulers.map(s => s.scheduler);
+            const schedulerCountsData = sortedSchedulers.map(s => s.count);
+            const schedulerSLAData = sortedSchedulers.map(s => s.slaPerf);
+
+            window.schedulerChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: schedulerLabels,
+                    datasets: [
+                        {
+                            label: 'Ticket Count',
+                            data: schedulerCountsData,
+                            backgroundColor: 'rgba(118,75,162,0.7)',
+                            borderRadius: 8,
+                            borderSkipped: false,
+                        },
+                        {
+                            label: 'SLA Performance (%)',
+                            data: schedulerSLAData,
+                            type: 'line',
+                            yAxisID: 'y1',
+                            borderColor: '#26de81',
+                            backgroundColor: 'rgba(38,222,129,0.13)',
+                            fill: false,
+                            tension: 0.3,
+                            pointRadius: 5,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: 'Scheduler Performance' }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Scheduler' }
                         },
                         y: {
                             beginAtZero: true,
