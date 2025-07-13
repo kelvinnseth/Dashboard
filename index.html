@@ -3268,7 +3268,7 @@ function updateSchedulerPivot() {
         ]
     ].concat(
         schedulerStats.map(row => [
-           `<span class="clickable-scheduler" data-scheduler="${row.scheduler}">${row.scheduler}</span>`,
+            `<span class="clickable-scheduler" data-scheduler="${row.scheduler}">${row.scheduler}</span>`,
             row.totalTickets,
             row.completedWithinSLA,
             row.onTimeRateDisplay,
@@ -3284,14 +3284,16 @@ function updateSchedulerPivot() {
     `;
 
     document.getElementById('schedulerPivot').innerHTML = scrollContainer;
+
+    // <<<<< ADD THIS: event handler INSIDE the function >>>>>
+    document.getElementById('schedulerPivot').onclick = function(e) {
+        if (e.target.classList.contains('clickable-scheduler')) {
+            const schedulerName = e.target.getAttribute('data-scheduler');
+            showSchedulerModal(schedulerName);
+        }
+    };
 }
 
-document.getElementById('schedulerPivot').addEventListener('click', function(e) {
-    if (e.target.classList.contains('clickable-scheduler')) {
-        const schedulerName = e.target.getAttribute('data-scheduler');
-        showSchedulerModal(schedulerName);
-    }
-});
 
 
 
