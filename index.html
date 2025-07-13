@@ -3268,7 +3268,7 @@ function updateSchedulerPivot() {
         ]
     ].concat(
         schedulerStats.map(row => [
-            row.scheduler,
+           `<span class="clickable-scheduler" data-scheduler="${row.scheduler}">${row.scheduler}</span>`,
             row.totalTickets,
             row.completedWithinSLA,
             row.onTimeRateDisplay,
@@ -3286,7 +3286,91 @@ function updateSchedulerPivot() {
     document.getElementById('schedulerPivot').innerHTML = scrollContainer;
 }
 
+document.getElementById('schedulerPivot').addEventListener('click', function(e) {
+    if (e.target.classList.contains('clickable-scheduler')) {
+        const schedulerName = e.target.getAttribute('data-scheduler');
+        showSchedulerModal(schedulerName);
+    }
+});
 
+
+
+
+function showSchedulerModal(schedulerName) {
+    // Filter tickets for this scheduler
+    const tickets = filteredData.filter(t => (t['Scheduled By'] || 'Unassigned') === schedulerName);
+
+    // Completed and outstanding tickets
+    const completedStatuses = ['complete', 'completed', 'closed'];
+    const completedTickets = tickets.filter(t => {
+        const status = (t.Status || t.Satus || '').toString().toLowerCase();
+        return completedStatuses.includes(status);
+    });
+    const outstandingTickets = tickets.filter(t => {
+        const status = (t.Status || t.Satus || '').toString().toLowerCase();
+        return !completedStatuses.includes(status);
+    });
+
+    // Sort outstanding: SLA risk tickets first
+    const outstandingSorted = [...outstandingTickets].sort((a, b) => {
+        const aRisk = (a['At Risk of Failing SLA'] || '').toLowerCase() === "yes" ? 1 : 0;
+        const bRisk = (b['At Risk of Failing SLA'] || '').toLowerCase() === "yes" ? 1 : 0;
+        return bRisk - aRisk;
+    });
+
+    // Modal HTML with tabs/buttons
+    let modalHtml = `
+        <h2>Scheduler: ${schedulerName}</h2>
+        <div style="margin-bottom:12px;">
+            <button id="showCompletedTickets" style="padding:6px 14px; margin-right:8px;">Completed Tickets (${completedTickets.length})</button>
+            <button id="showOutstandingTickets" style="padding:6px 14px;">Outstanding Tickets (${outstandingSorted.length})</button>
+        </div>
+        <div id="schedulerModalContent"></div>
+    `;
+    document.getElementById('modalBody').innerHTML = modalHtml;
+    document.getElementById('modal').classList.remove('hidden');
+
+    // Default to completed tickets view
+    renderSchedulerTicketsList(completedTickets, 'completed');
+
+    document.getElementById('showCompletedTickets').onclick = () => renderSchedulerTicketsList(completedTickets, 'completed');
+    document.getElementById('showOutstandingTickets').onclick = () => renderSchedulerTicketsList(outstandingSorted, 'outstanding');
+}
+
+function renderSchedulerTicketsList(tickets, type) {
+    let html = '';
+
+    if (tickets.length === 0) {
+        html = `<p>No ${type === 'completed' ? 'completed' : 'outstanding'} tickets found for this scheduler.</p>`;
+    } else {
+        html += '<div class="ticket-list">';
+        tickets.forEach(t => {
+            // Badge for SLA risk
+            let slaBadge = '';
+            if (type === 'outstanding' && (t['At Risk of Failing SLA'] || '').toLowerCase() === "yes") {
+                slaBadge = `<span style="background:#d63031;color:white;padding:2px 8px;border-radius:8px;margin-right:6px;font-weight:bold;">SLA RISK</span>`;
+            }
+            html += `
+                <div class="ticket-item">
+                    ${slaBadge}
+                    <div class="ticket-number">${t['Ticket Number'] || 'N/A'}</div>
+                    <div class="ticket-title">${t['Ticket Title'] || ''}</div>
+                    <div class="ticket-meta">
+                        <b>Status:</b> ${t.Status || t.Satus || 'N/A'} | 
+                        <b>Priority:</b> ${t.Priority || 'N/A'} | 
+                        <b>Resource:</b> ${t['Primary Resource'] || 'N/A'}
+                    </div>
+                    <div class="ticket-meta">
+                        <b>Scheduled Date:</b> ${formatDate(t['Scheduled Date'])} | 
+                        <b>Complete Date:</b> ${formatDate(t['Complete Date'])}
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+    document.getElementById('schedulerModalContent').innerHTML = html;
+}
 
 /**
  * Returns an object mapping engineer names to an array of tickets they actually completed on scheduled date.
