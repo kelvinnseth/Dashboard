@@ -3342,12 +3342,12 @@ function showSchedulerModal(schedulerName) {
 function renderSchedulerTicketsList(tickets, type) {
     let html = '';
 
-    // Sort outstanding tickets: "Within SLA"/"Still Within SLA" first, then SLA risk, then Failed SLA, then others
+    // Sort outstanding tickets: "Still Within SLA" first, then SLA risk, then Failed SLA, then others
     if (type === 'outstanding') {
         tickets = [...tickets].sort((a, b) => {
             const priorityValue = v => {
                 const sla = (v['SLA Status'] || '').toLowerCase().trim();
-                if (sla === 'within sla' || sla === 'still within sla') return 3; // highest
+                if (sla === 'still within sla') return 3; // highest
                 if ((v['At Risk of Failing SLA'] || '').toLowerCase() === "yes") return 2;
                 if (sla === 'failed sla' || sla === 'missed sla' || sla === 'out of sla') return 1;
                 return 0;
@@ -3361,7 +3361,7 @@ function renderSchedulerTicketsList(tickets, type) {
     } else {
         html += '<div class="ticket-list">';
         tickets.forEach(t => {
-            // SLA risk badge
+            // SLA risk badge (outstanding only)
             let slaRiskBadge = '';
             if (type === 'outstanding' && (t['At Risk of Failing SLA'] || '').toLowerCase() === "yes") {
                 slaRiskBadge = `<span style="background:#d63031;color:white;padding:2px 8px;border-radius:8px;margin-right:6px;font-weight:bold;">SLA RISK</span>`;
@@ -3370,11 +3370,18 @@ function renderSchedulerTicketsList(tickets, type) {
             // SLA status badge
             let slaStatusBadge = '';
             const slaStatus = (t['SLA Status'] || '').toLowerCase().trim();
+
             if (type === 'outstanding') {
                 if (slaStatus === 'failed sla' || slaStatus === 'missed sla' || slaStatus === 'out of sla') {
                     slaStatusBadge = `<span style="background:#d63031;color:white;padding:2px 8px;border-radius:8px;margin-left:6px;font-weight:bold;">Failed SLA</span>`;
-                } else if (slaStatus === 'still within sla' || slaStatus === 'within sla') {
-                    slaStatusBadge = `<span style="background:#ffc107;color:#333;padding:2px 8px;border-radius:8px;margin-left:6px;font-weight:bold;">Within SLA</span>`;
+                } else if (slaStatus === 'still within sla') {
+                    slaStatusBadge = `<span style="background:#ffc107;color:#333;padding:2px 8px;border-radius:8px;margin-left:6px;font-weight:bold;">Still Within SLA</span>`;
+                }
+            } else if (type === 'completed') {
+                if (slaStatus === 'completed within sla' || slaStatus === 'met sla' || slaStatus === 'within sla') {
+                    slaStatusBadge = `<span style="background:#26de81;color:white;padding:2px 8px;border-radius:8px;margin-left:6px;font-weight:bold;">Completed Within SLA</span>`;
+                } else if (slaStatus === 'failed sla' || slaStatus === 'missed sla' || slaStatus === 'out of sla') {
+                    slaStatusBadge = `<span style="background:#d63031;color:white;padding:2px 8px;border-radius:8px;margin-left:6px;font-weight:bold;">Failed SLA</span>`;
                 }
             }
 
