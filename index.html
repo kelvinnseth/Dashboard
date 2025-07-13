@@ -3525,7 +3525,7 @@ function updateEngineerPivot() {
     const engineerCompletedJobs = getCompletedJobsByEngineer(filteredData);
 
     let engineerStats = Object.entries(engineerCompletedJobs).map(([engineer, completedTickets]) => {
-        // Find all assigned tickets for this engineer (by scheduled date)
+        // All assigned tickets for this engineer (by scheduled date)
         const assignedTickets = filteredData.filter(
             t => (t['Primary Resource'] === engineer)
         );
@@ -3540,16 +3540,15 @@ function updateEngineerPivot() {
             ticketsByDay[day].push(t);
         });
 
-        // For each shift, calculate completion rate and location count
+        // Calculate shift stats
         let totalCompletionRate = 0;
         let totalLocations = 0;
         let jobsCompletedTotal = 0;
+        let jobsAssignedTotal = 0;
         let numShifts = Object.keys(ticketsByDay).length;
 
         Object.entries(ticketsByDay).forEach(([day, tickets]) => {
-            // Jobs assigned that day
             const jobsAssigned = tickets.length;
-            // Jobs completed that day
             const jobsCompleted = tickets.filter(t => {
                 let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
                 let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
@@ -3561,11 +3560,10 @@ function updateEngineerPivot() {
             }).length;
 
             jobsCompletedTotal += jobsCompleted;
+            jobsAssignedTotal += jobsAssigned;
 
-            // Completion Rate for this shift
             totalCompletionRate += (jobsAssigned > 0 ? (jobsCompleted / jobsAssigned) : 0);
 
-            // Unique postcodes for this shift
             const uniquePostcodes = new Set(tickets.map(t => t.Postcode).filter(pc => pc && pc !== ''));
             totalLocations += uniquePostcodes.size;
         });
@@ -3573,8 +3571,12 @@ function updateEngineerPivot() {
         // Average jobs completed per shift
         const avgJobsCompletedPerShift = numShifts > 0 ? (jobsCompletedTotal / numShifts) : 0;
 
+        // Average jobs assigned per shift
+        const avgJobsAssignedPerShift = numShifts > 0 ? (jobsAssignedTotal / numShifts).toFixed(1) : '0.0';
+
         // Average completion rate (%)
         const avgCompletionRate = numShifts > 0 ? ((totalCompletionRate / numShifts) * 100).toFixed(1) : '0.0';
+
         // Average locations per shift
         const avgLocationsPerShift = numShifts > 0 ? (totalLocations / numShifts).toFixed(1) : '0.0';
 
@@ -3595,7 +3597,8 @@ function updateEngineerPivot() {
             slaPerf,
             avgCompletionRate: avgCompletionRate + '%',
             avgLocationsPerShift,
-            avgJobsCompletedPerShift
+            avgJobsCompletedPerShift,
+            avgJobsAssignedPerShift
         };
     })
     // FILTER: Only show engineers with avg >= 2 jobs completed per shift
@@ -3616,6 +3619,7 @@ function updateEngineerPivot() {
             'Jobs Completed',
             'SLA Performance',
             'Avg Completion Rate',
+            'Avg No Jobs/Shift',
             'Avg Locations/Shift'
         ]
     ].concat(
@@ -3625,6 +3629,7 @@ function updateEngineerPivot() {
             row.totalTickets,
             row.slaPerf,
             row.avgCompletionRate,
+            row.avgJobsAssignedPerShift,
             row.avgLocationsPerShift
         ])
     ));
