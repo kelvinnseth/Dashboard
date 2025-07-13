@@ -3347,20 +3347,46 @@ function renderSchedulerTicketsList(tickets, type) {
     } else {
         html += '<div class="ticket-list">';
         tickets.forEach(t => {
-            // Badge for SLA risk
-            let slaBadge = '';
+            // SLA risk badge
+            let slaRiskBadge = '';
             if (type === 'outstanding' && (t['At Risk of Failing SLA'] || '').toLowerCase() === "yes") {
-                slaBadge = `<span style="background:#d63031;color:white;padding:2px 8px;border-radius:8px;margin-right:6px;font-weight:bold;">SLA RISK</span>`;
+                slaRiskBadge = `<span style="background:#d63031;color:white;padding:2px 8px;border-radius:8px;margin-right:6px;font-weight:bold;">SLA RISK</span>`;
             }
+
+            // SLA status badge
+            let slaStatusBadge = '';
+            const slaStatus = (t['SLA Status'] || '').toLowerCase().trim();
+            if (type === 'outstanding') {
+                if (slaStatus === 'failed sla' || slaStatus === 'missed sla' || slaStatus === 'out of sla') {
+                    slaStatusBadge = `<span style="background:#d63031;color:white;padding:2px 8px;border-radius:8px;margin-left:6px;font-weight:bold;">Failed SLA</span>`;
+                } else if (slaStatus === 'still within sla' || slaStatus === 'within sla') {
+                    slaStatusBadge = `<span style="background:#d63031;color:white;padding:2px 8px;border-radius:8px;margin-left:6px;font-weight:bold;">Within SLA</span>`;
+                }
+            }
+
+            // Created Date formatting
+            let createdDate = 'N/A';
+            if (t['Create Date']) {
+                const d = convertExcelDate(t['Create Date']);
+                if (d && !isNaN(d.getTime())) {
+                    createdDate = d.toLocaleDateString('en-GB');
+                } else if (typeof t['Create Date'] === 'string') {
+                    createdDate = t['Create Date'];
+                }
+            }
+
             html += `
                 <div class="ticket-item">
-                    ${slaBadge}
+                    ${slaRiskBadge}
                     <div class="ticket-number">${t['Ticket Number'] || 'N/A'}</div>
                     <div class="ticket-title">${t['Ticket Title'] || ''}</div>
                     <div class="ticket-meta">
                         <b>Status:</b> ${t.Status || t.Satus || 'N/A'} | 
                         <b>Priority:</b> ${t.Priority || 'N/A'} | 
-                        <b>Resource:</b> ${t['Primary Resource'] || 'N/A'}
+                        <b>Resource:</b> ${t['Primary Resource'] || 'N/A'}${slaStatusBadge}
+                    </div>
+                    <div class="ticket-meta">
+                        <b>Created Date:</b> ${createdDate}
                     </div>
                     <div class="ticket-meta">
                         <b>Scheduled Date:</b> ${formatDate(t['Scheduled Date'])} | 
@@ -3373,7 +3399,6 @@ function renderSchedulerTicketsList(tickets, type) {
     }
     document.getElementById('schedulerModalContent').innerHTML = html;
 }
-
 /**
  * Returns an object mapping engineer names to an array of tickets they actually completed on scheduled date.
  * @param {Array} tickets - Your data (filteredData or originalData)
