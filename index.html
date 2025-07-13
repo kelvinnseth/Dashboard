@@ -2545,13 +2545,9 @@ function closeModal() {
 function createChart(pivotType, canvas) {
     const ctx = canvas.getContext('2d');
 
-    // Destroy any previous chart for this card
-    if (pivotType === 'region' && window.regionChartInstance) {
-        window.regionChartInstance.destroy();
-    }
-    if (pivotType === 'scheduler' && window.schedulerChartInstance) {
-        window.schedulerChartInstance.destroy();
-    }
+    if (pivotType === 'region' && window.regionChartInstance) window.regionChartInstance.destroy();
+    if (pivotType === 'scheduler' && window.schedulerChartInstance) window.schedulerChartInstance.destroy();
+    if (pivotType === 'engineer' && window.engineerChartInstance) window.engineerChartInstance.destroy();
 
     let data, labels, title;
 
@@ -2574,7 +2570,6 @@ function createChart(pivotType, canvas) {
             break;
 
         case 'region':
-            // --- Professional Region Chart ---
             const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
             const sortedRegions = Object.entries(regionCounts)
                 .map(([region, tickets]) => {
@@ -2594,7 +2589,7 @@ function createChart(pivotType, canvas) {
                     };
                 })
                 .sort((a, b) => b.count - a.count)
-                .slice(0, 10); // Top 10 regions
+                .slice(0, 10);
 
             const regionLabels = sortedRegions.map(r => r.region);
             const regionCountsData = sortedRegions.map(r => r.count);
@@ -2632,9 +2627,7 @@ function createChart(pivotType, canvas) {
                         title: { display: true, text: 'Tickets by Region' }
                     },
                     scales: {
-                        x: {
-                            title: { display: true, text: 'Region' }
-                        },
+                        x: { title: { display: true, text: 'Region' } },
                         y: {
                             beginAtZero: true,
                             title: { display: true, text: 'Ticket Count' },
@@ -2655,7 +2648,6 @@ function createChart(pivotType, canvas) {
             break;
 
         case 'scheduler':
-            // --- Professional Scheduler Chart ---
             const schedulerCounts = groupBy(filteredData, t => t['Scheduled By'] || 'Unassigned');
             const sortedSchedulers = Object.entries(schedulerCounts)
                 .map(([scheduler, tickets]) => {
@@ -2674,7 +2666,7 @@ function createChart(pivotType, canvas) {
                     };
                 })
                 .sort((a, b) => b.count - a.count)
-                .slice(0, 10); // Top 10 schedulers
+                .slice(0, 10);
 
             const schedulerLabels = sortedSchedulers.map(s => s.scheduler);
             const schedulerCountsData = sortedSchedulers.map(s => s.count);
@@ -2712,12 +2704,88 @@ function createChart(pivotType, canvas) {
                         title: { display: true, text: 'Scheduler Performance' }
                     },
                     scales: {
-                        x: {
-                            title: { display: true, text: 'Scheduler' }
-                        },
+                        x: { title: { display: true, text: 'Scheduler' } },
                         y: {
                             beginAtZero: true,
                             title: { display: true, text: 'Ticket Count' },
+                            grid: { color: '#eee' }
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            position: 'right',
+                            title: { display: true, text: 'SLA Performance (%)' },
+                            min: 0,
+                            max: 100,
+                            ticks: { callback: value => value + '%' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+            break;
+
+        case 'engineer':
+            // --- Professional Engineer Chart ---
+            const engineerCompletedJobs = getCompletedJobsByEngineer(filteredData);
+            const sortedEngineers = Object.entries(engineerCompletedJobs)
+                .map(([engineer, tickets]) => {
+                    const metSLA = tickets.filter(t => {
+                        const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
+                        return (
+                            status === 'completed within sla' ||
+                            status === 'within sla' ||
+                            status === 'met sla'
+                        );
+                    }).length;
+                    return {
+                        engineer,
+                        count: tickets.length,
+                        slaPerf: tickets.length > 0 ? (metSLA / tickets.length * 100).toFixed(1) : null
+                    };
+                })
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10);
+
+            const engineerLabels = sortedEngineers.map(e => e.engineer);
+            const engineerCountsData = sortedEngineers.map(e => e.count);
+            const engineerSLAData = sortedEngineers.map(e => e.slaPerf);
+
+            window.engineerChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: engineerLabels,
+                    datasets: [
+                        {
+                            label: 'Jobs Completed',
+                            data: engineerCountsData,
+                            backgroundColor: 'rgba(63,191,191,0.7)',
+                            borderRadius: 8,
+                            borderSkipped: false,
+                        },
+                        {
+                            label: 'SLA Performance (%)',
+                            data: engineerSLAData,
+                            type: 'line',
+                            yAxisID: 'y1',
+                            borderColor: '#FFD700',
+                            backgroundColor: 'rgba(255,215,0,0.13)',
+                            fill: false,
+                            tension: 0.3,
+                            pointRadius: 5,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: 'Engineer Performance' }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Engineer' } },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Jobs Completed' },
                             grid: { color: '#eee' }
                         },
                         y1: {
