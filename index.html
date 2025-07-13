@@ -1012,23 +1012,20 @@ function getAtRiskOfFailingSLA(ticket) {
     }
 }
         // Sample data for demo
-       function loadSampleData() {
-    // Use your OneDrive direct download link here
-    const sampleDataUrl = "https://kfpit-my.sharepoint.com/:x:/p/kseth/EZGmIwyYq1JDlECjxwttVIkBf5IpdhI7ajFHzUjclenWtw?download=1";
-
+     function loadSampleData() {
+    const sampleDataUrl = "https://raw.githubusercontent.com/kelvinnseth/Dashboard/main/Break-Fix%20Tickets%20(Current%20Month).xlsx";
     fetch(sampleDataUrl)
         .then(response => {
             if (!response.ok) throw new Error("Network response was not ok");
             return response.arrayBuffer();
         })
         .then(data => {
-            processExcelData(data); // Your existing function to process the file
+            processExcelData(data); // Your existing function
         })
         .catch(error => {
-            alert("Could not load sample data from OneDrive: " + error);
+            alert("Could not load sample data from GitHub: " + error);
         });
 }
-
 
 async function batchPrimaryCareTrustLookup(postcodes) {
     const url = 'https://api.postcodes.io/postcodes';
