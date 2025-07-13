@@ -3385,14 +3385,24 @@ function renderSchedulerTicketsList(tickets, type) {
                 }
             }
 
-            // Created Date formatting
+            // Created Date & Time formatting
             let createdDate = 'N/A';
+            let createdTime = '';
             if (t['Create Date']) {
                 const d = convertExcelDate(t['Create Date']);
                 if (d && !isNaN(d.getTime())) {
                     createdDate = d.toLocaleDateString('en-GB');
                 } else if (typeof t['Create Date'] === 'string') {
                     createdDate = t['Create Date'];
+                }
+            }
+            if (t['Create Time']) {
+                const d = convertExcelDate(t['Create Time']);
+                // Only show time if valid
+                if (d && !isNaN(d.getTime())) {
+                    createdTime = d.toLocaleTimeString('en-GB');
+                } else if (typeof t['Create Time'] === 'string') {
+                    createdTime = t['Create Time'];
                 }
             }
 
@@ -3407,7 +3417,7 @@ function renderSchedulerTicketsList(tickets, type) {
                         <b>Resource:</b> ${t['Primary Resource'] || 'N/A'}${slaStatusBadge}
                     </div>
                     <div class="ticket-meta">
-                        <b>Created Date:</b> ${createdDate}
+                        <b>Created Date:</b> ${createdDate}${createdTime ? ' <b>Created Time:</b> ' + createdTime : ''}
                     </div>
                     <div class="ticket-meta">
                         <b>Scheduled Date:</b> ${formatDate(t['Scheduled Date'])} | 
