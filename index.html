@@ -2522,77 +2522,155 @@ function closeModal() {
                 `${sortedCustomers[0][0]} (${sortedCustomers[0][1]})` : 'None';
         }
         
-        function toggleView(pivotType, viewType) {
-            const buttons = document.querySelectorAll(`[onclick*="${pivotType}"]`);
-            buttons.forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            const tableDiv = document.getElementById(`${pivotType}Pivot`);
-            const chartCanvas = document.getElementById(`${pivotType}Chart`);
-            
-            if (viewType === 'table') {
-                tableDiv.style.display = 'block';
-                if (chartCanvas) chartCanvas.style.display = 'none';
-            } else {
-                tableDiv.style.display = 'none';
-                if (chartCanvas) {
-                    chartCanvas.style.display = 'block';
-                    createChart(pivotType, chartCanvas);
-                }
-            }
+       function toggleView(pivotType, viewType) {
+    const buttons = document.querySelectorAll(`[onclick*="${pivotType}"]`);
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    const tableDiv = document.getElementById(`${pivotType}Pivot`);
+    const chartCanvas = document.getElementById(`${pivotType}Chart`);
+    
+    if (viewType === 'table') {
+        tableDiv.style.display = 'block';
+        if (chartCanvas) chartCanvas.style.display = 'none';
+    } else {
+        tableDiv.style.display = 'none';
+        if (chartCanvas) {
+            chartCanvas.style.display = 'block';
+            createChart(pivotType, chartCanvas);
         }
+    }
+}
         
-        function createChart(pivotType, canvas) {
-            const ctx = canvas.getContext('2d');
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            let data, labels, title;
-            
-            switch(pivotType) {
-                case 'status':
-                    const statusCounts = groupBy(filteredData, t => t.Status || t.Satus || 'Unknown');
-                    labels = Object.keys(statusCounts);
-                    data = Object.values(statusCounts).map(tickets => tickets.length);
-                    title = 'Tickets by Status';
-                    break;
-                    
-                case 'priority':
-                    const priorityCounts = groupBy(filteredData, t => t.Priority || 'Unknown');
-                    const priorityOrder = ['P1', 'P2', 'P3', 'P4', 'Unknown'];
-                    labels = priorityOrder.filter(p => priorityCounts[p]);
-                    data = labels.map(p => priorityCounts[p].length);
-                    title = 'Tickets by Priority';
-                    break;
-                    
-                case 'region':
-                    const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
-                    const sortedRegions = Object.entries(regionCounts)
-                        .sort((a, b) => b[1].length - a[1].length)
-                        .slice(0, 8);
-                    labels = sortedRegions.map(([region]) => region);
-                    data = sortedRegions.map(([, tickets]) => tickets.length);
-                    title = 'Top Regions';
-                    break;
-                    
-                case 'slaRisk':
-                    const atRisk = filteredData.filter(t => {
-                        const status = t.Status || t.Satus || '';
-                        const slaStatus = t['SLA Status'] || '';
-                        return status !== 'Complete' && 
-                               (slaStatus.includes('Out of SLA') || status === 'Action Required');
-                    });
-                    labels = ['At Risk', 'Not At Risk'];
-                    data = [atRisk.length, filteredData.length - atRisk.length];
-                    title = 'SLA Risk Overview';
-                    break;
-                    
-                default:
-                    return;
-            }
-            
+function createChart(pivotType, canvas) {
+    const ctx = canvas.getContext('2d');
+
+    // Destroy existing chart if any (prevents overlap)
+    if (window.regionChartInstance && pivotType === 'region') {
+        window.regionChartInstance.destroy();
+    }
+
+    let data, labels, title;
+
+    switch(pivotType) {
+        case 'status':
+            const statusCounts = groupBy(filteredData, t => t.Status || t.Satus || 'Unknown');
+            labels = Object.keys(statusCounts);
+            data = Object.values(statusCounts).map(tickets => tickets.length);
+            title = 'Tickets by Status';
             createBarChart(ctx, canvas, labels, data, title);
-        }
+            break;
+
+        case 'priority':
+            const priorityCounts = groupBy(filteredData, t => t.Priority || 'Unknown');
+            const priorityOrder = ['P1', 'P2', 'P3', 'P4', 'Unknown'];
+            labels = priorityOrder.filter(p => priorityCounts[p]);
+            data = labels.map(p => priorityCounts[p].length);
+            title = 'Tickets by Priority';
+            createBarChart(ctx, canvas, labels, data, title);
+            break;
+
+        case 'region':
+            // --- Prepare region chart data ---
+            const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
+            // Sort regions by ticket count descending
+            const sortedRegions = Object.entries(regionCounts)
+                .map(([region, tickets]) => {
+                    // Calculate SLA performance for each region
+                    const metSLA = tickets.filter(t => {
+                        const status = String(t['SLA Status'] || '').toLowerCase().trim();
+                        return (
+                            status === 'completed within sla' ||
+                            status === 'still within sla' ||
+                            status === 'within sla' ||
+                            status === 'met sla'
+                        );
+                    }).length;
+                    return {
+                        region,
+                        count: tickets.length,
+                        slaPerf: tickets.length > 0 ? (metSLA / tickets.length * 100).toFixed(1) : null,
+                    };
+                })
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10); // Top 10 regions
+
+            const regionLabels = sortedRegions.map(r => r.region);
+            const regionCountsData = sortedRegions.map(r => r.count);
+            const regionSLAData = sortedRegions.map(r => r.slaPerf);
+
+            window.regionChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: regionLabels,
+                    datasets: [
+                        {
+                            label: 'Ticket Count',
+                            data: regionCountsData,
+                            backgroundColor: 'rgba(102,126,234,0.7)',
+                            borderRadius: 8,
+                            borderSkipped: false,
+                        },
+                        {
+                            label: 'SLA Performance (%)',
+                            data: regionSLAData,
+                            type: 'line',
+                            yAxisID: 'y1',
+                            borderColor: '#20bf6b',
+                            backgroundColor: 'rgba(32,191,107,0.13)',
+                            fill: false,
+                            tension: 0.3,
+                            pointRadius: 5,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: 'Tickets by Region' }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Region' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Ticket Count' },
+                            grid: { color: '#eee' }
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            position: 'right',
+                            title: { display: true, text: 'SLA Performance (%)' },
+                            min: 0,
+                            max: 100,
+                            ticks: { callback: value => value + '%' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+            break;
+
+        case 'slaRisk':
+            const atRisk = filteredData.filter(t => {
+                const status = t.Status || t.Satus || '';
+                const slaStatus = t['SLA Status'] || '';
+                return status !== 'Complete' &&
+                       (slaStatus.includes('Out of SLA') || status === 'Action Required');
+            });
+            labels = ['At Risk', 'Not At Risk'];
+            data = [atRisk.length, filteredData.length - atRisk.length];
+            title = 'SLA Risk Overview';
+            createBarChart(ctx, canvas, labels, data, title);
+            break;
+
+        default:
+            return;
+    }
+}
+
         
         function createBarChart(ctx, canvas, labels, data, title) {
             const padding = 60;
