@@ -1111,7 +1111,7 @@ window.downloadCustomerSLAReport = function(customer, format) {
 
 async function exportSLAReportToPDF(customer) {
     // Filter only for this customer
-    const data = window.dashboardData.filter(row => row.Customer === customer);
+    const data = window.dashboardData.filter(row => row.Customer && row.Customer.toLowerCase().includes(customer.toLowerCase()));
     if (!data.length) {
         alert(`No data for customer ${customer}`);
         return;
@@ -1155,7 +1155,7 @@ async function exportSLAReportToPDF(customer) {
     const accountSLABreaches = {};
     data.forEach(row => {
         const account = row['Account'] || 'Unknown';
-        const slaStatus = (row['SLA Status'] || '').toLowerCase();
+        const slaStatus = (row['SLA Status'] || '').toLowerCase().trim();
         if (slaStatus.includes('breach') || slaStatus.includes('breached')) {
             accountSLABreaches[account] = (accountSLABreaches[account] || 0) + 1;
         }
@@ -1165,9 +1165,10 @@ async function exportSLAReportToPDF(customer) {
     // Engineer (Tesco) completed most jobs
     const engineerTescoCompleted = {};
     data.forEach(row => {
-        if ((row['Customer'] || '').toLowerCase().includes('tesco') &&
-            (row['Status'] || '').toLowerCase() === 'completed') {
-            const engineer = row['Primary Resource'] || 'Unknown';
+        const customer = (row['Customer'] || '').toLowerCase().trim();
+        const status = (row['Status'] || '').toLowerCase().trim();
+        const engineer = row['Primary Resource'] || 'Unknown';
+        if (customer.includes('tesco') && status.includes('completed')) {
             engineerTescoCompleted[engineer] = (engineerTescoCompleted[engineer] || 0) + 1;
         }
     });
@@ -1176,10 +1177,11 @@ async function exportSLAReportToPDF(customer) {
     // Engineer (Tesco) completed most within SLA
     const engineerTescoCompletedSLA = {};
     data.forEach(row => {
-        if ((row['Customer'] || '').toLowerCase().includes('tesco') &&
-            (row['Status'] || '').toLowerCase() === 'completed' &&
-            (row['SLA Status'] || '').toLowerCase().includes('met')) {
-            const engineer = row['Primary Resource'] || 'Unknown';
+        const customer = (row['Customer'] || '').toLowerCase().trim();
+        const status = (row['Status'] || '').toLowerCase().trim();
+        const slaStatus = (row['SLA Status'] || '').toLowerCase().trim();
+        const engineer = row['Primary Resource'] || 'Unknown';
+        if (customer.includes('tesco') && status.includes('completed') && slaStatus.includes('met')) {
             engineerTescoCompletedSLA[engineer] = (engineerTescoCompletedSLA[engineer] || 0) + 1;
         }
     });
@@ -1270,7 +1272,6 @@ async function exportSLAReportToPDF(customer) {
 
     doc.save(`${customer}_SLA_Performance_Report.pdf`);
 }
-
 // =========== Example Excel Export for SLA ===========
 
 function exportSLAReportToExcel(customer) {
