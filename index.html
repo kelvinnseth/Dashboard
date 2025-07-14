@@ -922,7 +922,54 @@
 
 console.log("First ticket object:", originalData[0]);
 
+// Show the report options popup when button is clicked
+document.getElementById('generateReportBtn').addEventListener('click', function(e) {
+    const options = document.getElementById('reportOptions');
+    options.style.display = 'block';
+    const rect = e.target.getBoundingClientRect();
+    options.style.left = rect.left + window.scrollX + 'px';
+    options.style.top = rect.bottom + window.scrollY + 'px';
+});
 
+// Hide the popup if you click outside it or the button
+document.addEventListener('click', function(e) {
+    const options = document.getElementById('reportOptions');
+    if (!options.contains(e.target) && e.target.id !== 'generateReportBtn') {
+        options.style.display = 'none';
+    }
+});
+
+// EXCEL EXPORT
+document.getElementById('reportExcel').addEventListener('click', function() {
+    generateExcelReport();
+    document.getElementById('reportOptions').style.display = 'none';
+});
+
+// PDF/Web Version (placeholders for now)
+document.getElementById('reportPDF').addEventListener('click', function() {
+    alert('PDF export coming soon!');
+    document.getElementById('reportOptions').style.display = 'none';
+});
+document.getElementById('reportWeb').addEventListener('click', function() {
+    alert('Web version coming soon!');
+    document.getElementById('reportOptions').style.display = 'none';
+});
+
+// Implement this function as needed for your card data!
+function generateExcelReport() {
+    // Example: Suppose engineerPerformanceData is your table data array
+    const engineerPerformanceData = [
+        { Leaderboard: "#1", Engineer: "Qerimi, Asllan", JobsCompleted: 28, SLA: "100.0%", CompletionRate: "95.5%" },
+        { Leaderboard: "#2", Engineer: "Alker, Matthew", JobsCompleted: 32, SLA: "93.8%", CompletionRate: "94.4%" },
+        // ...more rows
+    ];
+
+    // Convert to worksheet and workbook
+    const ws = XLSX.utils.json_to_sheet(engineerPerformanceData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Engineer Performance");
+    XLSX.writeFile(wb, "EngineerPerformance.xlsx");
+}
 
 
         function calculateSLADeadline(ticket) {
