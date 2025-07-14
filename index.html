@@ -971,7 +971,6 @@ function generateExcelReport() {
     XLSX.writeFile(wb, "EngineerPerformance.xlsx");
 }
 
-
         function calculateSLADeadline(ticket) {
     if (ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '') return null;
 
