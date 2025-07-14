@@ -1387,7 +1387,7 @@ function exportSLAReportToExcel(customer) {
     return deadline;
 }
 
-ffunction getSLAStatus(ticket) {
+function getSLAStatus(ticket) {
     // Determine if ticket has SLA Notes
     const hasSLANotes = ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '';
 
