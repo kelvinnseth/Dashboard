@@ -1044,15 +1044,15 @@ function showReportTypeDetail(type) {
 
 // Get customer list dynamically from dashboard data
 function getCustomerListFromSheet() {
-    // You must replace 'window.dashboardData' with your real data variable
-    let allData = window.dashboardData || [];
-   console.log("window.dashboardData", window.dashboardData);
+    console.log("window.dashboardData", window.dashboardData);
 console.log("window.originalData", window.originalData);
 if (window.dashboardData && window.dashboardData.length > 0) {
     console.log("First dashboardData row:", window.dashboardData[0]);
 }
 if (window.originalData && window.originalData.length > 0) {
     console.log("First originalData row:", window.originalData[0]);
+    // You must replace 'window.dashboardData' with your real data variable
+    let allData = window.dashboardData || [];
 }
     const uniqueCustomers = [...new Set(allData.map(row => row.Customer).filter(Boolean))];
     return uniqueCustomers.sort();
