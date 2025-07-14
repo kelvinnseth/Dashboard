@@ -1387,23 +1387,25 @@ function exportSLAReportToExcel(customer) {
 }
 
 function getSLAStatus(ticket) {
-    // If missing required fields, return "Unknown"
     const slaDeadline = calculateSLADeadline(ticket);
     if (!slaDeadline) return "Unknown";
 
     const completeDate = convertExcelDate(ticket['Complete Date']);
     const status = (ticket.Status || ticket.Satus || '').toLowerCase();
 
+    const hasSLANotes = ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '';
+
     let slaStatus;
     if (completeDate && !isNaN(completeDate.getTime())) {
-        slaStatus = completeDate <= slaDeadline ? "Completed Within SLA" : "Failed SLA";
+        // Completed tickets
+        if (completeDate <= slaDeadline) {
+            slaStatus = "Completed Within SLA"; // Always normal if completed in time
+        } else {
+            slaStatus = hasSLANotes ? "Failed SLA (SLA MIGHT NEED REVISING)" : "Failed SLA";
+        }
     } else {
-        slaStatus = new Date() <= slaDeadline ? "Still Within SLA" : "Failed SLA";
-    }
-
-    // If SLA Notes are present, classify as "SLA MIGHT NEED REVISING"
-    if (ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '') {
-        slaStatus += " (SLA MIGHT NEED REVISING)";
+        // Not completed
+        slaStatus = new Date() <= slaDeadline ? "Still Within SLA" : (hasSLANotes ? "Failed SLA (SLA MIGHT NEED REVISING)" : "Failed SLA");
     }
 
     return slaStatus;
@@ -3408,38 +3410,89 @@ function getTicketsAtRiskToday(tickets) {
 
         const status = (ticket.Status || ticket.Satus || '').toLowerCase();
         const isComplete = status === 'complete' || status === 'completed' || status === 'closed';
-
-        // SLA deadline is today, and not complete
         return deadlineDay.getTime() === today.getTime() && !isComplete;
     });
 }
 
+function groupAtRiskTicketsByCustomer(tickets) {
+    const grouped = {};
+    tickets.forEach(t => {
+        const customer = t.Customer || "Unknown";
+        if (!grouped[customer]) grouped[customer] = [];
+        grouped[customer].push(t);
+    });
+    return grouped;
+}
 
+
+
+
+
+function showSLARiskCustomerModal(customer, tickets) {
+    let modalHtml = `
+      <h2>SLA At Risk Tickets for ${customer} (${tickets.length})</h2>
+      <div class="ticket-list" style="max-height:400px;overflow-y:auto;">
+    `;
+    tickets.forEach(t => {
+        // Format date/time
+        const created = t['Create Date'] ? convertExcelDate(t['Create Date']) : null;
+        const createdStr = created ? created.toLocaleDateString('en-GB') + ' ' + created.toLocaleTimeString('en-GB') : 'N/A';
+        const scheduled = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
+        const scheduledStr = scheduled ? scheduled.toLocaleDateString('en-GB') : 'N/A';
+        const scheduledTime = t['Scheduled time'] ? convertExcelDate(t['Scheduled time']) : null;
+        const scheduledTimeStr = scheduledTime ? ' ' + scheduledTime.toLocaleTimeString('en-GB') : '';
+        modalHtml += `
+            <div class="ticket-item">
+                <div><b>Title:</b> ${t['Ticket Title'] || 'No title'}</div>
+                <div><b>Created Date & Time:</b> ${createdStr}</div>
+                <div><b>Scheduled Date & Time:</b> ${scheduledStr}${scheduledTimeStr}</div>
+                <div><b>Scheduler:</b> ${t['Scheduled By'] || 'N/A'}</div>
+                <div><b>Region:</b> ${t['Region'] || 'N/A'}</div>
+                <div><b>Primary Resource:</b> ${t['Primary Resource'] || 'N/A'}</div>
+            </div>
+        `;
+    });
+    modalHtml += '</div>';
+    showModal({ title: `SLA At Risk: ${customer}`, body: modalHtml });
+}
+
+
+        
 function updateSLARiskPivot() {
     const atRiskTickets = getTicketsAtRiskToday(filteredData);
-    if (atRiskTickets.length === 0) {
+    const grouped = groupAtRiskTicketsByCustomer(atRiskTickets);
+    const customers = Object.keys(grouped);
+
+    if (customers.length === 0) {
         document.getElementById('slaRiskPivot').innerHTML = '<div class="no-data">No tickets at risk today</div>';
         return;
     }
-    // Render them as a table or list...
-    const html = createPivotTable([
-        ['Ticket #', 'Customer', 'Priority', 'Status', 'SLA Status', 'Deadline']
-    ].concat(
-        atRiskTickets.map(t => [
-            t['Ticket Number'] || 'N/A',
-            t['Customer'] || 'N/A',
-            t['Priority'] || 'N/A',
-            t['Status'] || t['Satus'] || 'N/A',
-            t['SLA Status'] || 'N/A',
-            (() => {
-                const deadline = calculateSLADeadline(t);
-                return deadline ? deadline.toLocaleString('en-GB') : 'N/A';
-            })()
-        ])
-    ));
-    document.getElementById('slaRiskPivot').innerHTML = html;
-}
 
+    // HTML table: Customer | At Risk Tickets Count (clickable)
+    let html = '<table class="pivot-table"><thead><tr><th>Customer</th><th>At Risk Tickets</th></tr></thead><tbody>';
+    customers.forEach(customer => {
+        html += `
+            <tr>
+                <td>
+                    <span class="clickable-customer" data-customer="${encodeURIComponent(customer)}">
+                        ${customer}
+                    </span>
+                </td>
+                <td>${grouped[customer].length}</td>
+            </tr>
+        `;
+    });
+    html += '</tbody></table>';
+    document.getElementById('slaRiskPivot').innerHTML = html;
+
+    // Add click handler for customer names
+    document.getElementById('slaRiskPivot').onclick = function(e) {
+        if (e.target.classList.contains('clickable-customer')) {
+            const customer = decodeURIComponent(e.target.getAttribute('data-customer'));
+            showSLARiskCustomerModal(customer, grouped[customer]);
+        }
+    };
+}
 
 
 
