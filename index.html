@@ -934,12 +934,13 @@ console.log("First ticket object:", originalData[0]);
 
 
 
-// =========== Report Modal Logic ===========
+
+
+// =========== Modal Logic ===========
 
 // Show the modal
 document.getElementById('generateReportBtn').addEventListener('click', function() {
     document.getElementById('reportModal').style.display = 'flex';
-    // Show main type list, hide details
     document.getElementById('reportTypeList').style.display = 'block';
     document.getElementById('reportTypeDetail').innerHTML = '';
 });
@@ -964,7 +965,6 @@ function showReportTypeDetail(type) {
     if (type === 'sla') {
         showSLAReportOptions();
     } else {
-        // For other types, you can add your own logic here:
         let reportNames = {
             dashboard: "Full Dashboard Report",
             scheduler: "Scheduler Performance Report",
@@ -984,21 +984,24 @@ function showReportTypeDetail(type) {
 
 // =========== SLA Report Logic ===========
 
-// Example customer list: replace with your actual data!
-function getCustomerList() {
-    // Replace with your real dynamic customer list
-    return ['Tesco', 'Sainsbury', 'Waitrose', 'Aldi', 'Lidl'];
+// Get customer list dynamically from dashboard data
+function getCustomerListFromSheet() {
+    // You must replace 'window.dashboardData' with your real data variable
+    let allData = window.dashboardData || [];
+    const uniqueCustomers = [...new Set(allData.map(row => row.Customer).filter(Boolean))];
+    return uniqueCustomers.sort();
 }
 
+// Show SLA report options with scroll
 function showSLAReportOptions() {
-    const customers = getCustomerList();
+    const customers = getCustomerListFromSheet();
     let html = `<div style="margin-bottom:12px;"><strong>SLA Reports</strong></div>`;
-    html += `<div>`;
+    html += `<div style="max-height:350px;overflow-y:auto;padding-right:8px;">`;
     customers.forEach(cust => {
         html += `
         <div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #eee;">
           <div style="font-weight:bold;">${cust}</div>
-          <div style="margin-top:6px;">
+          <div style="margin-top:6px;display:flex;gap:8px;">
             <button class="btn btn-primary" onclick="downloadCustomerSLAReport('${cust}', 'pdf')">PDF</button>
             <button class="btn btn-primary" onclick="downloadCustomerSLAReport('${cust}', 'excel')">Excel</button>
             <button class="btn btn-primary" onclick="downloadCustomerSLAReport('${cust}', 'web')">Web</button>
@@ -1016,40 +1019,44 @@ function showSLAReportOptions() {
 window.downloadReport = function(type, format) {
     alert(`Download ${type} report as ${format.toUpperCase()} (implement logic)`);
     // Implement your actual download logic here!
-    // e.g. exportDashboardReport(format);
 }
 
 // For SLA per customer
 window.downloadCustomerSLAReport = function(customer, format) {
-    alert(`Download SLA report for ${customer} as ${format.toUpperCase()} (implement logic)`);
-    // Implement your actual download logic here!
-    // e.g. exportSLAReport(customer, format);
-}
-
-// =========== Example Export Functions ===========
-// You can use SheetJS for Excel, jsPDF for PDF, or custom for web display.
-// Plug in your real data and logic as needed.
-
-function exportSLAReport(customer, format) {
-    // Get SLA data for customer (implement as needed)
-    // let data = getSLADataForCustomer(customer);
-
     if (format === 'excel') {
-        // Export to Excel
-        // const ws = XLSX.utils.json_to_sheet(data);
-        // const wb = XLSX.utils.book_new();
-        // XLSX.utils.book_append_sheet(wb, ws, `${customer} SLA`);
-        // XLSX.writeFile(wb, `${customer}_SLA_Report.xlsx`);
+        exportSLAReportToExcel(customer);
     } else if (format === 'pdf') {
-        // Export to PDF (use jsPDF or similar)
+        alert(`PDF export for ${customer} coming soon!`);
+        // exportSLAReportToPDF(customer);
     } else if (format === 'web') {
-        // Show in modal or new tab
+        alert(`Web version for ${customer} coming soon!`);
+        // exportSLAReportToWeb(customer);
     }
 }
 
-function exportDashboardReport(format) {
-    // Get your dashboard data and export
+// =========== Example Excel Export for SLA ===========
+
+function exportSLAReportToExcel(customer) {
+    // You must replace 'window.dashboardData' with your real data variable
+    let allData = window.dashboardData || [];
+    // Filter data for selected customer
+    let customerData = allData.filter(row => row.Customer === customer);
+
+    if (!customerData.length) {
+        alert(`No data for customer ${customer}`);
+        return;
+    }
+
+    // Convert to worksheet and workbook
+    const ws = XLSX.utils.json_to_sheet(customerData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `${customer} SLA`);
+    XLSX.writeFile(wb, `${customer}_SLA_Report.xlsx`);
 }
+
+
+        
+
 
 
 
