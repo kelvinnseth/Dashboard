@@ -3522,36 +3522,61 @@ function getCompletedJobsByEngineer(tickets) {
 
 
 function updateEngineerPivot() {
+    // Helper: Convert Excel date formats (if needed)
+    function parseDate(date) {
+        if (!date) return null;
+        if (date instanceof Date) return date;
+        // Handles Excel serial date numbers or date strings
+        if (typeof date === 'number') {
+            // Excel's epoch starts 1899-12-31
+            return new Date((date - 25569) * 86400 * 1000);
+        }
+        // ISO or UK format
+        return new Date(date);
+    }
+
     const engineerCompletedJobs = getCompletedJobsByEngineer(filteredData);
 
     let engineerStats = Object.entries(engineerCompletedJobs).map(([engineer, completedTickets]) => {
-        // All assigned tickets for this engineer (by scheduled date)
+        // All assigned tickets for this engineer
         const assignedTickets = filteredData.filter(
-            t => (t['Primary Resource'] === engineer)
+            t => t['Primary Resource'] === engineer
         );
 
-        // Group tickets by shift (day)
+        // 1. Find last date engineer completed any job
+        const completedDates = completedTickets
+            .map(t => parseDate(t['Complete Date']))
+            .filter(d => !!d);
+
+        const lastCompletedDate = completedDates.length > 0
+            ? new Date(Math.max(...completedDates.map(d => d.getTime())))
+            : null;
+
+        // 2. Group assigned tickets by scheduled date, only including dates <= lastCompletedDate
         const ticketsByDay = {};
         assignedTickets.forEach(t => {
-            let day = t['Scheduled Date'] instanceof Date
-                ? t['Scheduled Date'].toISOString().slice(0, 10)
-                : convertExcelDate(t['Scheduled Date']).toISOString().slice(0, 10);
-            if (!ticketsByDay[day]) ticketsByDay[day] = [];
-            ticketsByDay[day].push(t);
+            const schedDate = parseDate(t['Scheduled Date']);
+            if (!schedDate) return;
+            if (lastCompletedDate && schedDate > lastCompletedDate) return;
+            const dayStr = schedDate.toISOString().slice(0, 10);
+            if (!ticketsByDay[dayStr]) ticketsByDay[dayStr] = [];
+            ticketsByDay[dayStr].push(t);
         });
 
-        // Calculate shift stats
+        const numShifts = Object.keys(ticketsByDay).length;
+
+        // Shift stats
         let totalCompletionRate = 0;
         let totalLocations = 0;
         let jobsCompletedTotal = 0;
         let jobsAssignedTotal = 0;
-        let numShifts = Object.keys(ticketsByDay).length;
 
         Object.entries(ticketsByDay).forEach(([day, tickets]) => {
             const jobsAssigned = tickets.length;
+            // Jobs completed for this shift: completed AND scheduled that day
             const jobsCompleted = tickets.filter(t => {
-                let comp = t['Complete Date'] instanceof Date ? t['Complete Date'] : convertExcelDate(t['Complete Date']);
-                let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+                const comp = parseDate(t['Complete Date']);
+                const sched = parseDate(t['Scheduled Date']);
                 return (
                     comp && sched &&
                     comp.toISOString().slice(0, 10) === day &&
@@ -3561,26 +3586,20 @@ function updateEngineerPivot() {
 
             jobsCompletedTotal += jobsCompleted;
             jobsAssignedTotal += jobsAssigned;
-
             totalCompletionRate += (jobsAssigned > 0 ? (jobsCompleted / jobsAssigned) : 0);
 
+            // Unique postcodes
             const uniquePostcodes = new Set(tickets.map(t => t.Postcode).filter(pc => pc && pc !== ''));
             totalLocations += uniquePostcodes.size;
         });
 
-        // Average jobs completed per shift
+        // Metrics
         const avgJobsCompletedPerShift = numShifts > 0 ? (jobsCompletedTotal / numShifts) : 0;
-
-        // Average jobs assigned per shift
         const avgJobsAssignedPerShift = numShifts > 0 ? (jobsAssignedTotal / numShifts).toFixed(1) : '0.0';
-
-        // Average completion rate (%)
         const avgCompletionRate = numShifts > 0 ? ((totalCompletionRate / numShifts) * 100).toFixed(1) : '0.0';
-
-        // Average locations per shift
         const avgLocationsPerShift = numShifts > 0 ? (totalLocations / numShifts).toFixed(1) : '0.0';
 
-        // SLA performance for completed jobs
+        // SLA Performance
         const metSLA = completedTickets.filter(t => {
             const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
             return (
@@ -3596,22 +3615,24 @@ function updateEngineerPivot() {
             totalTickets: completedTickets.length,
             slaPerf,
             avgCompletionRate: avgCompletionRate + '%',
+            avgJobsAssignedPerShift,
             avgLocationsPerShift,
-            avgJobsCompletedPerShift,
-            avgJobsAssignedPerShift
+            avgJobsCompletedPerShift
         };
     })
-    // FILTER: Only show engineers with avg >= 2 jobs completed per shift
+    // FILTER: Only engineers with avg completed jobs per shift ≥ 2
     .filter(row => row.avgJobsCompletedPerShift >= 2);
 
     // Sort by completion rate descending
     engineerStats.sort((a, b) => parseFloat(b.avgCompletionRate) - parseFloat(a.avgCompletionRate));
 
+    // Leaderboard
     engineerStats = engineerStats.map((row, i) => ({
         ...row,
         leaderboard: `#${i + 1}`
     }));
 
+    // Table
     const htmlTable = createPivotTable([
         [
             'Leaderboard',
@@ -3634,6 +3655,7 @@ function updateEngineerPivot() {
         ])
     ));
 
+    // Scrollable container
     const scrollContainer = `
       <div style="max-height:400px;overflow-y:auto;border-radius:8px;border:1px solid #e1e1e1;">
         ${htmlTable}
@@ -3642,7 +3664,6 @@ function updateEngineerPivot() {
 
     document.getElementById('engineerPivot').innerHTML = scrollContainer;
 }
-
 
         
         function groupBy(array, keyFunc) {
