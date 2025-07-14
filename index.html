@@ -3334,9 +3334,11 @@ function getSLAPerformanceByWeek(tickets) {
 
 
 function updateSLAPivot() {
-    // Get the selected customer from the filter dropdown
+    // Get the customer filter value
     const slaCustomerFilter = document.getElementById('slaCustomerFilter').value;
     let slaData = filteredData;
+
+    // Filter by customer if selected
     if (slaCustomerFilter) {
         slaData = filteredData.filter(t => t.Customer === slaCustomerFilter);
     }
@@ -3346,7 +3348,7 @@ function updateSLAPivot() {
         return;
     }
 
-    // --- SLA stats ---
+    // Calculate SLA stats
     const totalTickets = slaData.length;
     const metSLA = slaData.filter(t => {
         const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
@@ -3367,6 +3369,7 @@ function updateSLAPivot() {
     }).length;
     const slaPerformance = totalTickets > 0 ? ((metSLA / totalTickets) * 100).toFixed(1) : '0';
 
+    // Build summary HTML
     const summaryHtml = `
         <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; text-align: center;">
@@ -3391,7 +3394,7 @@ function updateSLAPivot() {
         </div>
     `;
 
-    // --- Group by SLA Status ---
+    // Group by SLA status and build table rows with clickable spans
     const slaCounts = groupBy(slaData, t => t['SLA Status'] || 'Unknown');
     const slaTableData = [
         ['SLA Status', 'Count', 'Percentage']
@@ -3405,17 +3408,17 @@ function updateSLAPivot() {
             ])
     );
 
+    // Render table
     const tableHtml = createPivotTable(slaTableData);
-
     document.getElementById('slaPivot').innerHTML = summaryHtml + tableHtml;
 
-    // --- (Optional) SLA by week table ---
+    // Optionally add weekly SLA performance if available
     if (typeof getSLAPerformanceByWeek === 'function') {
         const slaByWeekHtml = getSLAPerformanceByWeek(slaData);
         document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">' + slaByWeekHtml + '</div>';
     }
 
-    // --- Make SLA Status clickable ---
+    // Attach click handler AFTER setting innerHTML!
     document.getElementById('slaPivot').onclick = function(e) {
         if (e.target.classList.contains('clickable-sla-status')) {
             const slaStatus = decodeURIComponent(e.target.getAttribute('data-sla-status'));
@@ -3423,8 +3426,6 @@ function updateSLAPivot() {
         }
     };
 }
-
-
 
         
 // Modal function to show tickets for a given SLA status
@@ -4088,7 +4089,8 @@ function updateEngineerPivot() {
             }, {});
         }
         
-        function createPivotTable(data) {
+        
+function createPivotTable(data) {
     if (!data || data.length === 0) {
         return '<div class="no-data">No data available</div>';
     }
@@ -4103,7 +4105,7 @@ function updateEngineerPivot() {
     for (let i = 1; i < data.length; i++) {
         html += '<tr>';
         data[i].forEach(cell => {
-            // Allow HTML in cell content (for clickable customer!)
+            // Allow HTML in cell content (for clickable SLA status and customer links!)
             html += `<td>${cell}</td>`;
         });
         html += '</tr>';
@@ -4115,6 +4117,7 @@ function updateEngineerPivot() {
 
 
 
+        
 // --- Engineering Resource Chart ---
 let engineeringResourceChart = null;
 
