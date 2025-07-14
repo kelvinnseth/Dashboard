@@ -3434,7 +3434,56 @@ function showSLARiskCustomerModal(customer, tickets) {
       <div class="ticket-list" style="max-height:400px;overflow-y:auto;">
     `;
     tickets.forEach(t => {
-        // Format date/time
+        // Date formatting
+        const created = t['Create Date'] ? convertExcelDate(t['Create Date']) : null;
+        const createdStr = created ? created.toLocaleDateString('en-GB') + ' ' + created.toLocaleTimeString('en-GB') : 'N/A';
+        const scheduled = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
+        const scheduledStr = scheduled ? scheduled.toLocaleDateString('en-GB') : 'N/A';
+        const scheduledTime = t['Scheduled time'] ? convertExcelDate(t['Scheduled time']) : null;
+        const scheduledTimeStr = scheduledTime ? ' ' + scheduledTime.toLocaleTimeString('en-GB') : '';
+        const scheduler = t['Scheduled By'] || 'N/A';
+        const schedulerHtml = scheduler !== 'N/A'
+            ? `<span class="clickable-scheduler" data-scheduler="${encodeURIComponent(scheduler)}">${scheduler}</span>`
+            : 'N/A';
+
+        modalHtml += `
+            <div class="ticket-item">
+                <div><b>Title:</b> ${t['Ticket Title'] || 'No title'}</div>
+                <div><b>Status:</b> ${t['Status'] || t['Satus'] || 'N/A'}</div>
+                <div><b>Created Date & Time:</b> ${createdStr}</div>
+                <div><b>Scheduled Date & Time:</b> ${scheduledStr}${scheduledTimeStr}</div>
+                <div><b>Scheduler:</b> ${schedulerHtml}</div>
+                <div><b>Region:</b> ${t['Region'] || 'N/A'}</div>
+                <div><b>Primary Resource:</b> ${t['Primary Resource'] || 'N/A'}</div>
+            </div>
+        `;
+    });
+    modalHtml += '</div>';
+    showModal({ title: `SLA At Risk: ${customer}`, body: modalHtml });
+
+    // Scheduler click handler (delegated)
+    setTimeout(() => {
+        document.querySelectorAll('.clickable-scheduler').forEach(el => {
+            el.onclick = function() {
+                const scheduler = decodeURIComponent(this.getAttribute('data-scheduler'));
+                showSLARiskSchedulerModal(scheduler);
+            };
+        });
+    }, 0);
+}
+
+
+
+function showSLARiskSchedulerModal(scheduler) {
+    // Get ALL at-risk tickets for this scheduler (across all customers)
+    const atRiskTickets = getTicketsAtRiskToday(filteredData).filter(
+        t => (t['Scheduled By'] || 'N/A') === scheduler
+    );
+    let modalHtml = `
+      <h2>SLA At Risk Tickets for Scheduler: ${scheduler} (${atRiskTickets.length})</h2>
+      <div class="ticket-list" style="max-height:400px;overflow-y:auto;">
+    `;
+    atRiskTickets.forEach(t => {
         const created = t['Create Date'] ? convertExcelDate(t['Create Date']) : null;
         const createdStr = created ? created.toLocaleDateString('en-GB') + ' ' + created.toLocaleTimeString('en-GB') : 'N/A';
         const scheduled = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
@@ -3444,16 +3493,17 @@ function showSLARiskCustomerModal(customer, tickets) {
         modalHtml += `
             <div class="ticket-item">
                 <div><b>Title:</b> ${t['Ticket Title'] || 'No title'}</div>
+                <div><b>Status:</b> ${t['Status'] || t['Satus'] || 'N/A'}</div>
                 <div><b>Created Date & Time:</b> ${createdStr}</div>
                 <div><b>Scheduled Date & Time:</b> ${scheduledStr}${scheduledTimeStr}</div>
-                <div><b>Scheduler:</b> ${t['Scheduled By'] || 'N/A'}</div>
+                <div><b>Customer:</b> ${t['Customer'] || 'N/A'}</div>
                 <div><b>Region:</b> ${t['Region'] || 'N/A'}</div>
                 <div><b>Primary Resource:</b> ${t['Primary Resource'] || 'N/A'}</div>
             </div>
         `;
     });
     modalHtml += '</div>';
-    showModal({ title: `SLA At Risk: ${customer}`, body: modalHtml });
+    showModal({ title: `SLA At Risk: Scheduler ${scheduler}`, body: modalHtml });
 }
 
 
@@ -3470,18 +3520,18 @@ function updateSLARiskPivot() {
 
     // HTML table: Customer | At Risk Tickets Count (clickable)
     let html = '<table class="pivot-table"><thead><tr><th>Customer</th><th>At Risk Tickets</th></tr></thead><tbody>';
-    customers.forEach(customer => {
-        html += `
-            <tr>
-                <td>
-                    <span class="clickable-customer" data-customer="${encodeURIComponent(customer)}">
-                        ${customer}
-                    </span>
-                </td>
-                <td>${grouped[customer].length}</td>
-            </tr>
-        `;
-    });
+customers.forEach(customer => {
+    html += `
+        <tr>
+            <td>
+                <span class="clickable-customer" data-customer="${encodeURIComponent(customer)}">
+                    ${customer}
+                </span>
+            </td>
+            <td>${grouped[customer].length}</td>
+        </tr>
+    `;
+});
     html += '</tbody></table>';
     document.getElementById('slaRiskPivot').innerHTML = html;
 
@@ -3495,7 +3545,12 @@ function updateSLARiskPivot() {
 }
 
 
-
+document.getElementById('slaRiskPivot').onclick = function(e) {
+    if (e.target.classList.contains('clickable-customer')) {
+        const customer = decodeURIComponent(e.target.getAttribute('data-customer'));
+        showSLARiskCustomerModal(customer, grouped[customer]);
+    }
+};
 
 function updateSLAPivot() {
     // Get the customer filter value
