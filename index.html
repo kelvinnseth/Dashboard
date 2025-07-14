@@ -636,11 +636,34 @@
         }
 
 
-    .clickable-sla-status {
-    color: #667eea;
+  /* Make SLA status look obviously clickable like a link or button */
+.clickable-sla-status {
+    color: #2563eb;
     cursor: pointer;
     text-decoration: underline;
     font-weight: bold;
+    background: #f0f8ff;
+    border-radius: 8px;
+    padding: 2px 8px;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 2px rgba(38,99,235,0.07);
+    outline: none;
+}
+.clickable-sla-status:hover, .clickable-sla-status:focus {
+    background: #dbeafe;
+    color: #174ea6;
+    box-shadow: 0 2px 8px rgba(38,99,235,0.13);
+    text-decoration: underline;
+}
+
+/* Well-separated ticket items with light grey background */
+.ticket-item {
+    background: #f6f6f7;
+    border-radius: 8px;
+    padding: 16px 12px;
+    margin-bottom: 13px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    border: 1px solid #e5e7eb;
 }
     </style>
 </head>
@@ -1000,6 +1023,7 @@ function closeModal() {
     document.getElementById('modal').classList.add('hidden');
 }
 
+        
 
         
 
