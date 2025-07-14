@@ -1044,32 +1044,22 @@ function showReportTypeDetail(type) {
 
 // Get customer list dynamically from dashboard data
 function getCustomerListFromSheet() {
-    console.log("window.dashboardData", window.dashboardData);
-console.log("window.originalData", window.originalData);
-if (window.dashboardData && window.dashboardData.length > 0) {
-    console.log("First dashboardData row:", window.dashboardData[0]);
-}
-if (window.originalData && window.originalData.length > 0) {
-    console.log("First originalData row:", window.originalData[0]);
-    // You must replace 'window.dashboardData' with your real data variable
+    // Use window.dashboardData (global)
     let allData = window.dashboardData || [];
-}
     const uniqueCustomers = [...new Set(allData.map(row => row.Customer).filter(Boolean))];
     return uniqueCustomers.sort();
 }
 
 // Show SLA report options with scroll
 function showSLAReportOptions() {
-    // Make sure dashboardData is assigned (fallback to originalData if needed)
-    let allData = window.dashboardData || window.originalData || [];
-    // Get list of unique customers
-    const customers = [...new Set(allData.map(row => row.Customer).filter(Boolean))];
+    // Debug: Ensure global data is available
+    console.log("window.dashboardData", window.dashboardData);
+    if (window.dashboardData && window.dashboardData.length > 0) {
+        console.log("First dashboardData row:", window.dashboardData[0]);
+    }
 
-    // Debug: show in console for troubleshooting
-    console.log("SLA Customers found:", customers);
-
+    const customers = getCustomerListFromSheet();
     let html = `<div style="margin-bottom:12px;"><strong>SLA Reports</strong></div>`;
-    // If there are no customers, show a message
     if (customers.length === 0) {
         html += `<div style="color:#d63031; padding:10px 0;">No customers found in data. Upload a file to enable SLA reports.</div>`;
     } else {
@@ -1477,7 +1467,8 @@ async function batchPrimaryCareTrustLookup(postcodes) {
                         throw new Error('No data rows found starting from row 4');
                     }
                     
-     originalData = rows.map((row) => {
+     // Replace this block:
+originalData = rows.map((row) => {
     const ticket = {};
     headers.forEach((header, index) => {
         ticket[header] = row[index];
@@ -1509,6 +1500,39 @@ async function batchPrimaryCareTrustLookup(postcodes) {
     return ticket;
 });
 
+// --- The Fix: Make both window.originalData and window.dashboardData global ---
+window.originalData = rows.map((row) => {
+    const ticket = {};
+    headers.forEach((header, index) => {
+        ticket[header] = row[index];
+    });
+
+    // ---- Date Normalization ----
+    const dateFields = [
+        "Create Date",
+        "Scheduled Date",
+        "Complete Date",
+        "Create Time",
+        "Scheduled time"
+    ];
+    dateFields.forEach(field => {
+        if (ticket[field]) {
+            const converted = convertExcelDate(ticket[field]);
+            if (converted) ticket[field] = converted;
+        }
+    });
+    // ---- End Date Normalization ----
+
+    // ---- SLA and At Risk logic ----
+    ticket['SLA Status'] = getSLAStatus(ticket);
+    const riskInfo = getAtRiskOfFailingSLA(ticket);
+    ticket['At Risk of Failing SLA'] = riskInfo.atRisk;
+    ticket['SLA Risk Level'] = riskInfo.riskLevel;
+    // ---- End SLA logic ----
+
+    return ticket;
+});
+window.dashboardData = window.originalData;
 
 
 
