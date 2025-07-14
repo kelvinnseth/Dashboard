@@ -1052,22 +1052,34 @@ function getCustomerListFromSheet() {
 
 // Show SLA report options with scroll
 function showSLAReportOptions() {
-    const customers = getCustomerListFromSheet();
+    // Make sure dashboardData is assigned (fallback to originalData if needed)
+    let allData = window.dashboardData || window.originalData || [];
+    // Get list of unique customers
+    const customers = [...new Set(allData.map(row => row.Customer).filter(Boolean))];
+
+    // Debug: show in console for troubleshooting
+    console.log("SLA Customers found:", customers);
+
     let html = `<div style="margin-bottom:12px;"><strong>SLA Reports</strong></div>`;
-    html += `<div style="max-height:350px;overflow-y:auto;padding-right:8px;">`;
-    customers.forEach(cust => {
-        html += `
-        <div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #eee;">
-          <div style="font-weight:bold;">${cust}</div>
-          <div style="margin-top:6px;display:flex;gap:8px;">
-            <button class="btn btn-primary" onclick="downloadCustomerSLAReport('${cust}', 'pdf')">PDF</button>
-            <button class="btn btn-primary" onclick="downloadCustomerSLAReport('${cust}', 'excel')">Excel</button>
-            <button class="btn btn-primary" onclick="downloadCustomerSLAReport('${cust}', 'web')">Web</button>
-          </div>
-        </div>
-        `;
-    });
-    html += `</div>`;
+    // If there are no customers, show a message
+    if (customers.length === 0) {
+        html += `<div style="color:#d63031; padding:10px 0;">No customers found in data. Upload a file to enable SLA reports.</div>`;
+    } else {
+        html += `<div style="max-height:350px;overflow-y:auto;padding-right:8px;">`;
+        customers.forEach(cust => {
+            html += `
+            <div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #eee;">
+                <div style="font-weight:bold;">${cust}</div>
+                <div style="margin-top:6px;display:flex;gap:8px;">
+                    <button class="btn btn-primary" onclick="downloadCustomerSLAReport('${cust}', 'pdf')">PDF</button>
+                    <button class="btn btn-primary" onclick="downloadCustomerSLAReport('${cust}', 'excel')">Excel</button>
+                    <button class="btn btn-primary" onclick="downloadCustomerSLAReport('${cust}', 'web')">Web</button>
+                </div>
+            </div>
+            `;
+        });
+        html += `</div>`;
+    }
     document.getElementById('reportTypeDetail').innerHTML = html;
 }
 
