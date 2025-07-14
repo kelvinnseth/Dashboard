@@ -1387,19 +1387,29 @@ function exportSLAReportToExcel(customer) {
     return deadline;
 }
 
-function getSLAStatus(ticket) {
-    if (ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '') return '';
+ffunction getSLAStatus(ticket) {
+    // Determine if ticket has SLA Notes
+    const hasSLANotes = ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '';
+
     const slaDeadline = calculateSLADeadline(ticket);
-    if (!slaDeadline) return '';
+    if (!slaDeadline) return "Unknown";
 
     const completeDate = convertExcelDate(ticket['Complete Date']);
     const status = (ticket.Status || ticket.Satus || '').toLowerCase();
 
+    let slaStatus;
     if (completeDate && !isNaN(completeDate.getTime())) {
-        return completeDate <= slaDeadline ? "Completed Within SLA" : "Failed SLA";
+        slaStatus = completeDate <= slaDeadline ? "Completed Within SLA" : "Failed SLA";
     } else {
-        return new Date() <= slaDeadline ? "Still Within SLA" : "Failed SLA";
+        slaStatus = new Date() <= slaDeadline ? "Still Within SLA" : "Failed SLA";
     }
+
+    // If SLA Notes are present, classify as "SLA MIGHT NEED REVISING"
+    if (hasSLANotes) {
+        slaStatus += " (SLA MIGHT NEED REVISING)";
+    }
+
+    return slaStatus;
 }
 
 
