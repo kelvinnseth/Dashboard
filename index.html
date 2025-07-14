@@ -1187,8 +1187,8 @@ function exportSLAReportToPDF(customer) {
     const [topScheduler, topSchedulerJobs] = Object.entries(schedulerCount).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
 
     // --- Generate PDF ---
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+   const doc = new window.jspdf.jsPDF();
+
 
     let y = 15;
     doc.setFontSize(16);
