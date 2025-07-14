@@ -972,7 +972,36 @@ document.querySelectorAll('#reportTypeList button').forEach(btn => {
 });
 
 
+/**
+ * Displays a modal using #modal and #modalBody.
+ * Expects a modal HTML structure like:
+ * <div id="modal" class="hidden">
+ *   <div id="modalContent">
+ *     <button onclick="closeModal()">×</button>
+ *     <div id="modalBody"></div>
+ *   </div>
+ * </div>
+ * Usage:
+ *   showModal({ title: "My Title", body: "<div>My HTML</div>" });
+ */
+function showModal(opts) {
+    // opts: { title: string, body: HTML string }
+    var bodyHtml = '';
+    if (opts.title) {
+        bodyHtml += `<h2 style="margin-bottom:16px;color:#764ba2;">${opts.title}</h2>`;
+    }
+    bodyHtml += opts.body;
+    document.getElementById('modalBody').innerHTML = bodyHtml;
+    document.getElementById('modal').classList.remove('hidden');
+}
 
+// Optional: global close function for modal
+function closeModal() {
+    document.getElementById('modal').classList.add('hidden');
+}
+
+
+        
 
 function showCustomerSLAReportModal(customer) {
     let allData = window.dashboardData || []; // Use your actual data variable
