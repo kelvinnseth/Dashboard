@@ -1094,13 +1094,142 @@ window.downloadCustomerSLAReport = function(customer, format) {
     if (format === 'excel') {
         exportSLAReportToExcel(customer);
     } else if (format === 'pdf') {
-        alert(`PDF export for ${customer} coming soon!`);
+        exportSLAReportToPDF(customer);
         // exportSLAReportToPDF(customer);
     } else if (format === 'web') {
         alert(`Web version for ${customer} coming soon!`);
         // exportSLAReportToWeb(customer);
     }
 }
+
+
+
+
+function exportSLAReportToPDF(customer) {
+    // Filter data for this customer
+    const data = window.dashboardData.filter(row => row.Customer === customer);
+
+    if (!data.length) {
+        alert(`No data for customer ${customer}`);
+        return;
+    }
+
+    // 1. Total tickets
+    const totalTickets = data.length;
+
+    // 2. Breakdown of SLA Status
+    const slaStatusCount = {};
+    data.forEach(row => {
+        const status = row['SLA Status'] || 'Unknown';
+        slaStatusCount[status] = (slaStatusCount[status] || 0) + 1;
+    });
+
+    // 3. Breakdown of Priority
+    const priorityCount = {};
+    data.forEach(row => {
+        const priority = row['Priority'] || 'Unknown';
+        priorityCount[priority] = (priorityCount[priority] || 0) + 1;
+    });
+
+    // 4. Breakdown of Status
+    const statusCount = {};
+    data.forEach(row => {
+        const status = row['Status'] || 'Unknown';
+        statusCount[status] = (statusCount[status] || 0) + 1;
+    });
+
+    // 5. Account with most tickets
+    const accountCount = {};
+    data.forEach(row => {
+        const account = row['Account'] || 'Unknown';
+        accountCount[account] = (accountCount[account] || 0) + 1;
+    });
+    const [topAccount, topAccountTickets] = Object.entries(accountCount).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
+
+    // 6. Account with highest SLA breaches
+    const accountSLABreach = {};
+    data.forEach(row => {
+        const account = row['Account'] || 'Unknown';
+        const slaStatus = (row['SLA Status'] || '').toLowerCase();
+        if (slaStatus.includes('breach') || slaStatus.includes('breached')) {
+            accountSLABreach[account] = (accountSLABreach[account] || 0) + 1;
+        }
+    });
+    const [topSLABreachAccount, topSLABreachCount] = Object.entries(accountSLABreach).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
+
+    // 7. Engineer who completed most Tesco jobs
+    const engineerCount = {};
+    data.forEach(row => {
+        if ((row['Status'] || '').toLowerCase() === 'completed') {
+            const engineer = row['Primary Resource'] || 'Unknown';
+            engineerCount[engineer] = (engineerCount[engineer] || 0) + 1;
+        }
+    });
+    const [topEngineer, topEngineerJobs] = Object.entries(engineerCount).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
+
+    // 8. Engineer with highest Tesco completed within SLA
+    const engineerSLACompleted = {};
+    data.forEach(row => {
+        if ((row['Status'] || '').toLowerCase() === 'completed'
+            && (row['SLA Status'] || '').toLowerCase().includes('met')) {
+            const engineer = row['Primary Resource'] || 'Unknown';
+            engineerSLACompleted[engineer] = (engineerSLACompleted[engineer] || 0) + 1;
+        }
+    });
+    const [topSLAEngineer, topSLAEngineerJobs] = Object.entries(engineerSLACompleted).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
+
+    // 9. Scheduler that scheduled the most tickets
+    const schedulerCount = {};
+    data.forEach(row => {
+        const scheduler = row['Scheduled By'] || 'Unknown';
+        schedulerCount[scheduler] = (schedulerCount[scheduler] || 0) + 1;
+    });
+    const [topScheduler, topSchedulerJobs] = Object.entries(schedulerCount).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
+
+    // --- Generate PDF ---
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    let y = 15;
+    doc.setFontSize(16);
+    doc.text(`SLA Report for ${customer}`, 15, y);
+    y += 12;
+
+    doc.setFontSize(12);
+    doc.text(`Total Tickets: ${totalTickets}`, 15, y);
+    y += 8;
+
+    doc.text('SLA Status Breakdown:', 15, y);
+    y += 6;
+    Object.entries(slaStatusCount).forEach(([status, count]) => {
+        doc.text(`  ${status}: ${count}`, 15, y);
+        y += 6;
+    });
+
+    doc.text('Priority Breakdown:', 15, y);
+    y += 6;
+    Object.entries(priorityCount).forEach(([priority, count]) => {
+        doc.text(`  ${priority}: ${count}`, 15, y);
+        y += 6;
+    });
+
+    doc.text('Status Breakdown:', 15, y);
+    y += 6;
+    Object.entries(statusCount).forEach(([status, count]) => {
+        doc.text(`  ${status}: ${count}`, 15, y);
+        y += 6;
+    });
+
+    y += 2;
+    doc.text(`Account with most tickets: ${topAccount} (${topAccountTickets})`, 15, y); y += 6;
+    doc.text(`Account with highest SLA breaches: ${topSLABreachAccount} (${topSLABreachCount})`, 15, y); y += 6;
+    doc.text(`Engineer (Tesco) completed most jobs: ${topEngineer} (${topEngineerJobs})`, 15, y); y += 6;
+    doc.text(`Engineer (Tesco) completed most within SLA: ${topSLAEngineer} (${topSLAEngineerJobs})`, 15, y); y += 6;
+    doc.text(`Scheduler scheduled most tickets: ${topScheduler} (${topSchedulerJobs})`, 15, y); y += 6;
+
+    doc.save(`${customer}_SLA_Report.pdf`);
+}
+
 
 // =========== Example Excel Export for SLA ===========
 
