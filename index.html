@@ -760,15 +760,24 @@
 
 
 
-
-<!-- Report Options Popup -->
-<div id="reportOptions"
-     style="display:none;position:absolute;z-index:1000;background:#fff;border:1px solid #ccc;padding:10px;border-radius:8px;">
-  <div><button class="btn btn-light" id="reportExcel">Excel</button></div>
-  <div style="margin-top:8px;"><button class="btn btn-light" id="reportPDF">PDF</button></div>
-  <div style="margin-top:8px;"><button class="btn btn-light" id="reportWeb">Web Version</button></div>
+<!-- Modal for Report Types -->
+<div id="reportModal"
+     style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.3);z-index:9999;justify-content:center;align-items:center;">
+  <div style="background:#fff;border-radius:10px;padding:32px;min-width:340px;max-width:90vw;box-shadow:0 2px 14px rgba(0,0,0,0.08);">
+    <h2 style="margin-top:0;">Generate Report</h2>
+    <div id="reportTypeList">
+      <button class="btn btn-block btn-light" data-type="sla">SLA Reports</button>
+      <button class="btn btn-block btn-light" data-type="dashboard">Full Dashboard Report</button>
+      <button class="btn btn-block btn-light" data-type="scheduler">Scheduler Performance Report</button>
+      <button class="btn btn-block btn-light" data-type="engineer">Engineers Performance Report</button>
+      <button class="btn btn-block btn-light" data-type="customer">Customer Summary Report</button>
+    </div>
+    <div id="reportTypeDetail" style="margin-top:18px;"></div>
+    <div style="margin-top:24px;text-align:right;">
+      <button class="btn btn-secondary" id="closeReportModal">Close</button>
+    </div>
+  </div>
 </div>
-
 
 
 
@@ -922,54 +931,6 @@
 
 console.log("First ticket object:", originalData[0]);
 
-// Show the report options popup when button is clicked
-document.getElementById('generateReportBtn').addEventListener('click', function(e) {
-    const options = document.getElementById('reportOptions');
-    options.style.display = 'block';
-    const rect = e.target.getBoundingClientRect();
-    options.style.left = rect.left + window.scrollX + 'px';
-    options.style.top = rect.bottom + window.scrollY + 'px';
-});
-
-// Hide the popup if you click outside it or the button
-document.addEventListener('click', function(e) {
-    const options = document.getElementById('reportOptions');
-    if (!options.contains(e.target) && e.target.id !== 'generateReportBtn') {
-        options.style.display = 'none';
-    }
-});
-
-// EXCEL EXPORT
-document.getElementById('reportExcel').addEventListener('click', function() {
-    generateExcelReport();
-    document.getElementById('reportOptions').style.display = 'none';
-});
-
-// PDF/Web Version (placeholders for now)
-document.getElementById('reportPDF').addEventListener('click', function() {
-    alert('PDF export coming soon!');
-    document.getElementById('reportOptions').style.display = 'none';
-});
-document.getElementById('reportWeb').addEventListener('click', function() {
-    alert('Web version coming soon!');
-    document.getElementById('reportOptions').style.display = 'none';
-});
-
-// Implement this function as needed for your card data!
-function generateExcelReport() {
-    // Example: Suppose engineerPerformanceData is your table data array
-    const engineerPerformanceData = [
-        { Leaderboard: "#1", Engineer: "Qerimi, Asllan", JobsCompleted: 28, SLA: "100.0%", CompletionRate: "95.5%" },
-        { Leaderboard: "#2", Engineer: "Alker, Matthew", JobsCompleted: 32, SLA: "93.8%", CompletionRate: "94.4%" },
-        // ...more rows
-    ];
-
-    // Convert to worksheet and workbook
-    const ws = XLSX.utils.json_to_sheet(engineerPerformanceData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Engineer Performance");
-    XLSX.writeFile(wb, "EngineerPerformance.xlsx");
-}
 
         function calculateSLADeadline(ticket) {
     if (ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '') return null;
