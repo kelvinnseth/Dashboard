@@ -3461,7 +3461,7 @@ const tableHtml = createPivotTable(slaTableData);
 function showSLATicketsModal(slaStatus, slaData) {
     let tickets;
     if (slaStatus === 'Unknown') {
-        // Match tickets where SLA Status is empty, null, undefined or whitespace only
+        // Show tickets where SLA Status is empty, null, undefined, or whitespace only
         tickets = slaData.filter(t =>
             !t['SLA Status'] ||
             (typeof t['SLA Status'] === 'string' && t['SLA Status'].trim() === '')
@@ -3531,7 +3531,6 @@ function showSLATicketsModal(slaStatus, slaData) {
         body: modalBodyHtml
     });
 }
-
 // Step 2: Customer + SLA Status -> Ticket List
 function showTicketsForCustomerAndSLA(customer, slaTicketsOnly, slaStatus) {
     window.modalContext = "sla"; // Keep context
