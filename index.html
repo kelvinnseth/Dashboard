@@ -3522,16 +3522,14 @@ function getCompletedJobsByEngineer(tickets) {
 
 
 function updateEngineerPivot() {
-    // Helper: Convert Excel date formats (if needed)
+    // Helper: Parse date from various formats
     function parseDate(date) {
         if (!date) return null;
         if (date instanceof Date) return date;
-        // Handles Excel serial date numbers or date strings
         if (typeof date === 'number') {
-            // Excel's epoch starts 1899-12-31
+            // Excel date serial
             return new Date((date - 25569) * 86400 * 1000);
         }
-        // ISO or UK format
         return new Date(date);
     }
 
@@ -3543,7 +3541,7 @@ function updateEngineerPivot() {
             t => t['Primary Resource'] === engineer
         );
 
-        // 1. Find last date engineer completed any job
+        // Find last date engineer completed any job
         const completedDates = completedTickets
             .map(t => parseDate(t['Complete Date']))
             .filter(d => !!d);
@@ -3552,7 +3550,7 @@ function updateEngineerPivot() {
             ? new Date(Math.max(...completedDates.map(d => d.getTime())))
             : null;
 
-        // 2. Group assigned tickets by scheduled date, only including dates <= lastCompletedDate
+        // Group assigned tickets by scheduled date, only up to lastCompletedDate
         const ticketsByDay = {};
         assignedTickets.forEach(t => {
             const schedDate = parseDate(t['Scheduled Date']);
@@ -3610,6 +3608,10 @@ function updateEngineerPivot() {
         }).length;
         const slaPerf = completedTickets.length > 0 ? ((metSLA / completedTickets.length) * 100).toFixed(1) + '%' : 'N/A';
 
+        // Leaderboard score (recommended): Completion Rate × sqrt(Total Jobs Completed)
+        const completionRateNum = parseFloat(avgCompletionRate); // Already as percentage
+        const leaderboardScore = (completionRateNum * Math.sqrt(jobsCompletedTotal)).toFixed(2);
+
         return {
             engineer,
             totalTickets: completedTickets.length,
@@ -3617,16 +3619,17 @@ function updateEngineerPivot() {
             avgCompletionRate: avgCompletionRate + '%',
             avgJobsAssignedPerShift,
             avgLocationsPerShift,
-            avgJobsCompletedPerShift
+            avgJobsCompletedPerShift,
+            leaderboardScore
         };
     })
     // FILTER: Only engineers with avg completed jobs per shift ≥ 2
     .filter(row => row.avgJobsCompletedPerShift >= 2);
 
-    // Sort by completion rate descending
-    engineerStats.sort((a, b) => parseFloat(b.avgCompletionRate) - parseFloat(a.avgCompletionRate));
+    // Sort by leaderboard score descending
+    engineerStats.sort((a, b) => parseFloat(b.leaderboardScore) - parseFloat(a.leaderboardScore));
 
-    // Leaderboard
+    // Assign leaderboard ranking
     engineerStats = engineerStats.map((row, i) => ({
         ...row,
         leaderboard: `#${i + 1}`
@@ -3664,7 +3667,6 @@ function updateEngineerPivot() {
 
     document.getElementById('engineerPivot').innerHTML = scrollContainer;
 }
-
         
         function groupBy(array, keyFunc) {
             return array.reduce((groups, item) => {
