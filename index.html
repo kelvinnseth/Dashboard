@@ -1365,9 +1365,8 @@ function exportSLAReportToExcel(customer) {
 
 
 
-        function calculateSLADeadline(ticket) {
-    if (ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '') return null;
-
+    function calculateSLADeadline(ticket) {
+    // Do NOT exclude tickets with SLA Notes! Calculate anyway.
     const createDate = convertExcelDate(ticket['Create Date']);
     const createTime = convertExcelDate(ticket['Create Time']);
     const priority = (ticket.Priority || '').toUpperCase();
@@ -1388,9 +1387,7 @@ function exportSLAReportToExcel(customer) {
 }
 
 function getSLAStatus(ticket) {
-    // Determine if ticket has SLA Notes
-    const hasSLANotes = ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '';
-
+    // If missing required fields, return "Unknown"
     const slaDeadline = calculateSLADeadline(ticket);
     if (!slaDeadline) return "Unknown";
 
@@ -1405,13 +1402,12 @@ function getSLAStatus(ticket) {
     }
 
     // If SLA Notes are present, classify as "SLA MIGHT NEED REVISING"
-    if (hasSLANotes) {
+    if (ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '') {
         slaStatus += " (SLA MIGHT NEED REVISING)";
     }
 
     return slaStatus;
 }
-
 
 
         async function lookupPrimaryCareTrust(postcode) {
@@ -3398,6 +3394,52 @@ function getSLAPerformanceByWeek(tickets) {
     html += '</tbody></table>';
     return html;
 }
+
+
+function getTicketsAtRiskToday(tickets) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    return tickets.filter(ticket => {
+        const slaDeadline = calculateSLADeadline(ticket);
+        if (!slaDeadline) return false;
+        const deadlineDay = new Date(slaDeadline);
+        deadlineDay.setHours(0,0,0,0);
+
+        const status = (ticket.Status || ticket.Satus || '').toLowerCase();
+        const isComplete = status === 'complete' || status === 'completed' || status === 'closed';
+
+        // SLA deadline is today, and not complete
+        return deadlineDay.getTime() === today.getTime() && !isComplete;
+    });
+}
+
+
+function updateSLARiskPivot() {
+    const atRiskTickets = getTicketsAtRiskToday(filteredData);
+    if (atRiskTickets.length === 0) {
+        document.getElementById('slaRiskPivot').innerHTML = '<div class="no-data">No tickets at risk today</div>';
+        return;
+    }
+    // Render them as a table or list...
+    const html = createPivotTable([
+        ['Ticket #', 'Customer', 'Priority', 'Status', 'SLA Status', 'Deadline']
+    ].concat(
+        atRiskTickets.map(t => [
+            t['Ticket Number'] || 'N/A',
+            t['Customer'] || 'N/A',
+            t['Priority'] || 'N/A',
+            t['Status'] || t['Satus'] || 'N/A',
+            t['SLA Status'] || 'N/A',
+            (() => {
+                const deadline = calculateSLADeadline(t);
+                return deadline ? deadline.toLocaleString('en-GB') : 'N/A';
+            })()
+        ])
+    ));
+    document.getElementById('slaRiskPivot').innerHTML = html;
+}
+
 
 
 
