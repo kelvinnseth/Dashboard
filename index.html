@@ -634,6 +634,14 @@
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(38, 222, 129, 0.4);
         }
+
+
+    .clickable-sla-status {
+    color: #667eea;
+    cursor: pointer;
+    text-decoration: underline;
+    font-weight: bold;
+}
     </style>
 </head>
 <body>
@@ -2151,69 +2159,7 @@ document.getElementById('dateFilterEnd').addEventListener('change', function(e) 
 
 
         
-   function updateSLARiskPivot() {
-    // Group tickets by SLA Risk and then by Customer
-    const riskCategories = ["Urgent Attention Needed", "High Risk"];
-    const slaAtRiskTickets = filteredData.filter(t => 
-        t['At Risk of Failing SLA'] === "Yes" && riskCategories.includes(t['SLA Risk Level'])
-    );
-
-    // Build a mapping by risk then customer for modal lookup
-    window.slaRiskTicketsByCategoryAndCustomer = {};
-    riskCategories.forEach(riskLevel => {
-        window.slaRiskTicketsByCategoryAndCustomer[riskLevel] = {};
-        const byCustomer = groupBy(
-            slaAtRiskTickets.filter(t => t['SLA Risk Level'] === riskLevel),
-            t => t.Customer || 'Unknown'
-        );
-        Object.assign(window.slaRiskTicketsByCategoryAndCustomer[riskLevel], byCustomer);
-    });
-
-    // Table data, without the Avg Hours column
-    const tableRows = [];
-    riskCategories.forEach(riskLevel => {
-        const byCustomer = window.slaRiskTicketsByCategoryAndCustomer[riskLevel];
-        Object.entries(byCustomer).sort((a,b)=>b[1].length-a[1].length).forEach(([customer, tickets]) => {
-            tableRows.push([
-    riskLevel,
-    `<a href="#" class="clickable-customer" data-risk="${riskLevel}" data-customer="${customer.replace(/"/g, '&quot;')}" tabindex="0" role="button">${customer}</a>`,
-    tickets.length
-]);
-        });
-    });
-
-    let html = createPivotTable([
-        ['Risk Level', 'Customer', 'Count']
-    ].concat(tableRows));
-    document.getElementById('slaRiskPivot').innerHTML = html;
-
-    // Event delegation for customer clicks
-    document.getElementById('slaRiskPivot').onclick = function(e) {
-        if (e.target.classList.contains('clickable-customer')) {
-            const riskLevel = e.target.getAttribute('data-risk');
-            const customer = e.target.getAttribute('data-customer');
-            showSLARiskCustomerTickets(riskLevel, customer);
-        }
-    };
-}
-
-
-
-        function updatePriorityPivot() {
-    const priorityCounts = groupBy(filteredData, t => t.Priority || 'Unknown');
-    const html = createPivotTable([
-        ['Priority', 'Count', 'Percentage']
-    ].concat(
-        Object.entries(priorityCounts)
-            .sort((a, b) => b[1].length - a[1].length)
-            .map(([priority, tickets]) => [
-                priority,
-                tickets.length,
-                ((tickets.length / filteredData.length) * 100).toFixed(1) + '%'
-            ])
-    ));
-    document.getElementById('priorityPivot').innerHTML = html;
-}
+      
 
         
 
@@ -2348,7 +2294,21 @@ function showSLARiskCustomerTickets(riskLevel, customer) {
     document.getElementById('modalBody').innerHTML = ticketListHtml;
     document.getElementById('modal').classList.remove('hidden');
 }
-
+  function updatePriorityPivot() {
+    const priorityCounts = groupBy(filteredData, t => t.Priority || 'Unknown');
+    const html = createPivotTable([
+        ['Priority', 'Count', 'Percentage']
+    ].concat(
+        Object.entries(priorityCounts)
+            .sort((a, b) => b[1].length - a[1].length)
+            .map(([priority, tickets]) => [
+                priority,
+                tickets.length,
+                ((tickets.length / filteredData.length) * 100).toFixed(1) + '%'
+            ])
+    ));
+    document.getElementById('priorityPivot').innerHTML = html;
+}
 
   
 
@@ -3371,7 +3331,10 @@ function getSLAPerformanceByWeek(tickets) {
 }
 
 
-   function updateSLAPivot() {
+
+
+function updateSLAPivot() {
+    // Get the selected customer from the filter dropdown
     const slaCustomerFilter = document.getElementById('slaCustomerFilter').value;
     let slaData = filteredData;
     if (slaCustomerFilter) {
@@ -3383,7 +3346,7 @@ function getSLAPerformanceByWeek(tickets) {
         return;
     }
 
-    // --- This is the fixed stats block ---
+    // --- SLA stats ---
     const totalTickets = slaData.length;
     const metSLA = slaData.filter(t => {
         const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
@@ -3428,35 +3391,42 @@ function getSLAPerformanceByWeek(tickets) {
         </div>
     `;
 
-    // Group by SLA status and build table with clickable status
+    // --- Group by SLA Status ---
     const slaCounts = groupBy(slaData, t => t['SLA Status'] || 'Unknown');
-const slaTableData = [
-    ['SLA Status', 'Count', 'Percentage']
-].concat(
-    Object.entries(slaCounts)
-        .sort((a, b) => b[1].length - a[1].length)
-        .map(([sla, tickets]) => [
-            `<span class="clickable-sla-status" data-sla-status="${encodeURIComponent(sla)}">${sla}</span>`,
-            tickets.length,
-            ((tickets.length / slaData.length) * 100).toFixed(1) + '%'
-        ])
-);
+    const slaTableData = [
+        ['SLA Status', 'Count', 'Percentage']
+    ].concat(
+        Object.entries(slaCounts)
+            .sort((a, b) => b[1].length - a[1].length)
+            .map(([sla, tickets]) => [
+                `<span class="clickable-sla-status" data-sla-status="${encodeURIComponent(sla)}">${sla}</span>`,
+                tickets.length,
+                ((tickets.length / slaData.length) * 100).toFixed(1) + '%'
+            ])
+    );
 
-const tableHtml = createPivotTable(slaTableData);
+    const tableHtml = createPivotTable(slaTableData);
 
     document.getElementById('slaPivot').innerHTML = summaryHtml + tableHtml;
-    const slaByWeekHtml = getSLAPerformanceByWeek(filteredData); // or slaData if filtering by customer
-    document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">' + slaByWeekHtml + '</div>';
 
-    // Add the click handler for SLA Status
+    // --- (Optional) SLA by week table ---
+    if (typeof getSLAPerformanceByWeek === 'function') {
+        const slaByWeekHtml = getSLAPerformanceByWeek(slaData);
+        document.getElementById('slaPivot').innerHTML += '<div style="margin-top:20px;">' + slaByWeekHtml + '</div>';
+    }
+
+    // --- Make SLA Status clickable ---
     document.getElementById('slaPivot').onclick = function(e) {
         if (e.target.classList.contains('clickable-sla-status')) {
             const slaStatus = decodeURIComponent(e.target.getAttribute('data-sla-status'));
-            showSLATicketsModal(slaStatus, slaData); // pass slaData so filter applies
+            showSLATicketsModal(slaStatus, slaData);
         }
     };
 }
 
+
+
+        
 // Modal function to show tickets for a given SLA status
 function showSLATicketsModal(slaStatus, slaData) {
     let tickets;
