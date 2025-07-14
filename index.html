@@ -932,6 +932,127 @@
 console.log("First ticket object:", originalData[0]);
 
 
+
+
+// =========== Report Modal Logic ===========
+
+// Show the modal
+document.getElementById('generateReportBtn').addEventListener('click', function() {
+    document.getElementById('reportModal').style.display = 'flex';
+    // Show main type list, hide details
+    document.getElementById('reportTypeList').style.display = 'block';
+    document.getElementById('reportTypeDetail').innerHTML = '';
+});
+
+// Hide modal
+document.getElementById('closeReportModal').addEventListener('click', function() {
+    document.getElementById('reportModal').style.display = 'none';
+});
+
+// Handle clicking a report type
+document.querySelectorAll('#reportTypeList button').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const type = btn.getAttribute('data-type');
+        showReportTypeDetail(type);
+        document.getElementById('reportTypeList').style.display = 'none';
+    });
+});
+
+// =========== Report Type Detail Logic ===========
+
+function showReportTypeDetail(type) {
+    if (type === 'sla') {
+        showSLAReportOptions();
+    } else {
+        // For other types, you can add your own logic here:
+        let reportNames = {
+            dashboard: "Full Dashboard Report",
+            scheduler: "Scheduler Performance Report",
+            engineer: "Engineers Performance Report",
+            customer: "Customer Summary Report"
+        };
+        document.getElementById('reportTypeDetail').innerHTML = `
+            <div style="margin-bottom:16px;"><strong>${reportNames[type]}</strong></div>
+            <div>
+              <button class="btn btn-primary" onclick="downloadReport('${type}', 'pdf')">PDF</button>
+              <button class="btn btn-primary" onclick="downloadReport('${type}', 'excel')">Excel</button>
+              <button class="btn btn-primary" onclick="downloadReport('${type}', 'web')">Web</button>
+            </div>
+        `;
+    }
+}
+
+// =========== SLA Report Logic ===========
+
+// Example customer list: replace with your actual data!
+function getCustomerList() {
+    // Replace with your real dynamic customer list
+    return ['Tesco', 'Sainsbury', 'Waitrose', 'Aldi', 'Lidl'];
+}
+
+function showSLAReportOptions() {
+    const customers = getCustomerList();
+    let html = `<div style="margin-bottom:12px;"><strong>SLA Reports</strong></div>`;
+    html += `<div>`;
+    customers.forEach(cust => {
+        html += `
+        <div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #eee;">
+          <div style="font-weight:bold;">${cust}</div>
+          <div style="margin-top:6px;">
+            <button class="btn btn-primary" onclick="downloadCustomerSLAReport('${cust}', 'pdf')">PDF</button>
+            <button class="btn btn-primary" onclick="downloadCustomerSLAReport('${cust}', 'excel')">Excel</button>
+            <button class="btn btn-primary" onclick="downloadCustomerSLAReport('${cust}', 'web')">Web</button>
+          </div>
+        </div>
+        `;
+    });
+    html += `</div>`;
+    document.getElementById('reportTypeDetail').innerHTML = html;
+}
+
+// =========== Download Handlers ===========
+
+// For other types
+window.downloadReport = function(type, format) {
+    alert(`Download ${type} report as ${format.toUpperCase()} (implement logic)`);
+    // Implement your actual download logic here!
+    // e.g. exportDashboardReport(format);
+}
+
+// For SLA per customer
+window.downloadCustomerSLAReport = function(customer, format) {
+    alert(`Download SLA report for ${customer} as ${format.toUpperCase()} (implement logic)`);
+    // Implement your actual download logic here!
+    // e.g. exportSLAReport(customer, format);
+}
+
+// =========== Example Export Functions ===========
+// You can use SheetJS for Excel, jsPDF for PDF, or custom for web display.
+// Plug in your real data and logic as needed.
+
+function exportSLAReport(customer, format) {
+    // Get SLA data for customer (implement as needed)
+    // let data = getSLADataForCustomer(customer);
+
+    if (format === 'excel') {
+        // Export to Excel
+        // const ws = XLSX.utils.json_to_sheet(data);
+        // const wb = XLSX.utils.book_new();
+        // XLSX.utils.book_append_sheet(wb, ws, `${customer} SLA`);
+        // XLSX.writeFile(wb, `${customer}_SLA_Report.xlsx`);
+    } else if (format === 'pdf') {
+        // Export to PDF (use jsPDF or similar)
+    } else if (format === 'web') {
+        // Show in modal or new tab
+    }
+}
+
+function exportDashboardReport(format) {
+    // Get your dashboard data and export
+}
+
+
+
         function calculateSLADeadline(ticket) {
     if (ticket['SLA Notes'] && ticket['SLA Notes'].toString().trim() !== '') return null;
 
