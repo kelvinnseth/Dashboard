@@ -756,7 +756,30 @@
                 <div class="clear-filters">
                     <button id="clearAllFilters" class="clear-button">Clear All Filters</button>
                 </div>
+
+
+
+                <!--Report -->
+<div style="display:flex;align-items:center;gap:12px;">
+  <button id="clearFiltersBtn" class="btn btn-danger">Clear All Filters</button>
+  <button id="generateReportBtn" class="btn btn-primary">Generate Report</button>
+</div>
+
+<!-- Report Options Popup -->
+<div id="reportOptions"
+     style="display:none;position:absolute;z-index:1000;background:#fff;border:1px solid #ccc;padding:10px;border-radius:8px;">
+  <div><button class="btn btn-light" id="reportExcel">Excel</button></div>
+  <div style="margin-top:8px;"><button class="btn btn-light" id="reportPDF">PDF</button></div>
+  <div style="margin-top:8px;"><button class="btn btn-light" id="reportWeb">Web Version</button></div>
+</div>
+
+
+
+
             </div>
+
+
+
             
             <div class="dashboard-grid">
                 <div class="pivot-card">
