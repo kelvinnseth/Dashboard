@@ -1389,26 +1389,7 @@ function exportSLAReportToExcel(customer) {
 
 
 
-    function calculateSLADeadline(ticket) {
-    // Do NOT exclude tickets with SLA Notes! Calculate anyway.
-    const createDate = convertExcelDate(ticket['Create Date']);
-    const createTime = convertExcelDate(ticket['Create Time']);
-    const priority = (ticket.Priority || '').toUpperCase();
-
-    const startTime = createTime || createDate;
-    if (!startTime || isNaN(startTime.getTime())) return null;
-
-    // P1: SLA = 4 hours from create time
-    if (priority === 'P1') return new Date(startTime.getTime() + 4 * 60 * 60 * 1000);
-
-    // All other priorities
-    const hour = startTime.getHours();
-    let deadline = new Date(startTime);
-    if (hour < 16) deadline.setDate(deadline.getDate() + 1);
-    else deadline.setDate(deadline.getDate() + 2);
-    deadline.setHours(23, 59, 59, 999);
-    return deadline;
-}
+function calculateSLADeadline(ticket) {
 
 function getSLAStatus(ticket) {
     const slaDeadline = calculateSLADeadline(ticket);
@@ -2973,8 +2954,14 @@ function closeModal() {
     window.modalContext = null;
     document.getElementById('modal').classList.add('hidden');
 }
-        
-    function convertExcelDate(excelDate) {
+
+
+
+
+
+    
+ 
+function convertExcelDate(excelDate) {
     if (typeof excelDate === 'number') {
         const excelEpoch = new Date(1900, 0, 1);
         const jsDate = new Date(excelEpoch.getTime() + (excelDate - 1) * 24 * 60 * 60 * 1000);
@@ -2993,7 +2980,10 @@ function closeModal() {
     return null;
 }
 
-        
+
+
+
+    
         function showTicketDetails(riskId, riskLevel) {
             const tickets = window.slaRiskTickets[riskLevel] || [];
             
@@ -4042,6 +4032,124 @@ function updateSchedulerPivot() {
 }
 
 
+
+
+
+function showSchedulerSlaAtRiskTicketsModal(tickets, scheduler) {
+    let modalHtml = `
+        <h2>SLA At Risk Tickets for Scheduler: ${scheduler} (${tickets.length})</h2>
+        <div class="ticket-list" style="max-height:400px;overflow-y:auto;">
+    `;
+    tickets.forEach(t => {
+        // Format ticket details as needed, example:
+        modalHtml += `
+            <div class="ticket-item">
+                <div class="ticket-number">${t['Ticket Number'] || 'N/A'}</div>
+                <div class="ticket-title">${t['Ticket Title'] || ''}</div>
+                <div class="ticket-meta">
+                    <b>Status:</b> ${t.Status || t.Satus || 'N/A'} | 
+                    <b>Priority:</b> ${t.Priority || 'N/A'} | 
+                    <b>Resource:</b> ${t['Primary Resource'] || 'N/A'}
+                </div>
+                <div class="ticket-meta">
+                    <b>Created Date:</b> ${formatDate(t['Create Date'])}
+                </div>
+                <div class="ticket-meta">
+                    <b>Scheduled Date:</b> ${formatDate(t['Scheduled Date'])}
+                </div>
+            </div>
+        `;
+    });
+    modalHtml += '</div>';
+    document.getElementById('modalBody').innerHTML = modalHtml;
+    document.getElementById('modal').classList.remove('hidden');
+}
+
+
+
+
+    function showSlaAtRiskTicketsBySchedulerModal(tickets) {
+    const atRiskTickets = getTicketsAtRiskToday(tickets);
+    const grouped = groupAtRiskTicketsByScheduler(atRiskTickets);
+    const schedulers = Object.keys(grouped).sort();
+
+    let modalHtml = `
+        <h2>SLA At Risk Tickets by Scheduler</h2>
+        <div style="max-height:500px;overflow-y:auto;">
+            <table class="pivot-table">
+                <thead>
+                    <tr>
+                        <th>Scheduler</th>
+                        <th>At Risk Tickets</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    schedulers.forEach(scheduler => {
+        modalHtml += `
+            <tr>
+                <td><span class="clickable-scheduler" data-scheduler="${scheduler}">${scheduler}</span></td>
+                <td>${grouped[scheduler].length}</td>
+            </tr>
+        `;
+    });
+
+    modalHtml += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    document.getElementById('modalBody').innerHTML = modalHtml;
+    document.getElementById('modal').classList.remove('hidden');
+
+    // Add click handler for drilldown
+    setTimeout(() => {
+        document.querySelectorAll('.clickable-scheduler').forEach(el => {
+            el.onclick = function() {
+                const scheduler = this.getAttribute('data-scheduler');
+                showSchedulerSlaAtRiskTicketsModal(grouped[scheduler], scheduler);
+            };
+        });
+    }, 0);
+}
+
+
+
+
+
+
+function groupAtRiskTicketsByScheduler(tickets) {
+    const grouped = {};
+    tickets.forEach(t => {
+        const scheduler = t['Scheduled By'] || "Unassigned";
+        if (!grouped[scheduler]) grouped[scheduler] = [];
+        grouped[scheduler].push(t);
+    });
+    return grouped;
+}
+
+
+
+
+
+function getTicketsAtRiskToday(tickets) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    return tickets.filter(ticket => {
+        const slaDeadline = calculateSLADeadline(ticket);
+        if (!slaDeadline) return false;
+        const deadlineDay = new Date(slaDeadline);
+        deadlineDay.setHours(0,0,0,0);
+
+        const status = (ticket.Status || ticket.Satus || '').toLowerCase();
+        const isComplete = status === 'complete' || status === 'completed' || status === 'closed';
+        return deadlineDay.getTime() === today.getTime() && !isComplete;
+    });
+}
+    
 
 
 
