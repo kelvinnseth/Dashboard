@@ -2583,10 +2583,8 @@ function getEngineersOnShift(tickets, dateStr) {
 
     // Modal update function
 function showEngineeringResourceModal(dateStr) {
-    // Engineers who completed at least one job (on scheduled date)
-    const completedEngineersSet = new Set();
+    // Section 1: Engineers who completed a job ON THIS DATE
     const completedByEngineer = {};
-
     filteredData.forEach(t => {
         const eng = t['Primary Resource'] && t['Primary Resource'].trim() !== "Unassigned" && t['Primary Resource'].trim() !== "" 
             ? t['Primary Resource'].trim() 
@@ -2599,30 +2597,30 @@ function showEngineeringResourceModal(dateStr) {
             sched.toISOString().slice(0, 10) === dateStr &&
             comp.toISOString().slice(0, 10) === dateStr
         ) {
-            completedEngineersSet.add(eng);
             if (!completedByEngineer[eng]) completedByEngineer[eng] = [];
             completedByEngineer[eng].push(t);
         }
     });
 
-    // Engineers with a job scheduled (excluding those who completed)
-    const assignedEngineersMap = {};
+    // Section 2: Engineers scheduled for this date (based ONLY on CURRENT Scheduled Date)
+    const assignedByEngineer = {};
     filteredData.forEach(t => {
         const eng = t['Primary Resource'] && t['Primary Resource'].trim() !== "Unassigned" && t['Primary Resource'].trim() !== "" 
             ? t['Primary Resource'].trim() 
             : null;
         if (!eng) return;
         let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+        // Only tickets whose CURRENT scheduled date is this date!
         if (sched && sched.toISOString().slice(0, 10) === dateStr) {
-            if (!assignedEngineersMap[eng]) assignedEngineersMap[eng] = [];
-            assignedEngineersMap[eng].push(t);
+            if (!assignedByEngineer[eng]) assignedByEngineer[eng] = [];
+            assignedByEngineer[eng].push(t);
         }
     });
 
     let modalHtml = `<h2>Engineering Resource for ${dateStr}</h2>`;
 
     // Section 1: Completed Engineers
-    const completedEngineers = Array.from(completedEngineersSet);
+    const completedEngineers = Object.keys(completedByEngineer);
     modalHtml += `<div style="font-weight:bold; margin:10px 0 6px 0;">Engineers who completed a job (${completedEngineers.length})</div>`;
     if (completedEngineers.length === 0) {
         modalHtml += `<p style="color:#764ba2;">No engineers completed a job on this date.</p>`;
@@ -2649,7 +2647,7 @@ function showEngineeringResourceModal(dateStr) {
                 seenTicketNumbers.add(t['Ticket Number']);
                 return true;
             });
-            const assignedTickets = assignedEngineersMap[eng] || [];
+            const assignedTickets = assignedByEngineer[eng] || [];
             const jobsAssigned = assignedTickets.length;
             const jobsCompleted = completedTickets.length;
             const completionRate = jobsAssigned > 0 ? ((jobsCompleted / jobsAssigned) * 100).toFixed(1) : '0.0';
@@ -2694,7 +2692,7 @@ function showEngineeringResourceModal(dateStr) {
     // --- Section 2: Engineers Scheduled (Jobs Assigned) ---
     modalHtml += `<div style="font-weight:bold; margin:18px 0 8px 0; border-top:2px solid #667eea; padding-top:12px;">Engineers Scheduled (Jobs Assigned)</div>`;
 
-    const assignedEngineers = Object.keys(assignedEngineersMap);
+    const assignedEngineers = Object.keys(assignedByEngineer);
 
     if (assignedEngineers.length === 0) {
         modalHtml += `<p style="color:#764ba2;">No engineers were scheduled for jobs on this date.</p>`;
@@ -2711,7 +2709,7 @@ function showEngineeringResourceModal(dateStr) {
         `;
         assignedEngineers.forEach(eng => {
             // List ticket numbers, comma separated, deduplicated
-            const ticketNumbers = [...new Set(assignedEngineersMap[eng].map(t => t['Ticket Number'] || ''))]
+            const ticketNumbers = [...new Set(assignedByEngineer[eng].map(t => t['Ticket Number'] || ''))]
                 .filter(x => x)
                 .join(', ');
             modalHtml += `
