@@ -4070,11 +4070,11 @@ function showSchedulerModal(schedulerName) {
         return bRisk - aRisk;
     });
 
-    // Scheduled Today tickets (where Scheduled Date is today, regardless of status)
+    // Scheduled Today tickets: Service Call Created Date (Create Date) is today, regardless of status
     let todayStr = new Date().toISOString().slice(0, 10);
     let scheduledTodayTickets = tickets.filter(t => {
-        let scheduledDate = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
-        return scheduledDate && formatDate(scheduledDate) === todayStr;
+        let createDate = t['Create Date'] instanceof Date ? t['Create Date'] : convertExcelDate(t['Create Date']);
+        return createDate && formatDate(createDate) === todayStr;
     });
 
     // Modal HTML with three buttons
@@ -4098,6 +4098,80 @@ function showSchedulerModal(schedulerName) {
     document.getElementById('showScheduledTodayTickets').onclick = () => renderSchedulerTicketsList(scheduledTodayTickets, 'scheduledToday');
 }
 
+function renderSchedulerTicketsList(tickets, type) {
+    let html = '';
+
+    if (type === 'scheduledToday') {
+        if (tickets.length === 0) {
+            html = `<p>No tickets with service call created today by this scheduler.</p>`;
+        } else {
+            html += '<div class="ticket-list">';
+            tickets.forEach((t, idx) => {
+                let slaRiskBadge = '';
+                if ((t['At Risk of Failing SLA'] || '').toLowerCase() === "yes") {
+                    slaRiskBadge = `<span style="background:#d63031;color:white;padding:2px 8px;border-radius:8px;margin-right:6px;font-weight:bold;">SLA RISK</span>`;
+                }
+                html += `
+                    <div class="ticket-item">
+                        <div style="font-weight:bold;">${idx + 1}. <span class="ticket-number">${t['Ticket Number'] || 'N/A'}</span></div>
+                        ${slaRiskBadge}
+                        <div class="ticket-title">${t['Ticket Title'] || ''}</div>
+                        <div class="ticket-meta">
+                            <b>Status:</b> ${t.Status || t.Satus || 'N/A'}
+                            <b>Priority:</b> ${t.Priority || 'N/A'} | 
+                            <b>Resource:</b> ${t['Primary Resource'] || 'N/A'}
+                        </div>
+                        <div class="ticket-meta">
+                            <b>Created Date:</b> ${formatDate(t['Create Date'])}
+                        </div>
+                        <div class="ticket-meta">
+                            <b>Scheduled Date:</b> ${formatDate(t['Scheduled Date'])}
+                        </div>
+                        <div class="ticket-meta">
+                            <b>Complete Date:</b> ${formatDate(t['Complete Date'])}
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+    } else {
+        // ...existing logic for 'completed' and 'outstanding'
+    }
+    document.getElementById('schedulerModalContent').innerHTML = html;
+}
+
+// Utility for date formatting
+function formatDate(dateVal) {
+    if (!dateVal) return '';
+    if (dateVal instanceof Date) {
+        return dateVal.toISOString().slice(0, 10);
+    }
+    const d = convertExcelDate(dateVal);
+    return d ? d.toISOString().slice(0, 10) : '';
+}
+
+function convertExcelDate(excelDate) {
+    if (typeof excelDate === 'number') {
+        const excelEpoch = new Date(1900, 0, 1);
+        const jsDate = new Date(excelEpoch.getTime() + (excelDate - 1) * 24 * 60 * 60 * 1000);
+        if (excelDate > 59) {
+            jsDate.setTime(jsDate.getTime() - 24 * 60 * 60 * 1000);
+        }
+        return jsDate;
+    }
+    if (excelDate instanceof Date) {
+        return excelDate;
+    }
+    if (typeof excelDate === 'string') {
+        const parsed = new Date(excelDate);
+        return isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
+}
+
+
+        
 function renderSchedulerTicketsList(tickets, type) {
     let html = '';
 
