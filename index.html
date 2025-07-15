@@ -220,7 +220,11 @@
   display: none !important;
 }
 
-
+#modalBody {
+    flex: 1 1 auto;       /* Take remaining space */
+    overflow: auto;       /* Scroll internally if needed */
+    min-height: 0;        /* Fix for flexbox overflow issues */
+}
 
 
 #modalContent {
@@ -251,9 +255,10 @@
         }
         
         .ticket-list {
-            max-height: 400px;
-            overflow-y: auto;
-        }
+    height: 100%;         /* Fill modalBody */
+    min-height: 0;
+    overflow-y: auto;
+}
         
         .ticket-item {
             padding: 10px;
