@@ -2606,9 +2606,7 @@ function showEngineeringResourceModal(dateStr) {
     });
 
     // Engineers with a job scheduled (excluding those who completed)
-    const assignedEngineersSet = new Set();
-    const assignedByEngineer = {};
-
+    const assignedEngineersMap = {};
     filteredData.forEach(t => {
         const eng = t['Primary Resource'] && t['Primary Resource'].trim() !== "Unassigned" && t['Primary Resource'].trim() !== "" 
             ? t['Primary Resource'].trim() 
@@ -2616,14 +2614,10 @@ function showEngineeringResourceModal(dateStr) {
         if (!eng) return;
         let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
         if (sched && sched.toISOString().slice(0, 10) === dateStr) {
-            assignedEngineersSet.add(eng);
-            if (!assignedByEngineer[eng]) assignedByEngineer[eng] = [];
-            assignedByEngineer[eng].push(t);
+            if (!assignedEngineersMap[eng]) assignedEngineersMap[eng] = [];
+            assignedEngineersMap[eng].push(t);
         }
     });
-
-    // Figure out assigned-only engineers (not in completed)
-    const assignedOnlyEngineers = Array.from(assignedEngineersSet).filter(eng => !completedEngineersSet.has(eng));
 
     let modalHtml = `<h2>Engineering Resource for ${dateStr}</h2>`;
 
@@ -2647,78 +2641,107 @@ function showEngineeringResourceModal(dateStr) {
                 </thead>
                 <tbody>
         `;
-completedEngineers.forEach(eng => {
-    // Remove duplicate tickets based on Ticket Number
-const seenTicketNumbers = new Set();
-const completedTickets = completedByEngineer[eng].filter(t => {
-    if (seenTicketNumbers.has(t['Ticket Number'])) return false;
-    seenTicketNumbers.add(t['Ticket Number']);
-    return true;
-});
-    const assignedTickets = assignedByEngineer[eng] || [];
-    const jobsAssigned = assignedTickets.length;
-    const jobsCompleted = completedTickets.length;
-    const completionRate = jobsAssigned > 0 ? ((jobsCompleted / jobsAssigned) * 100).toFixed(1) : '0.0';
-    const uniquePostcodes = new Set(
-        completedTickets.map(t => t.Postcode).filter(pc => !!pc && pc.toString().trim() !== '')
-    );
-    const metSLA = completedTickets.filter(t => {
-        const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
-        return (
-            status === 'completed within sla' ||
-            status === 'within sla' ||
-            status === 'met sla'
-        );
-    }).length;
-    const perf = completedTickets.length > 0
-        ? ((metSLA / completedTickets.length) * 100).toFixed(1) + '%'
-        : 'N/A';
+        completedEngineers.forEach(eng => {
+            // Remove duplicate tickets based on Ticket Number
+            const seenTicketNumbers = new Set();
+            const completedTickets = completedByEngineer[eng].filter(t => {
+                if (seenTicketNumbers.has(t['Ticket Number'])) return false;
+                seenTicketNumbers.add(t['Ticket Number']);
+                return true;
+            });
+            const assignedTickets = assignedEngineersMap[eng] || [];
+            const jobsAssigned = assignedTickets.length;
+            const jobsCompleted = completedTickets.length;
+            const completionRate = jobsAssigned > 0 ? ((jobsCompleted / jobsAssigned) * 100).toFixed(1) : '0.0';
+            const uniquePostcodes = new Set(
+                completedTickets.map(t => t.Postcode).filter(pc => !!pc && pc.toString().trim() !== '')
+            );
+            const metSLA = completedTickets.filter(t => {
+                const status = (t['SLA Status'] || '').toString().toLowerCase().trim();
+                return (
+                    status === 'completed within sla' ||
+                    status === 'within sla' ||
+                    status === 'met sla'
+                );
+            }).length;
+            const perf = completedTickets.length > 0
+                ? ((metSLA / completedTickets.length) * 100).toFixed(1) + '%'
+                : 'N/A';
 
-    // Make jobsCompleted clickable, showing a list of ticket numbers
-    const ticketLinks = completedTickets.map(t =>
-        `<a href="#" class="modal-ticket-link" data-ticket="${t['Ticket Number']}">${t['Ticket Number']}</a>`
-    ).join(', ');
+            // Make jobsCompleted clickable, showing a list of ticket numbers
+            const ticketLinks = completedTickets.map(t =>
+                `<a href="#" class="modal-ticket-link" data-ticket="${t['Ticket Number']}">${t['Ticket Number']}</a>`
+            ).join(', ');
 
-    modalHtml += `
-        <tr>
-            <td>${eng}</td>
-            <td>${jobsAssigned}</td>
-            <td>
-                <span class="modal-completed-count" data-engineer="${eng}" data-date="${dateStr}">${jobsCompleted}</span>
-                <br>
-                ${ticketLinks}
-            </td>
-            <td>${completionRate}</td>
-            <td>${uniquePostcodes.size}</td>
-            <td>${perf}</td>
-        </tr>
-    `;
-});
+            modalHtml += `
+                <tr>
+                    <td>${eng}</td>
+                    <td>${jobsAssigned}</td>
+                    <td>
+                        <span class="modal-completed-count" data-engineer="${eng}" data-date="${dateStr}">${jobsCompleted}</span>
+                        <br>
+                        ${ticketLinks}
+                    </td>
+                    <td>${completionRate}</td>
+                    <td>${uniquePostcodes.size}</td>
+                    <td>${perf}</td>
+                </tr>
+            `;
+        });
+        modalHtml += `</tbody></table>`;
+    }
+
+    // --- Section 2: Engineers Scheduled (Jobs Assigned) ---
+    modalHtml += `<div style="font-weight:bold; margin:18px 0 8px 0; border-top:2px solid #667eea; padding-top:12px;">Engineers Scheduled (Jobs Assigned)</div>`;
+
+    const assignedEngineers = Object.keys(assignedEngineersMap);
+
+    if (assignedEngineers.length === 0) {
+        modalHtml += `<p style="color:#764ba2;">No engineers were scheduled for jobs on this date.</p>`;
+    } else {
+        modalHtml += `
+            <table class="pivot-table">
+                <thead>
+                    <tr>
+                        <th>Engineer</th>
+                        <th>Ticket Numbers (Scheduled)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        assignedEngineers.forEach(eng => {
+            // List ticket numbers, comma separated, deduplicated
+            const ticketNumbers = [...new Set(assignedEngineersMap[eng].map(t => t['Ticket Number'] || ''))]
+                .filter(x => x)
+                .join(', ');
+            modalHtml += `
+                <tr>
+                    <td>${eng}</td>
+                    <td>${ticketNumbers}</td>
+                </tr>
+            `;
+        });
         modalHtml += `</tbody></table>`;
     }
 
     document.getElementById('modalBody').innerHTML = modalHtml;
     document.getElementById('modal').classList.remove('hidden');
 
-document.getElementById('modalBody').innerHTML = modalHtml;
-document.getElementById('modal').classList.remove('hidden');
-
-// After rendering the modal, attach click handlers for ticket links:
-setTimeout(() => {
-    document.querySelectorAll('.modal-ticket-link').forEach(link => {
-        link.onclick = function(e) {
-            e.preventDefault();
-            const ticketNum = this.getAttribute('data-ticket');
-            // Find the ticket details from filteredData
-            const ticket = filteredData.find(t => t['Ticket Number'] == ticketNum);
-            if (ticket) {
-                showmodal(`Ticket Details: ${ticketNum}`, [ticket]);
-            } else {
-                alert('Ticket not found.');
-            }
-        };
-    });
-}, 50);
+    // After rendering the modal, attach click handlers for ticket links:
+    setTimeout(() => {
+        document.querySelectorAll('.modal-ticket-link').forEach(link => {
+            link.onclick = function(e) {
+                e.preventDefault();
+                const ticketNum = this.getAttribute('data-ticket');
+                const ticket = filteredData.find(t => t['Ticket Number'] == ticketNum);
+                if (ticket) {
+                    showmodal(`Ticket Details: ${ticketNum}`, [ticket]);
+                } else {
+                    alert('Ticket not found.');
+                }
+            };
+        });
+    }, 50);
 }
         
         
