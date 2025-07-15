@@ -2566,19 +2566,24 @@ function getAllTicketDates(tickets) {
 
         
 function getEngineersOnShift(tickets, dateStr) {
-    // Filter jobs for the given date and status "Service"
-    const filtered = tickets.filter(ticket =>
-        ticket["Scheduled Date"] === dateStr &&
-        ticket["Service Call Status"] === "Service"
-    );
+      // Only consider tickets whose Scheduled Date matches dateStr
+    // and whose Primary Resource is valid (not Unassigned/'')
+    const engineers = tickets
+        .filter(t => {
+            let sched = t['Scheduled Date'] instanceof Date ? t['Scheduled Date'] : convertExcelDate(t['Scheduled Date']);
+            return (
+                sched &&
+                sched.toISOString().slice(0, 10) === dateStr &&
+                t['Primary Resource'] &&
+                t['Primary Resource'].trim() !== "" &&
+                t['Primary Resource'].trim().toLowerCase() !== "unassigned"
+            );
+        })
+        .map(t => t['Primary Resource'].trim());
 
-    // Get unique engineer names/IDs
-    const engineers = filtered.map(ticket => ticket["Primary Resource"]);
-    const uniqueEngineers = Array.from(new Set(engineers));
-
-    return uniqueEngineers.length;
+    // Deduplicate and return count
+    return [...new Set(engineers)].length;
 }
-
         
 
     // Modal update function
