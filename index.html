@@ -2706,19 +2706,21 @@ function showEngineeringResourceModal(dateStr) {
             <table class="pivot-table">
                 <thead>
                     <tr>
+                        <th>#</th>
                         <th>Engineer</th>
                         <th>Ticket Numbers (Scheduled)</th>
                     </tr>
                 </thead>
                 <tbody>
         `;
-        assignedEngineers.forEach(eng => {
+        assignedEngineers.forEach((eng, idx) => {
             // List ticket numbers, comma separated, deduplicated
             const ticketNumbers = [...new Set(assignedByEngineer[eng].map(t => t['Ticket Number'] || ''))]
                 .filter(x => x)
                 .join(', ');
             modalHtml += `
                 <tr>
+                    <td style="font-weight:bold;">${idx + 1}</td>
                     <td>${eng}</td>
                     <td>${ticketNumbers}</td>
                 </tr>
