@@ -3718,7 +3718,7 @@ function showSLATicketsModal(slaStatus, slaData) {
 
     let modalBodyHtml = `
       <h2 style="color:#764ba2;margin-bottom:12px;">
-        <span style="font-size:1rem;">SLA Status: <span style="color:#764ba2;">${slaStatus}</span></span>
+        <span style="font-size:1rem;">Tickets for SLA status: <span style="color:#764ba2;">${slaStatus}</span></span>
         (${tickets.length} tickets)
       </h2>
       <div class="ticket-list" style="max-height: 350px; overflow-y: auto;">
@@ -3732,7 +3732,7 @@ function showSLATicketsModal(slaStatus, slaData) {
             let created = "N/A";
             if (ticket['Create Date']) {
                 const d = convertExcelDate(ticket['Create Date']);
-                created = d ? d.toLocaleDateString('en-GB') : ticket['Create Date'];
+                created = d ? d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-GB') : ticket['Create Date'];
                 if (ticket['Create Time']) {
                     const t = convertExcelDate(ticket['Create Time']);
                     created += ' ' + (t ? t.toLocaleTimeString('en-GB') : ticket['Create Time']);
@@ -3742,13 +3742,19 @@ function showSLATicketsModal(slaStatus, slaData) {
             let scheduled = "N/A";
             if (ticket['Scheduled Date']) {
                 const d = convertExcelDate(ticket['Scheduled Date']);
-                scheduled = d ? d.toLocaleDateString('en-GB') : ticket['Scheduled Date'];
+                scheduled = d ? d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-GB') : ticket['Scheduled Date'];
                 if (ticket['Scheduled time']) {
                     const t = convertExcelDate(ticket['Scheduled time']);
                     scheduled += ' ' + (t ? t.toLocaleTimeString('en-GB') : ticket['Scheduled time']);
                 }
             }
-            // Ticket details
+            // Completed Date & Time (NEW for your card)
+            let completed = "N/A";
+            if (ticket['Complete Date']) {
+                const d = convertExcelDate(ticket['Complete Date']);
+                completed = d ? d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-GB') : ticket['Complete Date'];
+            }
+
             modalBodyHtml += `
               <div style="border-bottom:1px solid #eee;padding:8px 0;">
                 <div><strong>Ticket #:</strong> ${ticket['Ticket Number'] || ''}</div>
@@ -3759,6 +3765,7 @@ function showSLATicketsModal(slaStatus, slaData) {
                 <div><strong>Status:</strong> ${ticket['Status'] || ''}</div>
                 <div><strong>Created:</strong> ${created}</div>
                 <div><strong>Scheduled:</strong> ${scheduled}</div>
+                <div><strong>Complete Date:</strong> ${completed}</div>
                 <div><strong>Primary Resource:</strong> ${ticket['Primary Resource'] || ''}</div>
                 <div><strong>Region:</strong> ${ticket['Region'] || ''}</div>
                 <div><strong>SLA Status:</strong> ${ticket['SLA Status'] || 'Unknown'}</div>
@@ -3775,6 +3782,34 @@ function showSLATicketsModal(slaStatus, slaData) {
         body: modalBodyHtml
     });
 }
+
+/**
+ * Converts Excel serial date to JS Date.
+ * @param {number|Date|string} excelDate
+ * @returns {Date|null}
+ */
+function convertExcelDate(excelDate) {
+    if (typeof excelDate === 'number') {
+        const excelEpoch = new Date(1900, 0, 1);
+        const jsDate = new Date(excelEpoch.getTime() + (excelDate - 1) * 24 * 60 * 60 * 1000);
+        if (excelDate > 59) {
+            jsDate.setTime(jsDate.getTime() - 24 * 60 * 60 * 1000);
+        }
+        return jsDate;
+    }
+    if (excelDate instanceof Date) {
+        return excelDate;
+    }
+    if (typeof excelDate === 'string') {
+        const parsed = new Date(excelDate);
+        return isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
+}
+
+
+
+        
 // Step 2: Customer + SLA Status -> Ticket List
 function showTicketsForCustomerAndSLA(customer, slaTicketsOnly, slaStatus) {
     window.modalContext = "sla"; // Keep context
