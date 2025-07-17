@@ -737,21 +737,23 @@
             <p>Upload your Excel file to view interactive pivot table analysis</p>
         </div>
         
-        <div class="upload-section">
-            <div class="file-upload">
-                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
-                <div class="upload-button">
-                    <span>📊</span>
-                    <span>Upload Excel/CSV File</span>
-                </div>
-            </div>
-            <div style="text-align: center; margin-top: 15px;">
-                <button class="demo-button" onclick="loadSampleData()">Load Last Updated Data</button>
-            </div>
-            <div class="progress-bar hidden" id="progressBar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
+       <div class="upload-section">
+    <div class="file-upload" style="display:flex;align-items:center;gap:18px;">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+        <div class="upload-button">
+            <span>📊</span>
+            <span>Upload Excel/CSV File</span>
         </div>
+        <!-- Add this span for info -->
+        <span id="lastUpdatedInfo" style="margin-left:12px;font-size:1.08rem;color:#333;font-weight:500;vertical-align:middle;"></span>
+    </div>
+    <div style="text-align: center; margin-top: 15px;">
+        <button class="demo-button" onclick="loadSampleData()">Load Last Updated Data</button>
+    </div>
+    <div class="progress-bar hidden" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
+</div>
         
         <div id="dashboard" class="hidden">
             <div class="summary-stats">
@@ -1068,6 +1070,38 @@ document.querySelectorAll('#reportTypeList button').forEach(btn => {
  * Usage:
  *   showModal({ title: "My Title", body: "<div>My HTML</div>" });
  */
+
+function updateLastUpdatedInfo() {
+    // Defensive: Use window.originalData, fall back to filteredData if not set
+    const data = (window.originalData && window.originalData.length > 0)
+        ? window.originalData
+        : (window.filteredData || []);
+    if (!data || data.length === 0) {
+        document.getElementById('lastUpdatedInfo').textContent = "";
+        return;
+    }
+    // Find latest Create Date
+    let maxDate = null;
+    data.forEach(ticket => {
+        let d = ticket['Create Date'];
+        if (d && !(d instanceof Date)) d = convertExcelDate(d);
+        if (d && (!maxDate || d > maxDate)) {
+            maxDate = d;
+        }
+    });
+    if (maxDate) {
+        // Format as "YYYY-MM-DD HH:mm:ss"
+        const pad = n => String(n).padStart(2, '0');
+        const dateStr = `${maxDate.getFullYear()}-${pad(maxDate.getMonth()+1)}-${pad(maxDate.getDate())}`;
+        const timeStr = `${pad(maxDate.getHours())}:${pad(maxDate.getMinutes())}:${pad(maxDate.getSeconds())}`;
+        document.getElementById('lastUpdatedInfo').textContent =
+            `Data Last Updated: ${dateStr} ${timeStr}`;
+    } else {
+        document.getElementById('lastUpdatedInfo').textContent = "";
+    }
+}
+
+
 function showModal(opts) {
     // opts: { title: string, body: HTML string }
     var bodyHtml = '';
@@ -1833,6 +1867,7 @@ window.originalData = rows.map((row) => {
     return ticket;
 });
 window.dashboardData = window.originalData;
+updateLastUpdatedInfo();
 
 
 
