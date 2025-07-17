@@ -4221,10 +4221,10 @@ function renderSchedulerMonthlySchedule(tickets, schedulerName) {
     const currentMonth = today.getMonth();
     const firstDay = new Date(currentYear, currentMonth, 1);
 
-    // Date format helper
+    // Helper
     const fmt = d => d.toISOString().slice(0, 10);
 
-    // Generate HTML table
+    // Generate the table from the 1st of month up to today
     let html = `<div style="max-width:500px;margin:0 auto;">`;
     html += `<table style="width:100%;border-collapse:collapse;font-size:1rem;margin-top:16px;">
         <tbody>`;
@@ -4234,12 +4234,14 @@ function renderSchedulerMonthlySchedule(tickets, schedulerName) {
         d.setDate(d.getDate() + 1)
     ) {
         const key = fmt(d);
+        // --- Use the same field and conversion as "Scheduled Today" ---
         const jobs = tickets.filter(ticket => {
-            // Only count if Scheduled Date is this date AND Scheduled By is the scheduler
-            const schedDateObj = convertExcelDate(ticket['Scheduled Date']);
+            let scheduledDate = ticket['Scheduled Date'] instanceof Date
+                ? ticket['Scheduled Date']
+                : convertExcelDate(ticket['Scheduled Date']);
             return (
-                schedDateObj &&
-                fmt(schedDateObj) === key &&
+                scheduledDate &&
+                formatDate(scheduledDate) === key &&
                 (ticket['Scheduled By'] || 'Unassigned') === schedulerName
             );
         });
