@@ -4213,7 +4213,7 @@ function showSchedulerModal(schedulerName) {
 }
 
 // Place this function after renderSchedulerTicketsList
-function renderSchedulerMonthlySchedule(tickets) {
+function renderSchedulerMonthlySchedule(tickets, schedulerName) {
     // Get today's date and first of month
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -4224,20 +4224,7 @@ function renderSchedulerMonthlySchedule(tickets) {
     // Helper
     const fmt = d => d.toISOString().slice(0, 10);
 
-    // Count jobs per day
-    const jobsPerDay = {};
-    tickets.forEach(ticket => {
-        if (!ticket['Scheduled Date']) return;
-        let schedDateObj = convertExcelDate(ticket['Scheduled Date']);
-        if (!schedDateObj || isNaN(schedDateObj.getTime())) return;
-        schedDateObj.setHours(0,0,0,0);
-        if (schedDateObj >= firstDay && schedDateObj <= today) {
-            const key = fmt(schedDateObj);
-            jobsPerDay[key] = (jobsPerDay[key] || 0) + 1;
-        }
-    });
-
-    // Build the professional list/table
+    // Build a map of date string to job count
     let html = `
     <div style="max-width:500px;margin:0 auto;">
     <table style="width:100%;border-collapse:collapse;font-size:1rem;margin-top:16px;">
@@ -4249,13 +4236,21 @@ function renderSchedulerMonthlySchedule(tickets) {
         </thead>
         <tbody>
     `;
-    // Loop from 1st to today
     for (
         let d = new Date(firstDay);
         d <= today;
         d.setDate(d.getDate() + 1)
     ) {
         const key = fmt(d);
+        const jobs = tickets.filter(ticket => {
+            // Only count if Scheduled Date is this date AND Scheduled By is the scheduler
+            const schedDateObj = convertExcelDate(ticket['Scheduled Date']);
+            return (
+                schedDateObj &&
+                fmt(schedDateObj) === key &&
+                (ticket['Scheduled By'] || 'Unassigned') === schedulerName
+            );
+        });
         let label = key;
         const yesterday = new Date(today);
         yesterday.setDate(today.getDate() - 1);
@@ -4267,7 +4262,7 @@ function renderSchedulerMonthlySchedule(tickets) {
         html += `
         <tr style="border-bottom:1px solid #f1f1f1;">
             <td style="padding:7px 6px;">${label}</td>
-            <td style="padding:7px 6px;text-align:right;"><strong>${jobsPerDay[key] || 0}</strong></td>
+            <td style="padding:7px 6px;text-align:right;"><strong>${jobs.length}</strong></td>
         </tr>`;
     }
     html += `
