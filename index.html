@@ -4213,7 +4213,7 @@ function showSchedulerModal(schedulerName) {
 }
 
 // Place this function after renderSchedulerTicketsList
-function renderSchedulerMonthlySchedule(tickets, schedulerName) {
+function renderSchedulerMonthlySchedule(tickets) {
     const fmt = d => d.toISOString().slice(0, 10);
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -4231,7 +4231,7 @@ function renderSchedulerMonthlySchedule(tickets, schedulerName) {
     ) {
         const key = fmt(d);
 
-        // Only filter by Create Date for this scheduler (tickets is already filtered)
+        // Just count tickets with Create Date === key (already filtered for scheduler)
         const jobs = tickets.filter(ticket => {
             let cd = ticket['Create Date'];
             let createDateObj = cd instanceof Date ? cd : convertExcelDate(cd);
@@ -4254,37 +4254,6 @@ function renderSchedulerMonthlySchedule(tickets, schedulerName) {
     }
     html += `</tbody></table></div>`;
     document.getElementById('schedulerModalContent').innerHTML = html;
-}
-        
-
-
-// Utility for date formatting
-function formatDate(dateVal) {
-    if (!dateVal) return '';
-    if (dateVal instanceof Date) {
-        return dateVal.toISOString().slice(0, 10);
-    }
-    const d = convertExcelDate(dateVal);
-    return d ? d.toISOString().slice(0, 10) : '';
-}
-
-function convertExcelDate(excelDate) {
-    if (typeof excelDate === 'number') {
-        const excelEpoch = new Date(1900, 0, 1);
-        const jsDate = new Date(excelEpoch.getTime() + (excelDate - 1) * 24 * 60 * 60 * 1000);
-        if (excelDate > 59) {
-            jsDate.setTime(jsDate.getTime() - 24 * 60 * 60 * 1000);
-        }
-        return jsDate;
-    }
-    if (excelDate instanceof Date) {
-        return excelDate;
-    }
-    if (typeof excelDate === 'string') {
-        const parsed = new Date(excelDate);
-        return isNaN(parsed.getTime()) ? null : parsed;
-    }
-    return null;
 }
 
 
@@ -4333,6 +4302,8 @@ function renderSchedulerTicketsList(tickets, type) {
     document.getElementById('schedulerModalContent').innerHTML = html;
 }
 
+
+        
 // Utility for date formatting
 function formatDate(dateVal) {
     if (!dateVal) return '';
