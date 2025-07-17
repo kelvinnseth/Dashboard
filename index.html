@@ -4214,28 +4214,20 @@ function showSchedulerModal(schedulerName) {
 
 // Place this function after renderSchedulerTicketsList
 function renderSchedulerMonthlySchedule(tickets, schedulerName) {
-    // Get today's date and first of month
+    // Set up date range: 1st of the month up to today ONLY
     const today = new Date();
     today.setHours(0,0,0,0);
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
     const firstDay = new Date(currentYear, currentMonth, 1);
 
-    // Helper
+    // Date format helper
     const fmt = d => d.toISOString().slice(0, 10);
 
-    // Build a map of date string to job count
-    let html = `
-    <div style="max-width:500px;margin:0 auto;">
-    <table style="width:100%;border-collapse:collapse;font-size:1rem;margin-top:16px;">
-        <thead>
-            <tr style="background:#e3e8fd;">
-                <th style="padding:8px 6px;text-align:left;">Date</th>
-                <th style="padding:8px 6px;text-align:right;">Jobs Scheduled</th>
-            </tr>
-        </thead>
-        <tbody>
-    `;
+    // Generate HTML table
+    let html = `<div style="max-width:500px;margin:0 auto;">`;
+    html += `<table style="width:100%;border-collapse:collapse;font-size:1rem;margin-top:16px;">
+        <tbody>`;
     for (
         let d = new Date(firstDay);
         d <= today;
@@ -4255,24 +4247,19 @@ function renderSchedulerMonthlySchedule(tickets, schedulerName) {
         const yesterday = new Date(today);
         yesterday.setDate(today.getDate() - 1);
         if (key === fmt(yesterday)) {
-            label = `<b>Yesterday</b> <span style="color:#999;">(${key})</span>`;
+            label = `<b>Yesterday</b> (${key})`;
         } else if (key === fmt(today)) {
-            label = `<b>Today</b> <span style="color:#999;">(${key})</span>`;
+            label = `<b>Today</b> (${key})`;
         }
         html += `
-        <tr style="border-bottom:1px solid #f1f1f1;">
+        <tr>
             <td style="padding:7px 6px;">${label}</td>
-            <td style="padding:7px 6px;text-align:right;"><strong>${jobs.length}</strong></td>
+            <td style="padding:7px 6px;text-align:right;"><strong>${jobs.length}</strong> jobs</td>
         </tr>`;
     }
-    html += `
-        </tbody>
-    </table>
-    </div>
-    `;
+    html += `</tbody></table></div>`;
     document.getElementById('schedulerModalContent').innerHTML = html;
 }
-
 
 function renderSchedulerMonthlySchedule(tickets) {
     // Get current date info
