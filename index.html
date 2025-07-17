@@ -4114,14 +4114,15 @@ function showSchedulerModal(schedulerName) {
 
     // Modal HTML with three buttons
     let modalHtml = `
-        <h2>Scheduler: ${schedulerName}</h2>
-        <div style="margin-bottom:12px;">
-            <button id="showCompletedTickets" style="padding:6px 14px; margin-right:8px;">Completed Tickets (${completedTickets.length})</button>
-            <button id="showOutstandingTickets" style="padding:6px 14px; margin-right:8px;">Outstanding Tickets (${outstandingSorted.length})</button>
-            <button id="showScheduledTodayTickets" style="padding:6px 14px;">Scheduled Today (${scheduledTodayTickets.length})</button>
-        </div>
-        <div id="schedulerModalContent"></div>
-    `;
+       <h2>Scheduler: ${schedulerName}</h2>
+    <div style="margin-bottom:12px;">
+        <button id="showCompletedTickets" style="padding:6px 14px; margin-right:8px;">Completed Tickets (${completedTickets.length})</button>
+        <button id="showOutstandingTickets" style="padding:6px 14px; margin-right:8px;">Outstanding Tickets (${outstandingSorted.length})</button>
+        <button id="showScheduledTodayTickets" style="padding:6px 14px;">Scheduled Today (${scheduledTodayTickets.length})</button>
+        <button id="showMonthlySchedule" style="padding:6px 14px; margin-left:8px;">Monthly Schedule</button>
+    </div>
+    <div id="schedulerModalContent"></div>
+`;
     document.getElementById('modalBody').innerHTML = modalHtml;
     document.getElementById('modal').classList.remove('hidden');
 
@@ -4130,8 +4131,64 @@ function showSchedulerModal(schedulerName) {
 
     document.getElementById('showCompletedTickets').onclick = () => renderSchedulerTicketsList(completedTickets, 'completed');
     document.getElementById('showOutstandingTickets').onclick = () => renderSchedulerTicketsList(outstandingSorted, 'outstanding');
-    document.getElementById('showScheduledTodayTickets').onclick = () => renderSchedulerTicketsList(scheduledTodayTickets, 'scheduledToday');
+    document.getElementById('showScheduledTodayTickets').onclick = () => renderSchedulerTicketsList(scheduledTodayTickets, 'scheduledToday')
+    document.getElementById('showMonthlySchedule').onclick = () => renderSchedulerMonthlySchedule(tickets);
 }
+
+
+
+
+function renderSchedulerMonthlySchedule(tickets) {
+    // Get current date info
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth(); // 0-indexed
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+
+    // Helper to format date as YYYY-MM-DD
+    const fmt = d => d.toISOString().slice(0, 10);
+
+    // Map of date string to job count
+    const jobsPerDay = {};
+
+    tickets.forEach(ticket => {
+        if (!ticket['Scheduled Date']) return;
+        let schedDateObj = convertExcelDate(ticket['Scheduled Date']);
+        if (!schedDateObj || isNaN(schedDateObj.getTime())) return;
+        if (
+            schedDateObj.getFullYear() === currentYear &&
+            schedDateObj.getMonth() === currentMonth
+        ) {
+            const key = fmt(schedDateObj);
+            jobsPerDay[key] = (jobsPerDay[key] || 0) + 1;
+        }
+    });
+
+    // Build the list for all days in the month
+    let html = `<div style="padding:8px 0;">`;
+    for (
+        let d = new Date(firstDay);
+        d <= lastDay;
+        d.setDate(d.getDate() + 1)
+    ) {
+        const key = fmt(d);
+        let label = key;
+        // "Yesterday" label
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        if (key === fmt(yesterday)) {
+            label = `Yesterday (${key})`;
+        }
+        html += `<div style="margin-bottom:2px;">
+            <b>${label}:</b> ${jobsPerDay[key] || 0} jobs
+        </div>`;
+    }
+    html += `</div>`;
+    document.getElementById('schedulerModalContent').innerHTML = html;
+}
+
+        
 
 function renderSchedulerTicketsList(tickets, type) {
     let html = '';
