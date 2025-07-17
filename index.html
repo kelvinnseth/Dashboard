@@ -4115,13 +4115,8 @@ function updateSchedulerPivot() {
 
 // Main function to show modal for a scheduler
 function showSchedulerModal(schedulerName) {
-    // Normalize the schedulerName
-    const normalizedScheduler = schedulerName.trim().toLowerCase();
-
-    // Filter tickets for this scheduler, normalizing all values
-    const tickets = filteredData.filter(t =>
-        (t['Scheduled By'] || 'Unassigned').trim().toLowerCase() === normalizedScheduler
-    );
+    // Filter tickets for this scheduler
+    const tickets = filteredData.filter(t => (t['Scheduled By'] || 'Unassigned') === schedulerName);
 
     // Completed and outstanding tickets
     const completedStatuses = ['complete', 'completed', 'closed'];
@@ -4141,13 +4136,14 @@ function showSchedulerModal(schedulerName) {
         return bRisk - aRisk;
     });
 
-    // Scheduled Today tickets: Created today
+    // Scheduled Today tickets: Service Call Created Date (Create Date) is today, regardless of status
     let todayStr = new Date().toISOString().slice(0, 10);
     let scheduledTodayTickets = tickets.filter(t => {
         let createDate = t['Create Date'] instanceof Date ? t['Create Date'] : convertExcelDate(t['Create Date']);
         return createDate && formatDate(createDate) === todayStr;
     });
 
+    // Modal HTML with four uniform buttons
     let modalHtml = `
         <h2 style="margin-bottom:18px;">Scheduler: ${schedulerName}</h2>
         <div class="scheduler-modal-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
@@ -4190,30 +4186,7 @@ function showSchedulerModal(schedulerName) {
     document.getElementById('modalBody').innerHTML = modalHtml;
     document.getElementById('modal').classList.remove('hidden');
 
-    function setActiveTab(btnId) {
-        document.querySelectorAll('.modal-tab-btn').forEach(btn => btn.classList.remove('active'));
-        document.getElementById(btnId).classList.add('active');
-    }
-    document.getElementById('showCompletedTickets').onclick = () => {
-        setActiveTab('showCompletedTickets');
-        renderSchedulerTicketsList(completedTickets, 'completed');
-    };
-    document.getElementById('showOutstandingTickets').onclick = () => {
-        setActiveTab('showOutstandingTickets');
-        renderSchedulerTicketsList(outstandingSorted, 'outstanding');
-    };
-    document.getElementById('showScheduledTodayTickets').onclick = () => {
-        setActiveTab('showScheduledTodayTickets');
-        renderSchedulerTicketsList(scheduledTodayTickets, 'scheduledToday');
-    };
-    document.getElementById('showMonthlySchedule').onclick = () => {
-        setActiveTab('showMonthlySchedule');
-        renderSchedulerMonthlySchedule(tickets); // No schedulerName needed, tickets already filtered
-    };
-    setActiveTab('showCompletedTickets');
-    renderSchedulerTicketsList(completedTickets, 'completed');
-}
-// ---- Tab logic ----
+    // ---- Tab logic ----
 
     function setActiveTab(btnId) {
         document.querySelectorAll('.modal-tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -4258,6 +4231,7 @@ function renderSchedulerMonthlySchedule(tickets) {
     ) {
         const key = fmt(d);
 
+        // Just count tickets with Create Date === key (already filtered for scheduler)
         const jobs = tickets.filter(ticket => {
             let cd = ticket['Create Date'];
             let createDateObj = cd instanceof Date ? cd : convertExcelDate(cd);
