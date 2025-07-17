@@ -4214,10 +4214,7 @@ function showSchedulerModal(schedulerName) {
 
 // Place this function after renderSchedulerTicketsList
 function renderSchedulerMonthlySchedule(tickets, schedulerName) {
-    // Helper: format date as YYYY-MM-DD
     const fmt = d => d.toISOString().slice(0, 10);
-
-    // Set up date range: 1st of the month up to today ONLY
     const today = new Date();
     today.setHours(0,0,0,0);
     const year = today.getFullYear();
@@ -4234,15 +4231,11 @@ function renderSchedulerMonthlySchedule(tickets, schedulerName) {
     ) {
         const key = fmt(d);
 
-        // COUNT: tickets created (Create Date) on this day, by this scheduler
+        // Only filter by Create Date for this scheduler (tickets is already filtered)
         const jobs = tickets.filter(ticket => {
             let cd = ticket['Create Date'];
             let createDateObj = cd instanceof Date ? cd : convertExcelDate(cd);
-            return (
-                createDateObj &&
-                fmt(createDateObj) === key &&
-                (ticket['Scheduled By'] || '').trim() === schedulerName.trim()
-            );
+            return createDateObj && fmt(createDateObj) === key;
         });
 
         let label = key;
