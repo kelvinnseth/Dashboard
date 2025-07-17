@@ -744,14 +744,13 @@
             <span>📊</span>
             <span>Upload Excel/CSV File</span>
         </div>
-        <!-- Add this span for info -->
      
     </div>
     <div style="text-align: center; margin-top: 15px;">
         <button class="demo-button" onclick="loadSampleData()">Load Last Updated Data</button>
-   <span id="lastUpdatedInfo" style="margin-left:12px;font-size:1.08rem;color:#333;font-weight:500;vertical-align:middle;"></span>
     </div>
     <div class="progress-bar hidden" id="progressBar">
+<span id="lastUpdatedInfo" style="margin-left:12px;font-size:1.08rem;color:#333;font-weight:500;vertical-align:middle;"></span>
         <div class="progress-fill" id="progressFill"></div>
     </div>
 </div>
@@ -1073,7 +1072,7 @@ document.querySelectorAll('#reportTypeList button').forEach(btn => {
  */
 
 function updateLastUpdatedInfo() {
-    // Defensive: Use window.originalData, fall back to filteredData if not set
+    // Use window.originalData if available, fallback to filteredData
     const data = (window.originalData && window.originalData.length > 0)
         ? window.originalData
         : (window.filteredData || []);
@@ -1081,20 +1080,32 @@ function updateLastUpdatedInfo() {
         document.getElementById('lastUpdatedInfo').textContent = "";
         return;
     }
-    // Find latest Create Date
-    let maxDate = null;
+    // Find ticket with latest "Create Date" (and then latest "Create Time" if available)
+    let maxDateTime = null;
     data.forEach(ticket => {
-        let d = ticket['Create Date'];
-        if (d && !(d instanceof Date)) d = convertExcelDate(d);
-        if (d && (!maxDate || d > maxDate)) {
-            maxDate = d;
+        let date = ticket['Create Date'];
+        let time = ticket['Create Time'];
+        if (date && !(date instanceof Date)) date = convertExcelDate(date);
+        // Combine date and time if time is available
+        let dt = null;
+        if (date && time) {
+            let t = time instanceof Date ? time : convertExcelDate(time);
+            dt = new Date(date);
+            if (t && t instanceof Date) {
+                dt.setHours(t.getHours(), t.getMinutes(), t.getSeconds() || 0, 0);
+            }
+        } else if (date) {
+            dt = date;
+        }
+        if (dt && (!maxDateTime || dt > maxDateTime)) {
+            maxDateTime = dt;
         }
     });
-    if (maxDate) {
+    if (maxDateTime) {
         // Format as "YYYY-MM-DD HH:mm:ss"
         const pad = n => String(n).padStart(2, '0');
-        const dateStr = `${maxDate.getFullYear()}-${pad(maxDate.getMonth()+1)}-${pad(maxDate.getDate())}`;
-        const timeStr = `${pad(maxDate.getHours())}:${pad(maxDate.getMinutes())}:${pad(maxDate.getSeconds())}`;
+        const dateStr = `${maxDateTime.getFullYear()}-${pad(maxDateTime.getMonth()+1)}-${pad(maxDateTime.getDate())}`;
+        const timeStr = `${pad(maxDateTime.getHours())}:${pad(maxDateTime.getMinutes())}:${pad(maxDateTime.getSeconds())}`;
         document.getElementById('lastUpdatedInfo').textContent =
             `Data Last Updated: ${dateStr} ${timeStr}`;
     } else {
