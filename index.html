@@ -4204,10 +4204,10 @@ function showSchedulerModal(schedulerName) {
         setActiveTab('showScheduledTodayTickets');
         renderSchedulerTicketsList(scheduledTodayTickets, 'scheduledToday');
     };
-    document.getElementById('showMonthlySchedule').onclick = () => {
-        setActiveTab('showMonthlySchedule');
-        renderSchedulerMonthlySchedule(tickets);
-    };
+   document.getElementById('showMonthlySchedule').onclick = () => {
+    setActiveTab('showMonthlySchedule');
+    renderSchedulerMonthlySchedule(tickets, schedulerName); // CORRECT
+};
     setActiveTab('showCompletedTickets');
     renderSchedulerTicketsList(completedTickets, 'completed');
 }
