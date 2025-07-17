@@ -4214,37 +4214,36 @@ function showSchedulerModal(schedulerName) {
 
 // Place this function after renderSchedulerTicketsList
 function renderSchedulerMonthlySchedule(tickets, schedulerName) {
-    // Set up date range: 1st of the month up to today ONLY
+    // Helper: format date as YYYY-MM-DD
+    const fmt = d => d.toISOString().slice(0, 10);
+    // Get today's date and first day of the month
     const today = new Date();
     today.setHours(0,0,0,0);
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const firstDay = new Date(currentYear, currentMonth, 1);
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const firstDay = new Date(year, month, 1);
 
-    // Helper
-    const fmt = d => d.toISOString().slice(0, 10);
-
-    // Generate the table from the 1st of month up to today
     let html = `<div style="max-width:500px;margin:0 auto;">`;
-    html += `<table style="width:100%;border-collapse:collapse;font-size:1rem;margin-top:16px;">
-        <tbody>`;
+    html += `<table style="width:100%;border-collapse:collapse;font-size:1rem;margin-top:16px;"><tbody>`;
+
     for (
         let d = new Date(firstDay);
         d <= today;
         d.setDate(d.getDate() + 1)
     ) {
         const key = fmt(d);
-        // --- Use the same field and conversion as "Scheduled Today" ---
+
+        // COUNT: tickets created (Create Date) on this day, by this scheduler
         const jobs = tickets.filter(ticket => {
-            let scheduledDate = ticket['Scheduled Date'] instanceof Date
-                ? ticket['Scheduled Date']
-                : convertExcelDate(ticket['Scheduled Date']);
+            let cd = ticket['Create Date'];
+            let createDateObj = cd instanceof Date ? cd : convertExcelDate(cd);
             return (
-                scheduledDate &&
-                formatDate(scheduledDate) === key &&
-                (ticket['Scheduled By'] || 'Unassigned') === schedulerName
+                createDateObj &&
+                fmt(createDateObj) === key &&
+                (ticket['Scheduled By'] || '').trim() === schedulerName.trim()
             );
         });
+
         let label = key;
         const yesterday = new Date(today);
         yesterday.setDate(today.getDate() - 1);
