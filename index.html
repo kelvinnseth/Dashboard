@@ -737,20 +737,19 @@
             <p>Upload your Excel file to view interactive pivot table analysis</p>
         </div>
         
-       <div class="upload-section">
-    <div class="file-upload" style="display:flex;align-items:center;gap:18px;">
+      <div class="upload-section">
+    <div class="file-upload" style="width:100%;">
         <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
-        <div class="upload-button">
+        <div class="upload-button" style="width:100%;">
             <span>📊</span>
             <span>Upload Excel/CSV File</span>
         </div>
-     
     </div>
-    <div style="text-align: center; margin-top: 15px;">
+    <div style="text-align: center; margin-top: 15px; display:flex; align-items:center; justify-content:center; gap:14px;">
         <button class="demo-button" onclick="loadSampleData()">Load Last Updated Data</button>
+        <span id="lastUpdatedInfo" style="font-size:1.08rem;color:#333;font-weight:500;vertical-align:middle;"></span>
     </div>
     <div class="progress-bar hidden" id="progressBar">
-<span id="lastUpdatedInfo" style="margin-left:12px;font-size:1.08rem;color:#333;font-weight:500;vertical-align:middle;"></span>
         <div class="progress-fill" id="progressFill"></div>
     </div>
 </div>
