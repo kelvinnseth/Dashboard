@@ -253,6 +253,37 @@
             font-size: 16px;
             font-weight: bold;
         }
+
+
+
+
+        .modal-tab-btn {
+    flex:1 1 180px;
+    background: #f1f4fa;
+    color: #4c4c6d;
+    border: 1.5px solid #667eea;
+    border-radius: 8px;
+    padding: 10px 0;
+    font-size: 1.05rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    margin-bottom:2px;
+}
+.modal-tab-btn:hover, .modal-tab-btn.active {
+    background: linear-gradient(90deg,#667eea,#764ba2);
+    color: #fff;
+    border-color: #764ba2;
+}
+.scheduler-modal-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+@media(max-width:600px){
+    .modal-tab-btn { flex:1 1 100%; min-width:140px;}
+}
         
         .ticket-list {
     height: 100%;         /* Fill modalBody */
@@ -4112,30 +4143,140 @@ function showSchedulerModal(schedulerName) {
         return createDate && formatDate(createDate) === todayStr;
     });
 
-    // Modal HTML with three buttons
+    // Modal HTML with four uniform buttons
     let modalHtml = `
-       <h2>Scheduler: ${schedulerName}</h2>
-    <div style="margin-bottom:12px;">
-        <button id="showCompletedTickets" style="padding:6px 14px; margin-right:8px;">Completed Tickets (${completedTickets.length})</button>
-        <button id="showOutstandingTickets" style="padding:6px 14px; margin-right:8px;">Outstanding Tickets (${outstandingSorted.length})</button>
-        <button id="showScheduledTodayTickets" style="padding:6px 14px;">Scheduled Today (${scheduledTodayTickets.length})</button>
-        <button id="showMonthlySchedule" style="padding:6px 14px; margin-left:8px;">Monthly Schedule</button>
-    </div>
-    <div id="schedulerModalContent"></div>
-`;
+        <h2 style="margin-bottom:18px;">Scheduler: ${schedulerName}</h2>
+        <div class="scheduler-modal-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
+            <button id="showCompletedTickets" class="modal-tab-btn">Completed Tickets (${completedTickets.length})</button>
+            <button id="showOutstandingTickets" class="modal-tab-btn">Outstanding Tickets (${outstandingSorted.length})</button>
+            <button id="showScheduledTodayTickets" class="modal-tab-btn">Scheduled Today (${scheduledTodayTickets.length})</button>
+            <button id="showMonthlySchedule" class="modal-tab-btn">Monthly Schedule</button>
+        </div>
+        <div id="schedulerModalContent"></div>
+        <style>
+        .modal-tab-btn {
+            flex:1 1 180px;
+            background: #f1f4fa;
+            color: #4c4c6d;
+            border: 1.5px solid #667eea;
+            border-radius: 8px;
+            padding: 10px 0;
+            font-size: 1.05rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+            margin-bottom:2px;
+        }
+        .modal-tab-btn:hover, .modal-tab-btn.active {
+            background: linear-gradient(90deg,#667eea,#764ba2);
+            color: #fff;
+            border-color: #764ba2;
+        }
+        .scheduler-modal-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+        @media(max-width:600px){
+            .modal-tab-btn { flex:1 1 100%; min-width:140px;}
+        }
+        </style>
+    `;
     document.getElementById('modalBody').innerHTML = modalHtml;
     document.getElementById('modal').classList.remove('hidden');
 
-    // Default to completed tickets view
-    renderSchedulerTicketsList(completedTickets, 'completed');
+    // ---- Tab logic ----
 
-    document.getElementById('showCompletedTickets').onclick = () => renderSchedulerTicketsList(completedTickets, 'completed');
-    document.getElementById('showOutstandingTickets').onclick = () => renderSchedulerTicketsList(outstandingSorted, 'outstanding');
-    document.getElementById('showScheduledTodayTickets').onclick = () => renderSchedulerTicketsList(scheduledTodayTickets, 'scheduledToday')
-    document.getElementById('showMonthlySchedule').onclick = () => renderSchedulerMonthlySchedule(tickets);
+    function setActiveTab(btnId) {
+        document.querySelectorAll('.modal-tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(btnId).classList.add('active');
+    }
+    document.getElementById('showCompletedTickets').onclick = () => {
+        setActiveTab('showCompletedTickets');
+        renderSchedulerTicketsList(completedTickets, 'completed');
+    };
+    document.getElementById('showOutstandingTickets').onclick = () => {
+        setActiveTab('showOutstandingTickets');
+        renderSchedulerTicketsList(outstandingSorted, 'outstanding');
+    };
+    document.getElementById('showScheduledTodayTickets').onclick = () => {
+        setActiveTab('showScheduledTodayTickets');
+        renderSchedulerTicketsList(scheduledTodayTickets, 'scheduledToday');
+    };
+    document.getElementById('showMonthlySchedule').onclick = () => {
+        setActiveTab('showMonthlySchedule');
+        renderSchedulerMonthlySchedule(tickets);
+    };
+    setActiveTab('showCompletedTickets');
+    renderSchedulerTicketsList(completedTickets, 'completed');
 }
 
+// Place this function after renderSchedulerTicketsList
+function renderSchedulerMonthlySchedule(tickets) {
+    // Get today's date and first of month
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const firstDay = new Date(currentYear, currentMonth, 1);
 
+    // Helper
+    const fmt = d => d.toISOString().slice(0, 10);
+
+    // Count jobs per day
+    const jobsPerDay = {};
+    tickets.forEach(ticket => {
+        if (!ticket['Scheduled Date']) return;
+        let schedDateObj = convertExcelDate(ticket['Scheduled Date']);
+        if (!schedDateObj || isNaN(schedDateObj.getTime())) return;
+        schedDateObj.setHours(0,0,0,0);
+        if (schedDateObj >= firstDay && schedDateObj <= today) {
+            const key = fmt(schedDateObj);
+            jobsPerDay[key] = (jobsPerDay[key] || 0) + 1;
+        }
+    });
+
+    // Build the professional list/table
+    let html = `
+    <div style="max-width:500px;margin:0 auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:1rem;margin-top:16px;">
+        <thead>
+            <tr style="background:#e3e8fd;">
+                <th style="padding:8px 6px;text-align:left;">Date</th>
+                <th style="padding:8px 6px;text-align:right;">Jobs Scheduled</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
+    // Loop from 1st to today
+    for (
+        let d = new Date(firstDay);
+        d <= today;
+        d.setDate(d.getDate() + 1)
+    ) {
+        const key = fmt(d);
+        let label = key;
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        if (key === fmt(yesterday)) {
+            label = `<b>Yesterday</b> <span style="color:#999;">(${key})</span>`;
+        } else if (key === fmt(today)) {
+            label = `<b>Today</b> <span style="color:#999;">(${key})</span>`;
+        }
+        html += `
+        <tr style="border-bottom:1px solid #f1f1f1;">
+            <td style="padding:7px 6px;">${label}</td>
+            <td style="padding:7px 6px;text-align:right;"><strong>${jobsPerDay[key] || 0}</strong></td>
+        </tr>`;
+    }
+    html += `
+        </tbody>
+    </table>
+    </div>
+    `;
+    document.getElementById('schedulerModalContent').innerHTML = html;
+}
 
 
 function renderSchedulerMonthlySchedule(tickets) {
