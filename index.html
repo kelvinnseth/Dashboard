@@ -4216,7 +4216,8 @@ function showSchedulerModal(schedulerName) {
 function renderSchedulerMonthlySchedule(tickets, schedulerName) {
     // Helper: format date as YYYY-MM-DD
     const fmt = d => d.toISOString().slice(0, 10);
-    // Get today's date and first day of the month
+
+    // Set up date range: 1st of the month up to today ONLY
     const today = new Date();
     today.setHours(0,0,0,0);
     const year = today.getFullYear();
