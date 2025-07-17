@@ -4115,8 +4115,13 @@ function updateSchedulerPivot() {
 
 // Main function to show modal for a scheduler
 function showSchedulerModal(schedulerName) {
-    // Filter tickets for this scheduler
-    const tickets = filteredData.filter(t => (t['Scheduled By'] || 'Unassigned') === schedulerName);
+    // Normalize the schedulerName
+    const normalizedScheduler = schedulerName.trim().toLowerCase();
+
+    // Filter tickets for this scheduler, normalizing all values
+    const tickets = filteredData.filter(t =>
+        (t['Scheduled By'] || 'Unassigned').trim().toLowerCase() === normalizedScheduler
+    );
 
     // Completed and outstanding tickets
     const completedStatuses = ['complete', 'completed', 'closed'];
@@ -4136,14 +4141,13 @@ function showSchedulerModal(schedulerName) {
         return bRisk - aRisk;
     });
 
-    // Scheduled Today tickets: Service Call Created Date (Create Date) is today, regardless of status
+    // Scheduled Today tickets: Created today
     let todayStr = new Date().toISOString().slice(0, 10);
     let scheduledTodayTickets = tickets.filter(t => {
         let createDate = t['Create Date'] instanceof Date ? t['Create Date'] : convertExcelDate(t['Create Date']);
         return createDate && formatDate(createDate) === todayStr;
     });
 
-    // Modal HTML with four uniform buttons
     let modalHtml = `
         <h2 style="margin-bottom:18px;">Scheduler: ${schedulerName}</h2>
         <div class="scheduler-modal-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
@@ -4186,6 +4190,72 @@ function showSchedulerModal(schedulerName) {
     document.getElementById('modalBody').innerHTML = modalHtml;
     document.getElementById('modal').classList.remove('hidden');
 
+    function setActiveTab(btnId) {
+        document.querySelectorAll('.modal-tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(btnId).classList.add('active');
+    }
+    document.getElementById('showCompletedTickets').onclick = () => {
+        setActiveTab('showCompletedTickets');
+        renderSchedulerTicketsList(completedTickets, 'completed');
+    };
+    document.getElementById('showOutstandingTickets').onclick = () => {
+        setActiveTab('showOutstandingTickets');
+        renderSchedulerTicketsList(outstandingSorted, 'outstanding');
+    };
+    document.getElementById('showScheduledTodayTickets').onclick = () => {
+        setActiveTab('showScheduledTodayTickets');
+        renderSchedulerTicketsList(scheduledTodayTickets, 'scheduledToday');
+    };
+    document.getElementById('showMonthlySchedule').onclick = () => {
+        setActiveTab('showMonthlySchedule');
+        renderSchedulerMonthlySchedule(tickets); // No schedulerName needed, tickets already filtered
+    };
+    setActiveTab('showCompletedTickets');
+    renderSchedulerTicketsList(completedTickets, 'completed');
+}
+
+// And your monthly schedule function is fine as is:
+function renderSchedulerMonthlySchedule(tickets) {
+    const fmt = d => d.toISOString().slice(0, 10);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const firstDay = new Date(year, month, 1);
+
+    let html = `<div style="max-width:500px;margin:0 auto;">`;
+    html += `<table style="width:100%;border-collapse:collapse;font-size:1rem;margin-top:16px;"><tbody>`;
+
+    for (
+        let d = new Date(firstDay);
+        d <= today;
+        d.setDate(d.getDate() + 1)
+    ) {
+        const key = fmt(d);
+
+        const jobs = tickets.filter(ticket => {
+            let cd = ticket['Create Date'];
+            let createDateObj = cd instanceof Date ? cd : convertExcelDate(cd);
+            return createDateObj && fmt(createDateObj) === key;
+        });
+
+        let label = key;
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        if (key === fmt(yesterday)) {
+            label = `<b>Yesterday</b> (${key})`;
+        } else if (key === fmt(today)) {
+            label = `<b>Today</b> (${key})`;
+        }
+        html += `
+        <tr>
+            <td style="padding:7px 6px;">${label}</td>
+            <td style="padding:7px 6px;text-align:right;"><strong>${jobs.length}</strong> jobs</td>
+        </tr>`;
+    }
+    html += `</tbody></table></div>`;
+    document.getElementById('schedulerModalContent').innerHTML = html;
+}
     // ---- Tab logic ----
 
     function setActiveTab(btnId) {
