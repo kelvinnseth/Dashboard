@@ -1665,10 +1665,14 @@ async function batchPrimaryCareTrustLookup(postcodes) {
 
         
 
-     async function processExcelData(data) {
+
+
+
+
+    async function processExcelData(data) {
     try {
         const workbook = XLSX.read(data, { type: 'array' });
-        
+
         // Try to find the ticket data sheet - be more flexible with sheet names
         let sheetName = null;
         const possibleSheetNames = [
@@ -1749,10 +1753,26 @@ async function batchPrimaryCareTrustLookup(postcodes) {
             return hasData;
         });
 
-        // --- Remove duplicate tickets: keep only the row with the most recent Column F value ---
-        const ticketNumberIdx = headers.findIndex(h => h && h.toLowerCase().includes('ticket'));
-        // If you want to use a specific header for column F, use its name, otherwise default to 5
-        const colFIndex = 5; // Column F is index 5 (A=0)
+        // ---- DEDUPLICATION LOGIC (keep only most recent for each ticket) ----
+
+        // Adjust these as needed:
+        const ticketNumberIdx = headers.findIndex(
+            h => h && h.toString().trim().toLowerCase() === 'ticket number'
+        );
+        if (ticketNumberIdx === -1) {
+            console.error("Headers:", headers);
+            throw new Error("Could not find 'Ticket Number' column in sheet headers!");
+        }
+
+        // Use your actual date column name for column F, e.g. "Last Updated" or "Update Date"
+        // If you always want column F (6th column, A=0), leave as 5
+        const colFIndex = 5;
+        // Optionally: let colFIndex = headers.findIndex(h => h && h.toString().trim().toLowerCase() === 'last updated');
+        if (colFIndex === -1) {
+            console.error("Headers:", headers);
+            throw new Error("Could not find the deduplication date column (expected at column F / 6th column).");
+        }
+
         const ticketMap = {};
         rows.forEach(row => {
             const ticketNumber = row[ticketNumberIdx];
@@ -1769,6 +1789,9 @@ async function batchPrimaryCareTrustLookup(postcodes) {
             }
         });
         const uniqueRows = Object.values(ticketMap).map(x => x.row);
+        if (uniqueRows.length === 0) throw new Error("No unique tickets after deduplication! Check your column headers and deduplication logic.");
+
+        // ---- END DEDUPLICATION ----
 
         // Now build originalData from uniqueRows
         originalData = uniqueRows.map((row) => {
@@ -1805,9 +1828,10 @@ async function batchPrimaryCareTrustLookup(postcodes) {
         filteredData = [...originalData];
 
         // region enrichment, progress bar, and dashboard init (same as before)...
-        // (these lines may be present elsewhere in your function)
         updateLastUpdatedInfo();
-        // ...region enrichment code...
+
+        // You may have region enrichment code here (not included for brevity).
+
         showProgress(100);
         setTimeout(() => {
             hideProgress();
@@ -1820,7 +1844,6 @@ async function batchPrimaryCareTrustLookup(postcodes) {
         hideProgress();
     }
 }
-
 
 
 
