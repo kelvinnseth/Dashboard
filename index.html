@@ -1615,6 +1615,7 @@ function getAtRiskOfFailingSLA(ticket) {
         
         async function handleFileUpload(event) {
             const file = event.target.files[0];
+            document.getElementById('fileInput').value = '';
             if (!file) return;
             
             showProgress(0);
