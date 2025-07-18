@@ -1671,59 +1671,66 @@ async function batchPrimaryCareTrustLookup(postcodes) {
 
 async function processExcelData(data) {
     try {
+        // 1. Read the sheet
         const workbook = XLSX.read(data, { type: 'array' });
-
-        // Flexible sheet naming (unchanged)
-        // ... your sheet selection code here ...
-
+        const sheetName = workbook.SheetNames[0]; // Or use your sheet selection logic
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-        // Header row detection (unchanged)
-        // ... your header detection code here ...
+        // 2. Get headers and data rows (row 3 = index 2)
+        const headers = jsonData[2];
+        const dataStartIndex = 3; // row 4, zero-based index
 
-        // Filter data rows
-        const rows = jsonData.slice(dataStartIndex).filter(row => {
-            if (!row || row.length === 0) return false;
-            const hasData = row.some(cell => cell !== null && cell !== undefined && cell !== '');
-            return hasData;
-        });
-
-        // --- Robust deduplication using actual headers ---
-        const ticketNumberIdx = headers.findIndex(
-          h => h && h.toString().trim().toLowerCase() === 'ticket number'
+        // 3. Filter out empty rows
+        const rows = jsonData.slice(dataStartIndex).filter(row =>
+            row && row.length > 0 && row.some(cell => cell !== null && cell !== undefined && cell !== '')
         );
-        if (ticketNumberIdx === -1) {
-          console.error("Headers:", headers);
-          throw new Error("Could not find 'Ticket Number' column.");
+
+        // 4. Find index for deduplication columns
+        const ticketNumberIdx = headers.findIndex(h =>
+            h && h.toString().trim().toLowerCase() === 'ticket number'
+        );
+        const serviceCallCreatedDateIdx = headers.findIndex(h =>
+            h && h.toString().trim().toLowerCase() === 'service call created date'
+        );
+
+        if (ticketNumberIdx === -1 || serviceCallCreatedDateIdx === -1) {
+            console.error("Headers:", headers);
+            throw new Error("Could not find 'Ticket Number' or 'Service Call Created Date' columns.");
         }
 
-        const serviceCallCreatedDateIdx = headers.findIndex(
-          h => h && h.toString().trim().toLowerCase() === 'service call created date'
-        );
-        if (serviceCallCreatedDateIdx === -1) {
-          console.error("Headers:", headers);
-          throw new Error("Could not find 'Service Call Created Date' column.");
-        }
-
+        // 5. Deduplicate: keep the row with the most recent Service Call Created Date for each Ticket Number
         const ticketMap = {};
         rows.forEach(row => {
             const ticketNumber = row[ticketNumberIdx];
             const dateVal = row[serviceCallCreatedDateIdx];
-            let dateObj = dateVal ? new Date(dateVal) : null;
+            let dateObj = dateVal ? convertExcelDate(dateVal) : null;
             if (!ticketNumber) return;
-            if (!ticketMap[ticketNumber]) {
+            if (!ticketMap[ticketNumber] || (dateObj && (!ticketMap[ticketNumber].dateObj || dateObj > ticketMap[ticketNumber].dateObj))) {
                 ticketMap[ticketNumber] = { row, dateObj };
-            } else {
-                const prevDate = ticketMap[ticketNumber].dateObj;
-                if (dateObj && (!prevDate || dateObj > prevDate)) {
-                    ticketMap[ticketNumber] = { row, dateObj };
-                }
             }
         });
         const uniqueRows = Object.values(ticketMap).map(x => x.row);
 
-        // ...rest of your function unchanged...
+        // 6. Convert to objects using headers as keys
+        originalData = uniqueRows.map(row => {
+            const ticket = {};
+            headers.forEach((header, idx) => {
+                ticket[header] = row[idx];
+            });
+            return ticket;
+        });
+        window.originalData = originalData;
+        window.dashboardData = originalData;
+        filteredData = [...originalData];
+
+        // 7. Continue with your dashboard logic
+        showProgress(100);
+        setTimeout(() => {
+            hideProgress();
+            initializeDashboard();
+        }, 500);
+
     } catch (error) {
         console.error('Error processing Excel data:', error);
         alert('Error processing file. Please ensure it\'s a valid Excel file with ticket data.');
@@ -1731,67 +1738,29 @@ async function processExcelData(data) {
     }
 }
 
+// Utility for date conversion (Excel serial to JS Date)
+function convertExcelDate(excelDate) {
+    if (typeof excelDate === 'number') {
+        const excelEpoch = new Date(1900, 0, 1);
+        const jsDate = new Date(excelEpoch.getTime() + (excelDate - 1) * 24 * 60 * 60 * 1000);
+        if (excelDate > 59) {
+            jsDate.setTime(jsDate.getTime() - 24 * 60 * 60 * 1000);
+        }
+        return jsDate;
+    }
+    if (excelDate instanceof Date) return excelDate;
+    if (typeof excelDate === 'string') {
+        const parsed = new Date(excelDate);
+        return isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
+}
+
+
+
+
 
         
-
-
-function isLikelyUKPostcode(pc) {
-    return typeof pc === 'string'
-        && /[A-Z]/i.test(pc)
-        && /\d/.test(pc)
-        && pc.length <= 8 && pc.length >= 5;
-}
-
-try {
-    // 1. Extract unique UK postcodes
-    const uniquePostcodes = [
-        ...new Set(
-            originalData
-                .map(t => (typeof t.Postcode === 'string' ? t.Postcode.replace(/\s+/g, '').toUpperCase() : null))
-                .filter(pc => pc && isLikelyUKPostcode(pc))
-        )
-    ];
-    console.log("UK postcodes to send to API:", uniquePostcodes);
-
-    // 2. Call the batch API
-    let trustMap = {};
-if (uniquePostcodes.length > 0) {
-    trustMap = await batchPrimaryCareTrustLookupAll(uniquePostcodes);
-}
-    console.log("Trust map returned from API:", trustMap);
-
-    // 3. Assign Region to tickets
-    originalData.forEach(ticket => {
-        let pc = typeof ticket.Postcode === 'string' ? ticket.Postcode.replace(/\s+/g, '').toUpperCase() : '';
-        if (pc && trustMap[pc]) {
-            ticket.Region = trustMap[pc];
-        } else if (ticket.Postcode) {
-            ticket.Region = "Europe";
-        } else {
-            ticket.Region = "Unknown";
-        }
-    });
-} catch (e) {
-    console.error("Error enriching Region with PCT API", e);
-    alert("An error occurred while enriching ticket Regions. Check the console for details.");
-}
-                    
-                    filteredData = [...originalData];
-                    
-                    showProgress(100);
-                    setTimeout(() => {
-                        hideProgress();
-                        initializeDashboard();
-                    }, 500);
-                } else {
-                    throw new Error('No data found in the file or insufficient rows');
-                }
-            } catch (error) {
-                console.error('Error processing Excel data:', error);
-                alert('Error processing file. Please ensure it\'s a valid Excel file with ticket data.');
-                hideProgress();
-            }
-        }
         
         function isInternationalLocation(city, postcode) {
             const internationalCities = [
