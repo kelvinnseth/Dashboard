@@ -177,6 +177,15 @@
             padding: 2px 4px;
             border-radius: 4px;
         }
+
+
+
+        .ticket-list > div {
+    transition: box-shadow 0.2s;
+}
+.ticket-list > div:hover {
+    box-shadow: 0 4px 18px #d1c4e9;
+}
         
         .ticket-details-modal {
             position: fixed;
@@ -3793,10 +3802,16 @@ function showSLATicketsModal(slaStatus, slaData) {
         );
     }
 
+    // Choose a highlight color for "Failed SLA (SLA MIGHT NEED REVISING)"
+    const isReviseSLA = slaStatus.toLowerCase().includes('sla might need revising');
+    const cardBackground = isReviseSLA
+        ? 'background: #f6edfa; border: 1.5px solid #9b59b6;'
+        : 'background: #f9f9f9; border: 1px solid #eee;';
+
     let modalBodyHtml = `
       <h2 style="color:#764ba2;margin-bottom:12px;">
-        <span style="font-size:1rem;">Tickets for SLA status: <span style="color:#764ba2;">${slaStatus}</span></span>
-        (${tickets.length} tickets)
+        Tickets for SLA status: <span style="color:#764ba2;">${slaStatus}</span>
+        <span style="font-size:1rem;">(${tickets.length} tickets)</span>
       </h2>
       <div class="ticket-list" style="max-height: 350px; overflow-y: auto;">
     `;
@@ -3825,27 +3840,41 @@ function showSLATicketsModal(slaStatus, slaData) {
                     scheduled += ' ' + (t ? t.toLocaleTimeString('en-GB') : ticket['Scheduled time']);
                 }
             }
-            // Completed Date & Time (NEW for your card)
+            // Completed Date & Time
             let completed = "N/A";
             if (ticket['Complete Date']) {
                 const d = convertExcelDate(ticket['Complete Date']);
                 completed = d ? d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-GB') : ticket['Complete Date'];
             }
 
+            // SLA Notes (only for this SLA status)
+            let slaNotesHtml = '';
+            if (isReviseSLA) {
+                const notes = ticket['SLA Notes'] || '';
+                slaNotesHtml = notes
+                    ? `<div style="margin-top:6px;padding:7px 12px;background:#fbeee6;color:#a35d0a;border-radius:7px;font-style:italic;border:1px solid #f6d7bb;">
+                        <b>SLA Notes:</b> ${notes}
+                    </div>`
+                    : `<div style="margin-top:6px;padding:7px 12px;background:#fbeee6;color:#a35d0a;border-radius:7px;font-style:italic;border:1px solid #f6d7bb;">
+                        <b>SLA Notes:</b> <span style="color:#b8b8b8;">(none provided)</span>
+                    </div>`;
+            }
+
             modalBodyHtml += `
-              <div style="border-bottom:1px solid #eee;padding:8px 0;">
-                <div><strong>Ticket #:</strong> ${ticket['Ticket Number'] || ''}</div>
-                <div><strong>Title:</strong> ${ticket['Ticket Title'] || ''}</div>
-                <div><strong>Customer:</strong> ${ticket['Customer'] || ''}</div>
-                <div><strong>Account:</strong> ${ticket['Account'] || ''}</div>
-                <div><strong>Priority:</strong> ${ticket['Priority'] || ''}</div>
-                <div><strong>Status:</strong> ${ticket['Status'] || ''}</div>
-                <div><strong>Created:</strong> ${created}</div>
-                <div><strong>Scheduled:</strong> ${scheduled}</div>
-                <div><strong>Complete Date:</strong> ${completed}</div>
-                <div><strong>Primary Resource:</strong> ${ticket['Primary Resource'] || ''}</div>
-                <div><strong>Region:</strong> ${ticket['Region'] || ''}</div>
-                <div><strong>SLA Status:</strong> ${ticket['SLA Status'] || 'Unknown'}</div>
+              <div style="${cardBackground} margin-bottom:18px; border-radius:11px; box-shadow:0 1px 5px 0 #ede7f6;">
+                <div style="font-weight:bold; color:#764ba2;">Ticket #: ${ticket['Ticket Number'] || ''}</div>
+                <div style="font-weight:600; margin-bottom:4px;">Title: <span style="color:#222;">${ticket['Ticket Title'] || ''}</span></div>
+                <div><b>Customer:</b> ${ticket['Customer'] || ''}</div>
+                <div><b>Account:</b> ${ticket['Account'] || ''}</div>
+                <div><b>Priority:</b> ${ticket['Priority'] || ''}</div>
+                <div><b>Status:</b> ${ticket['Status'] || ''}</div>
+                <div><b>Created:</b> ${created}</div>
+                <div><b>Scheduled:</b> ${scheduled}</div>
+                <div><b>Complete Date:</b> ${completed}</div>
+                <div><b>Primary Resource:</b> ${ticket['Primary Resource'] || ''}</div>
+                <div><b>Region:</b> ${ticket['Region'] || ''}</div>
+                <div><b>SLA Status:</b> ${ticket['SLA Status'] || 'Unknown'}</div>
+                ${slaNotesHtml}
               </div>
             `;
         });
