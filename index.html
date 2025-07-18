@@ -3789,9 +3789,9 @@ function updateSLAPivot() {
         
 // Modal function to show tickets for a given SLA status
 function showSLATicketsModal(slaStatus, slaData) {
+    // Filter tickets that match the SLA status
     let tickets;
     if (slaStatus === 'Unknown') {
-        // Show tickets where SLA Status is empty, null, undefined, or whitespace only
         tickets = slaData.filter(t =>
             !t['SLA Status'] ||
             (typeof t['SLA Status'] === 'string' && t['SLA Status'].trim() === '')
@@ -3802,6 +3802,17 @@ function showSLATicketsModal(slaStatus, slaData) {
         );
     }
 
+    // Deduplicate by Ticket Number
+    const uniqueTickets = [];
+    const seenTicketNumbers = new Set();
+    tickets.forEach(ticket => {
+        const num = ticket['Ticket Number'];
+        if (!seenTicketNumbers.has(num)) {
+            uniqueTickets.push(ticket);
+            seenTicketNumbers.add(num);
+        }
+    });
+
     // Choose a highlight color for "Failed SLA (SLA MIGHT NEED REVISING)"
     const isReviseSLA = slaStatus.toLowerCase().includes('sla might need revising');
     const cardBackground = isReviseSLA
@@ -3811,15 +3822,15 @@ function showSLATicketsModal(slaStatus, slaData) {
     let modalBodyHtml = `
       <h2 style="color:#764ba2;margin-bottom:12px;">
         Tickets for SLA status: <span style="color:#764ba2;">${slaStatus}</span>
-        <span style="font-size:1rem;">(${tickets.length} tickets)</span>
+        <span style="font-size:1rem;">(${uniqueTickets.length} tickets)</span>
       </h2>
       <div class="ticket-list" style="max-height: 350px; overflow-y: auto;">
     `;
 
-    if (tickets.length === 0) {
+    if (uniqueTickets.length === 0) {
         modalBodyHtml += `<p>No tickets found for this customer and SLA status.</p>`;
     } else {
-        tickets.forEach(ticket => {
+        uniqueTickets.forEach(ticket => {
             // Created Date & Time
             let created = "N/A";
             if (ticket['Create Date']) {
@@ -3853,11 +3864,11 @@ function showSLATicketsModal(slaStatus, slaData) {
                 const notes = ticket['SLA Notes'] || '';
                 slaNotesHtml = notes
                     ? `<div style="margin-top:6px;padding:7px 12px;background:#fbeee6;color:#a35d0a;border-radius:7px;font-style:italic;border:1px solid #f6d7bb;">
-                        <b>SLA Notes:</b> ${notes}
-                    </div>`
+                            <b>SLA Notes:</b> ${notes}
+                        </div>`
                     : `<div style="margin-top:6px;padding:7px 12px;background:#fbeee6;color:#a35d0a;border-radius:7px;font-style:italic;border:1px solid #f6d7bb;">
-                        <b>SLA Notes:</b> <span style="color:#b8b8b8;">(none provided)</span>
-                    </div>`;
+                            <b>SLA Notes:</b> <span style="color:#b8b8b8;">(none provided)</span>
+                        </div>`;
             }
 
             modalBodyHtml += `
@@ -3888,7 +3899,6 @@ function showSLATicketsModal(slaStatus, slaData) {
         body: modalBodyHtml
     });
 }
-
 /**
  * Converts Excel serial date to JS Date.
  * @param {number|Date|string} excelDate
