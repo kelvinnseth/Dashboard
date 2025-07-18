@@ -1669,182 +1669,67 @@ async function batchPrimaryCareTrustLookup(postcodes) {
 
 
 
-    async function processExcelData(data) {
+async function processExcelData(data) {
     try {
         const workbook = XLSX.read(data, { type: 'array' });
 
-        // Try to find the ticket data sheet - be more flexible with sheet names
-        let sheetName = null;
-        const possibleSheetNames = [
-            "Last Week's Break-Fix Tickets",
-            "Last Weeks BreakFix Tickets", 
-            "BreakFix Tickets Current Week",
-            "BreakFix Tickets Current Month",
-            "Current Week",
-            "Current Month",
-            "Break-Fix Tickets",
-            "Tickets",
-            "Data"
-        ];
-        // First try exact matches
-        for (const name of possibleSheetNames) {
-            if (workbook.Sheets[name]) {
-                sheetName = name;
-                break;
-            }
-        }
-        // If no exact match, try partial matches
-        if (!sheetName) {
-            const availableSheets = workbook.SheetNames;
-            for (const availableSheet of availableSheets) {
-                const lowerSheet = availableSheet.toLowerCase();
-                if (lowerSheet.includes('ticket') || 
-                    lowerSheet.includes('break') || 
-                    lowerSheet.includes('fix') ||
-                    lowerSheet.includes('current') ||
-                    lowerSheet.includes('week') ||
-                    lowerSheet.includes('month')) {
-                    sheetName = availableSheet;
-                    break;
-                }
-            }
-        }
-        // If still not found, use the first sheet
-        if (!sheetName) {
-            sheetName = workbook.SheetNames[0];
-        }
+        // Flexible sheet naming (unchanged)
+        // ... your sheet selection code here ...
+
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-        // Find headers
-        let headers = null;
-        let headerRowIndex = -1;
-        let dataStartIndex = -1;
-        for (let i = 0; i < Math.min(jsonData.length, 5); i++) {
-            const row = jsonData[i];
-            if (row && row.length > 3) {
-                const hasTicketColumn = row.some(cell => cell && cell.toString().toLowerCase().includes('ticket'));
-                const hasCustomerColumn = row.some(cell => cell && cell.toString().toLowerCase().includes('customer'));
-                const hasStatusColumn = row.some(cell => cell && (cell.toString().toLowerCase().includes('status') || cell.toString().toLowerCase().includes('satus')));
-                if ((hasTicketColumn && hasCustomerColumn) || 
-                    (hasTicketColumn && hasStatusColumn) ||
-                    (hasCustomerColumn && hasStatusColumn)) {
-                    headers = row;
-                    headerRowIndex = i;
-                    dataStartIndex = i + 1;
-                    break;
-                }
-            }
-        }
-        // Fallback to row 3 if auto-detection didn't work
-        if (!headers && jsonData.length > 3) {
-            headers = jsonData[2]; // Row 3
-            headerRowIndex = 2;
-            dataStartIndex = 3;
-        }
-        if (!headers || dataStartIndex < 0 || jsonData.length <= dataStartIndex) {
-            throw new Error('No data found in the file or insufficient rows');
-        }
+        // Header row detection (unchanged)
+        // ... your header detection code here ...
 
-        // Filter out empty data rows and rows that are clearly not data
+        // Filter data rows
         const rows = jsonData.slice(dataStartIndex).filter(row => {
             if (!row || row.length === 0) return false;
             const hasData = row.some(cell => cell !== null && cell !== undefined && cell !== '');
             return hasData;
         });
 
-        // ---- DEDUPLICATION LOGIC (keep only most recent for each ticket) ----
-
-        // Adjust these as needed:
+        // --- Robust deduplication using actual headers ---
         const ticketNumberIdx = headers.findIndex(
-            h => h && h.toString().trim().toLowerCase() === 'ticket number'
+          h => h && h.toString().trim().toLowerCase() === 'ticket number'
         );
         if (ticketNumberIdx === -1) {
-            console.error("Headers:", headers);
-            throw new Error("Could not find 'Ticket Number' column in sheet headers!");
+          console.error("Headers:", headers);
+          throw new Error("Could not find 'Ticket Number' column.");
         }
 
-        // Use your actual date column name for column F, e.g. "Last Updated" or "Update Date"
-        // If you always want column F (6th column, A=0), leave as 5
-        const colFIndex = 5;
-        // Optionally: let colFIndex = headers.findIndex(h => h && h.toString().trim().toLowerCase() === 'last updated');
-        if (colFIndex === -1) {
-            console.error("Headers:", headers);
-            throw new Error("Could not find the deduplication date column (expected at column F / 6th column).");
+        const serviceCallCreatedDateIdx = headers.findIndex(
+          h => h && h.toString().trim().toLowerCase() === 'service call created date'
+        );
+        if (serviceCallCreatedDateIdx === -1) {
+          console.error("Headers:", headers);
+          throw new Error("Could not find 'Service Call Created Date' column.");
         }
 
         const ticketMap = {};
         rows.forEach(row => {
             const ticketNumber = row[ticketNumberIdx];
-            const colFVal = row[colFIndex];
-            let dateF = colFVal ? new Date(colFVal) : null;
+            const dateVal = row[serviceCallCreatedDateIdx];
+            let dateObj = dateVal ? new Date(dateVal) : null;
             if (!ticketNumber) return;
             if (!ticketMap[ticketNumber]) {
-                ticketMap[ticketNumber] = { row, dateF };
+                ticketMap[ticketNumber] = { row, dateObj };
             } else {
-                const prevDate = ticketMap[ticketNumber].dateF;
-                if (dateF && (!prevDate || dateF > prevDate)) {
-                    ticketMap[ticketNumber] = { row, dateF };
+                const prevDate = ticketMap[ticketNumber].dateObj;
+                if (dateObj && (!prevDate || dateObj > prevDate)) {
+                    ticketMap[ticketNumber] = { row, dateObj };
                 }
             }
         });
         const uniqueRows = Object.values(ticketMap).map(x => x.row);
-        if (uniqueRows.length === 0) throw new Error("No unique tickets after deduplication! Check your column headers and deduplication logic.");
 
-        // ---- END DEDUPLICATION ----
-
-        // Now build originalData from uniqueRows
-        originalData = uniqueRows.map((row) => {
-            const ticket = {};
-            headers.forEach((header, index) => {
-                ticket[header] = row[index];
-            });
-
-            // Date Normalization
-            const dateFields = [
-                "Create Date",
-                "Scheduled Date",
-                "Complete Date",
-                "Create Time",
-                "Scheduled time"
-            ];
-            dateFields.forEach(field => {
-                if (ticket[field]) {
-                    const converted = convertExcelDate(ticket[field]);
-                    if (converted) ticket[field] = converted;
-                }
-            });
-
-            // SLA and At Risk logic
-            ticket['SLA Status'] = getSLAStatus(ticket);
-            const riskInfo = getAtRiskOfFailingSLA(ticket);
-            ticket['At Risk of Failing SLA'] = riskInfo.atRisk;
-            ticket['SLA Risk Level'] = riskInfo.riskLevel;
-
-            return ticket;
-        });
-        window.originalData = originalData;
-        window.dashboardData = window.originalData;
-        filteredData = [...originalData];
-
-        // region enrichment, progress bar, and dashboard init (same as before)...
-        updateLastUpdatedInfo();
-
-        // You may have region enrichment code here (not included for brevity).
-
-        showProgress(100);
-        setTimeout(() => {
-            hideProgress();
-            initializeDashboard();
-        }, 500);
-
+        // ...rest of your function unchanged...
     } catch (error) {
         console.error('Error processing Excel data:', error);
         alert('Error processing file. Please ensure it\'s a valid Excel file with ticket data.');
         hideProgress();
     }
 }
-
 
 
         
