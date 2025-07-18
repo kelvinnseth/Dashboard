@@ -1663,237 +1663,168 @@ async function batchPrimaryCareTrustLookup(postcodes) {
     }
 }
 
-        async function processExcelData(data) {
-            try {
-                const workbook = XLSX.read(data, { type: 'array' });
-                
-                // Try to find the ticket data sheet - be more flexible with sheet names
-                let sheetName = null;
-                const possibleSheetNames = [
-                    "Last Week's Break-Fix Tickets",
-                    "Last Weeks BreakFix Tickets", 
-                    "BreakFix Tickets Current Week",
-                    "BreakFix Tickets Current Month",
-                    "Current Week",
-                    "Current Month",
-                    "Break-Fix Tickets",
-                    "Tickets",
-                    "Data"
-                ];
+        
 
-                
-                
-                // First try exact matches
-                for (const name of possibleSheetNames) {
-                    if (workbook.Sheets[name]) {
-                        sheetName = name;
-                        console.log(`Found sheet: ${sheetName}`);
-                        break;
-                    }
-                }
-                
-                // If no exact match, try partial matches
-                if (!sheetName) {
-                    const availableSheets = workbook.SheetNames;
-                    console.log('Available sheets:', availableSheets);
-                    
-                    for (const availableSheet of availableSheets) {
-                        const lowerSheet = availableSheet.toLowerCase();
-                        if (lowerSheet.includes('ticket') || 
-                            lowerSheet.includes('break') || 
-                            lowerSheet.includes('fix') ||
-                            lowerSheet.includes('current') ||
-                            lowerSheet.includes('week') ||
-                            lowerSheet.includes('month')) {
-                            sheetName = availableSheet;
-                            console.log(`Found matching sheet: ${sheetName}`);
-                            break;
-                        }
-                    }
-                }
-                
-                // If still not found, use the first sheet
-                if (!sheetName) {
-                    sheetName = workbook.SheetNames[0];
-                    console.log(`Using first sheet: ${sheetName}`);
-                }
-                
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                
-                showProgress(75);
-                
-                // Load regions lookup table if available
-                let regionLookup = {};
-                if (workbook.Sheets["Regions"]) {
-                    const regionsSheet = workbook.Sheets["Regions"];
-                    const regionsData = XLSX.utils.sheet_to_json(regionsSheet, { header: 1 });
-                    
-                    if (regionsData.length > 1) {
-                        const regionHeaders = regionsData[0];
-                        const regionRows = regionsData.slice(1).filter(row => row && row.length > 0);
-                        
-                        regionRows.forEach((row) => {
-                            const lookup = {};
-                            regionHeaders.forEach((header, index) => {
-                                lookup[header] = row[index];
-                            });
-                            
-                            if (lookup.City && lookup.Region) {
-                                const cleanCity = lookup.City.toString().trim();
-                                regionLookup[cleanCity] = lookup.Region;
-                            }
-                        });
-                    }
-                }
-                
-                // Process the data - Headers in row 3, data starts from row 4
-                console.log('Raw data structure:', jsonData.slice(0, 10));
-                console.log('Total rows in Excel:', jsonData.length);
-                
-                // Try multiple header row positions
-                let headers = null;
-                let headerRowIndex = -1;
-                let dataStartIndex = -1;
-                
-                // Check rows 1-5 for headers
-                for (let i = 0; i < Math.min(jsonData.length, 5); i++) {
-                    const row = jsonData[i];
-                    if (row && row.length > 3) {
-                        // Check if this row looks like headers
-                        const hasTicketColumn = row.some(cell => 
-                            cell && cell.toString().toLowerCase().includes('ticket')
-                        );
-                        const hasCustomerColumn = row.some(cell => 
-                            cell && cell.toString().toLowerCase().includes('customer')
-                        );
-                        const hasStatusColumn = row.some(cell => 
-                            cell && (cell.toString().toLowerCase().includes('status') || 
-                                   cell.toString().toLowerCase().includes('satus'))
-                        );
-                        
-                        if ((hasTicketColumn && hasCustomerColumn) || 
-                            (hasTicketColumn && hasStatusColumn) ||
-                            (hasCustomerColumn && hasStatusColumn)) {
-                            headers = row;
-                            headerRowIndex = i;
-                            dataStartIndex = i + 1;
-                            console.log(`Found headers at row ${i + 1}:`, headers);
-                            break;
-                        }
-                    }
-                }
-                
-                // Fallback to row 3 if auto-detection didn't work
-                if (!headers && jsonData.length > 3) {
-                    headers = jsonData[2]; // Row 3
-                    headerRowIndex = 2;
-                    dataStartIndex = 3;
-                    console.log('Using fallback - headers from row 3:', headers);
-                }
-                
-                if (headers && dataStartIndex >= 0 && jsonData.length > dataStartIndex) {
-                    // Filter out empty data rows and rows that are clearly not data
-                    const rows = jsonData.slice(dataStartIndex).filter(row => {
-                        if (!row || row.length === 0) return false;
-                        
-                        // Skip rows that are all null/undefined/empty
-                        const hasData = row.some(cell => 
-                            cell !== null && cell !== undefined && cell !== ''
-                        );
-                        
-                        return hasData;
-                    });
-                    
-                    console.log(`Headers from row ${headerRowIndex + 1}:`, headers);
-                    console.log(`Data rows starting from row ${dataStartIndex + 1}:`, rows.length);
-                    console.log('Sample data rows:', rows.slice(0, 3));
-                    
-                    if (!headers || headers.length === 0) {
-                        throw new Error(`No headers found at row ${headerRowIndex + 1}`);
-                    }
-                    
-                    if (rows.length === 0) {
-                        throw new Error(`No data rows found starting from row ${dataStartIndex + 1}`);
-                    }
-                    
-                    if (!headers || headers.length === 0) {
-                        throw new Error('No headers found in row 3');
-                    }
-                    
-                    if (rows.length === 0) {
-                        throw new Error('No data rows found starting from row 4');
-                    }
-                    
-     // Replace this block:
-originalData = rows.map((row) => {
-    const ticket = {};
-    headers.forEach((header, index) => {
-        ticket[header] = row[index];
-    });
-
-    // ---- Date Normalization ----
-    const dateFields = [
-        "Create Date",
-        "Scheduled Date",
-        "Complete Date",
-        "Create Time",
-        "Scheduled time"
-    ];
-    dateFields.forEach(field => {
-        if (ticket[field]) {
-            const converted = convertExcelDate(ticket[field]);
-            if (converted) ticket[field] = converted;
+     async function processExcelData(data) {
+    try {
+        const workbook = XLSX.read(data, { type: 'array' });
+        
+        // Try to find the ticket data sheet - be more flexible with sheet names
+        let sheetName = null;
+        const possibleSheetNames = [
+            "Last Week's Break-Fix Tickets",
+            "Last Weeks BreakFix Tickets", 
+            "BreakFix Tickets Current Week",
+            "BreakFix Tickets Current Month",
+            "Current Week",
+            "Current Month",
+            "Break-Fix Tickets",
+            "Tickets",
+            "Data"
+        ];
+        // First try exact matches
+        for (const name of possibleSheetNames) {
+            if (workbook.Sheets[name]) {
+                sheetName = name;
+                break;
+            }
         }
-    });
-    // ---- End Date Normalization ----
-
-    // ---- SLA and At Risk logic ----
-    ticket['SLA Status'] = getSLAStatus(ticket);
-    const riskInfo = getAtRiskOfFailingSLA(ticket);
-    ticket['At Risk of Failing SLA'] = riskInfo.atRisk;
-    ticket['SLA Risk Level'] = riskInfo.riskLevel;
-    // ---- End SLA logic ----
-
-    return ticket;
-});
-
-// --- The Fix: Make both window.originalData and window.dashboardData global ---
-window.originalData = rows.map((row) => {
-    const ticket = {};
-    headers.forEach((header, index) => {
-        ticket[header] = row[index];
-    });
-
-    // ---- Date Normalization ----
-    const dateFields = [
-        "Create Date",
-        "Scheduled Date",
-        "Complete Date",
-        "Create Time",
-        "Scheduled time"
-    ];
-    dateFields.forEach(field => {
-        if (ticket[field]) {
-            const converted = convertExcelDate(ticket[field]);
-            if (converted) ticket[field] = converted;
+        // If no exact match, try partial matches
+        if (!sheetName) {
+            const availableSheets = workbook.SheetNames;
+            for (const availableSheet of availableSheets) {
+                const lowerSheet = availableSheet.toLowerCase();
+                if (lowerSheet.includes('ticket') || 
+                    lowerSheet.includes('break') || 
+                    lowerSheet.includes('fix') ||
+                    lowerSheet.includes('current') ||
+                    lowerSheet.includes('week') ||
+                    lowerSheet.includes('month')) {
+                    sheetName = availableSheet;
+                    break;
+                }
+            }
         }
-    });
-    // ---- End Date Normalization ----
+        // If still not found, use the first sheet
+        if (!sheetName) {
+            sheetName = workbook.SheetNames[0];
+        }
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-    // ---- SLA and At Risk logic ----
-    ticket['SLA Status'] = getSLAStatus(ticket);
-    const riskInfo = getAtRiskOfFailingSLA(ticket);
-    ticket['At Risk of Failing SLA'] = riskInfo.atRisk;
-    ticket['SLA Risk Level'] = riskInfo.riskLevel;
-    // ---- End SLA logic ----
+        // Find headers
+        let headers = null;
+        let headerRowIndex = -1;
+        let dataStartIndex = -1;
+        for (let i = 0; i < Math.min(jsonData.length, 5); i++) {
+            const row = jsonData[i];
+            if (row && row.length > 3) {
+                const hasTicketColumn = row.some(cell => cell && cell.toString().toLowerCase().includes('ticket'));
+                const hasCustomerColumn = row.some(cell => cell && cell.toString().toLowerCase().includes('customer'));
+                const hasStatusColumn = row.some(cell => cell && (cell.toString().toLowerCase().includes('status') || cell.toString().toLowerCase().includes('satus')));
+                if ((hasTicketColumn && hasCustomerColumn) || 
+                    (hasTicketColumn && hasStatusColumn) ||
+                    (hasCustomerColumn && hasStatusColumn)) {
+                    headers = row;
+                    headerRowIndex = i;
+                    dataStartIndex = i + 1;
+                    break;
+                }
+            }
+        }
+        // Fallback to row 3 if auto-detection didn't work
+        if (!headers && jsonData.length > 3) {
+            headers = jsonData[2]; // Row 3
+            headerRowIndex = 2;
+            dataStartIndex = 3;
+        }
+        if (!headers || dataStartIndex < 0 || jsonData.length <= dataStartIndex) {
+            throw new Error('No data found in the file or insufficient rows');
+        }
 
-    return ticket;
-});
-window.dashboardData = window.originalData;
-updateLastUpdatedInfo();
+        // Filter out empty data rows and rows that are clearly not data
+        const rows = jsonData.slice(dataStartIndex).filter(row => {
+            if (!row || row.length === 0) return false;
+            const hasData = row.some(cell => cell !== null && cell !== undefined && cell !== '');
+            return hasData;
+        });
+
+        // --- Remove duplicate tickets: keep only the row with the most recent Column F value ---
+        const ticketNumberIdx = headers.findIndex(h => h && h.toLowerCase().includes('ticket'));
+        // If you want to use a specific header for column F, use its name, otherwise default to 5
+        const colFIndex = 5; // Column F is index 5 (A=0)
+        const ticketMap = {};
+        rows.forEach(row => {
+            const ticketNumber = row[ticketNumberIdx];
+            const colFVal = row[colFIndex];
+            let dateF = colFVal ? new Date(colFVal) : null;
+            if (!ticketNumber) return;
+            if (!ticketMap[ticketNumber]) {
+                ticketMap[ticketNumber] = { row, dateF };
+            } else {
+                const prevDate = ticketMap[ticketNumber].dateF;
+                if (dateF && (!prevDate || dateF > prevDate)) {
+                    ticketMap[ticketNumber] = { row, dateF };
+                }
+            }
+        });
+        const uniqueRows = Object.values(ticketMap).map(x => x.row);
+
+        // Now build originalData from uniqueRows
+        originalData = uniqueRows.map((row) => {
+            const ticket = {};
+            headers.forEach((header, index) => {
+                ticket[header] = row[index];
+            });
+
+            // Date Normalization
+            const dateFields = [
+                "Create Date",
+                "Scheduled Date",
+                "Complete Date",
+                "Create Time",
+                "Scheduled time"
+            ];
+            dateFields.forEach(field => {
+                if (ticket[field]) {
+                    const converted = convertExcelDate(ticket[field]);
+                    if (converted) ticket[field] = converted;
+                }
+            });
+
+            // SLA and At Risk logic
+            ticket['SLA Status'] = getSLAStatus(ticket);
+            const riskInfo = getAtRiskOfFailingSLA(ticket);
+            ticket['At Risk of Failing SLA'] = riskInfo.atRisk;
+            ticket['SLA Risk Level'] = riskInfo.riskLevel;
+
+            return ticket;
+        });
+        window.originalData = originalData;
+        window.dashboardData = window.originalData;
+        filteredData = [...originalData];
+
+        // region enrichment, progress bar, and dashboard init (same as before)...
+        // (these lines may be present elsewhere in your function)
+        updateLastUpdatedInfo();
+        // ...region enrichment code...
+        showProgress(100);
+        setTimeout(() => {
+            hideProgress();
+            initializeDashboard();
+        }, 500);
+
+    } catch (error) {
+        console.error('Error processing Excel data:', error);
+        alert('Error processing file. Please ensure it\'s a valid Excel file with ticket data.');
+        hideProgress();
+    }
+}
 
 
+
+
+        
 
 
 function isLikelyUKPostcode(pc) {
