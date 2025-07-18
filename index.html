@@ -3569,11 +3569,22 @@ function groupAtRiskTicketsByCustomer(tickets) {
 
 
 function showSLARiskCustomerModal(customer, tickets) {
+    // Deduplicate by Ticket Number if needed
+    const uniqueTickets = [];
+    const seenTicketNumbers = new Set();
+    tickets.forEach(t => {
+        const num = t['Ticket Number'];
+        if (!seenTicketNumbers.has(num)) {
+            uniqueTickets.push(t);
+            seenTicketNumbers.add(num);
+        }
+    });
+
     let modalHtml = `
-      <h2>SLA At Risk Tickets for ${customer} (${tickets.length})</h2>
+      <h2>SLA At Risk Tickets for ${customer} (${uniqueTickets.length})</h2>
       <div class="ticket-list" style="max-height:400px;overflow-y:auto;">
     `;
-    tickets.forEach(t => {
+    uniqueTickets.forEach(t => {
         // Date formatting
         const created = t['Create Date'] ? convertExcelDate(t['Create Date']) : null;
         const createdStr = created ? created.toLocaleDateString('en-GB') + ' ' + created.toLocaleTimeString('en-GB') : 'N/A';
@@ -3587,7 +3598,10 @@ function showSLARiskCustomerModal(customer, tickets) {
             : 'N/A';
 
         modalHtml += `
-            <div class="ticket-item">
+            <div class="ticket-item" style="background:#faf6ff;border:1.5px solid #b39ddb;border-radius:12px;padding:13px 16px;margin-bottom:18px;">
+                <div style="font-weight:bold;color:#764ba2;margin-bottom:3px;">
+                    Ticket #: ${t['Ticket Number'] || ''}
+                </div>
                 <div><b>Title:</b> ${t['Ticket Title'] || 'No title'}</div>
                 <div><b>Status:</b> ${t['Status'] || t['Satus'] || 'N/A'}</div>
                 <div><b>Created Date & Time:</b> ${createdStr}</div>
@@ -3611,7 +3625,6 @@ function showSLARiskCustomerModal(customer, tickets) {
         });
     }, 0);
 }
-
 
 
 function showSLARiskSchedulerModal(scheduler) {
