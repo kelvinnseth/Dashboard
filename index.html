@@ -199,6 +199,19 @@
             justify-content: center;
             align-items: center;
         }
+
+
+
+.clickable-region {
+    color: #764ba2;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 600;
+}
+.clickable-region:hover {
+    color: #26de81;
+}
+
         
         .ticket-details-content {
             background: white;
@@ -1082,6 +1095,41 @@ document.querySelectorAll('#reportTypeList button').forEach(btn => {
  * Usage:
  *   showModal({ title: "My Title", body: "<div>My HTML</div>" });
  */
+
+
+
+function showRegionCityModal(region) {
+    // Filter all tickets for this region
+    const ticketsInRegion = filteredData.filter(t => (t.Region || 'Unknown') === region);
+    // Group by City
+    const cityCounts = {};
+    ticketsInRegion.forEach(t => {
+        const city = t.City || "Unknown";
+        cityCounts[city] = (cityCounts[city] || 0) + 1;
+    });
+
+    // Build HTML for the modal (only one header!)
+    let html = `
+      <table class="pivot-table">
+        <thead>
+          <tr>
+            <th>City</th>
+            <th>Ticket Count</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    Object.entries(cityCounts)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([city, count]) => {
+            html += `<tr><td>${city}</td><td>${count}</td></tr>`;
+        });
+    html += `</tbody></table>`;
+
+    showModal({ title: `Cities in Region: ${region}`, body: html });
+}
+
+        
 
 function updateLastUpdatedInfo() {
     // Use window.originalData if available, fallback to filteredData
@@ -4079,6 +4127,7 @@ function closeModal() {
     document.getElementById('modal').classList.add('hidden');
 }
         
+// --- 1. updateRegionPivot: Make Region clickable ---
 function updateRegionPivot() {
     const regionCounts = groupBy(filteredData, t => t.Region || 'Unknown');
     const allRegions = Object.keys(regionCounts);
@@ -4110,7 +4159,7 @@ function updateRegionPivot() {
             })
             .sort((a, b) => b.total - a.total)
             .map(item => [
-                item.region,
+                `<span class="clickable-region" data-region="${encodeURIComponent(item.region)}">${item.region}</span>`,
                 item.total,
                 item.percent,
                 item.slaPerfDisplay
@@ -4123,7 +4172,43 @@ function updateRegionPivot() {
       </div>
     `;
     document.getElementById('regionPivot').innerHTML = html;
+
+    // --- Add region click handler ---
+    document.getElementById('regionPivot').onclick = function(e) {
+        if (e.target.classList.contains('clickable-region')) {
+            const region = decodeURIComponent(e.target.getAttribute('data-region'));
+            showRegionCityModal(region);
+        }
+    };
 }
+
+// --- 2. Modal function to show cities & count for a region ---
+function showRegionCityModal(region) {
+    // Filter all tickets for this region
+    const ticketsInRegion = filteredData.filter(t => (t.Region || 'Unknown') === region);
+    // Group by City
+    const cityCounts = {};
+    ticketsInRegion.forEach(t => {
+        const city = t.City || "Unknown";
+        cityCounts[city] = (cityCounts[city] || 0) + 1;
+    });
+
+    // Build HTML for the modal
+    let html = `<h2 style="margin-bottom:12px;">Cities in Region: ${region}</h2>`;
+    html += `<table class="pivot-table"><thead><tr><th>City</th><th>Ticket Count</th></tr></thead><tbody>`;
+    Object.entries(cityCounts)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([city, count]) => {
+            html += `<tr><td>${city}</td><td>${count}</td></tr>`;
+        });
+    html += `</tbody></table>`;
+
+    showModal({ title: `Cities in Region: ${region}`, body: html });
+}
+
+
+
+        
         
         function updateCustomerPivot() {
             const customerCounts = groupBy(filteredData, t => t.Customer || 'Unknown');
