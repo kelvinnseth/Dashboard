@@ -3590,13 +3590,48 @@ function showSLARiskCustomerModal(customer, tickets) {
       <div class="ticket-list" style="max-height:400px;overflow-y:auto;">
     `;
     uniqueTickets.forEach(t => {
-        // Date formatting
-        const created = t['Create Date'] ? convertExcelDate(t['Create Date']) : null;
-        const createdStr = created ? created.toLocaleDateString('en-GB') + ' ' + created.toLocaleTimeString('en-GB') : 'N/A';
-        const scheduled = t['Scheduled Date'] ? convertExcelDate(t['Scheduled Date']) : null;
-        const scheduledStr = scheduled ? scheduled.toLocaleDateString('en-GB') : 'N/A';
-        const scheduledTime = t['Scheduled time'] ? convertExcelDate(t['Scheduled time']) : null;
-        const scheduledTimeStr = scheduledTime ? ' ' + scheduledTime.toLocaleTimeString('en-GB') : '';
+        // --- Created Date & Time (from Create Date + Create Time) ---
+        let createdStr = 'N/A';
+        if (t['Create Date']) {
+            const createDate = convertExcelDate(t['Create Date']);
+            if (createDate && !isNaN(createDate.getTime())) {
+                createdStr = createDate.toLocaleDateString('en-GB');
+                // Try to add Create Time if present
+                if (t['Create Time']) {
+                    const createTime = convertExcelDate(t['Create Time']);
+                    if (createTime && !isNaN(createTime.getTime())) {
+                        createdStr += ' ' + createTime.toLocaleTimeString('en-GB');
+                    } else if (typeof t['Create Time'] === 'string') {
+                        createdStr += ' ' + t['Create Time'];
+                    }
+                } else {
+                    createdStr += ' ' + createDate.toLocaleTimeString('en-GB');
+                }
+            } else {
+                createdStr = t['Create Date'].toString();
+            }
+        }
+
+        // --- Scheduled Date & Time ---
+        let scheduledStr = 'N/A';
+        if (t['Scheduled Date']) {
+            const scheduledDate = convertExcelDate(t['Scheduled Date']);
+            if (scheduledDate && !isNaN(scheduledDate.getTime())) {
+                scheduledStr = scheduledDate.toLocaleDateString('en-GB');
+                if (t['Scheduled time']) {
+                    const scheduledTime = convertExcelDate(t['Scheduled time']);
+                    if (scheduledTime && !isNaN(scheduledTime.getTime())) {
+                        scheduledStr += ' ' + scheduledTime.toLocaleTimeString('en-GB');
+                    } else if (typeof t['Scheduled time'] === 'string') {
+                        scheduledStr += ' ' + t['Scheduled time'];
+                    }
+                }
+            } else {
+                scheduledStr = t['Scheduled Date'].toString();
+            }
+        }
+
+        // --- Scheduler clickable ---
         const scheduler = t['Scheduled By'] || 'N/A';
         const schedulerHtml = scheduler !== 'N/A'
             ? `<span class="clickable-scheduler" data-scheduler="${encodeURIComponent(scheduler)}">${scheduler}</span>`
@@ -3610,9 +3645,9 @@ function showSLARiskCustomerModal(customer, tickets) {
                 <div><b>Title:</b> ${t['Ticket Title'] || 'No title'}</div>
                 <div><b>Status:</b> ${t['Status'] || t['Satus'] || 'N/A'}</div>
                 <div><b>Created Date & Time:</b> ${createdStr}</div>
-                <div><b>Scheduled Date & Time:</b> ${scheduledStr}${scheduledTimeStr}</div>
+                <div><b>Scheduled Date & Time:</b> ${scheduledStr}</div>
                 <div><b>Scheduler:</b> ${schedulerHtml}</div>
-                <div><b>Region:</b> ${t['Region'] || 'N/A'}</div>
+                <div><b>City:</b> ${t['City'] || 'N/A'}</div>
                 <div><b>Primary Resource:</b> ${t['Primary Resource'] || 'N/A'}</div>
             </div>
         `;
@@ -3631,6 +3666,9 @@ function showSLARiskCustomerModal(customer, tickets) {
     }, 0);
 }
 
+
+
+        
 
 function showSLARiskSchedulerModal(scheduler) {
     // Get ALL at-risk tickets for this scheduler (across all customers)
